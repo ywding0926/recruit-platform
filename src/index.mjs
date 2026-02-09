@@ -10,6 +10,7 @@ import { renderPage, escapeHtml, statusBadge, followupBadge, offerStatusBadge, t
 import { getSupabaseAdmin, getBucketName, getSignedUrlExpiresIn, supabaseEnabled } from "./supabase.mjs";
 import { loadData, saveData, ensureDataShape, nowIso, rid, deleteFromSupabase, deleteCandidateRelated } from "./db.mjs";
 import { sessionMiddleware, registerAuthRoutes, requireLogin } from "./auth.mjs";
+import { feishuEnabled, sendFeishuMessage, createApprovalInstance } from "./feishu.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -1016,6 +1017,27 @@ app.post("/api/candidates/:id/status", requireLogin, async (req, res) => {
 
   pushEvent(d, { candidateId: c.id, type: "状态流转", message: "状态：" + old + " -> " + c.status, actor: req.user?.name || "系统" });
   await saveData(d);
+  // 飞书通知：状态变更
+  if (feishuEnabled() && req.user?.openId) {
+    sendFeishuMessage(req.user.openId,
+      `**候选人**：${c.name}\n**状态变更**：${old} → ${c.status}\n**操作人**：${req.user?.name || "系统"}`,
+      "候选人状态变更"
+    ).catch(() => {});
+  }
+  // --- 飞书消息通知：候选人状态变更时通知操作者 ---
+  if (feishuEnabled() && req.user?.provider === "feishu" && req.user?.openId) {
+    const msgContent =
+      `**候选人状态变更**\n` +
+      `- 候选人：${c.name || "未知"}\n` +
+      `- 状态变更：${old} -> ${c.status}\n` +
+      `- 操作人：${req.user.name || "系统"}\n` +
+      `- 时间：${c.updatedAt}`;
+    // 异步发送，不阻塞响应
+    sendFeishuMessage(req.user.openId, msgContent).catch((err) => {
+      console.warn("[Feishu] 状态变更通知发送失败:", err.message || err);
+    });
+  }
+
   res.json({ ok: true });
 });
 
@@ -1187,6 +1209,58 @@ app.post("/api/candidates/:id/offer", requireLogin, async (req, res) => {
   }
 
   await saveData(d);
+  // 飞书通知 + 审批：Offer 事件
+  if (feishuEnabled() && req.user?.openId) {
+    sendFeishuMessage(req.user.openId,
+      `**候选人**：${c.name}\n**Offer状态**：${offerStatus}\n**薪资**：${salary || "-"}\n**入职日期**：${startDate || "-"}`,
+      "Offer 通知"
+    ).catch(() => {});
+
+    const approvalCode = process.env.FEISHU_APPROVAL_CODE;
+    if (approvalCode && offerStatus === "待审批") {
+      createApprovalInstance(approvalCode, req.user.openId, [
+        { name: "候选人", value: c.name },
+        { name: "职位", value: c.jobTitle || c.jobId || "-" },
+        { name: "薪资", value: salary || "-" },
+        { name: "入职日期", value: startDate || "-" },
+        { name: "备注", value: note || "-" },
+      ]).catch(() => {});
+    }
+  }
+  // --- 飞书审批流：Offer 已发放时尝试创建审批实例 ---
+  if (offerStatus === "已发放" && feishuEnabled() && req.user?.provider === "feishu" && req.user?.openId) {
+    const approvalCode = (process.env.FEISHU_APPROVAL_CODE || "").trim();
+    if (approvalCode) {
+      // 查找关联的职位信息
+      const job = d.jobs.find((j) => j.id === c.jobId);
+      const formData = [
+        { id: "candidate_name", type: "input", value: c.name || "" },
+        { id: "job_title", type: "input", value: job?.title || c.jobTitle || "" },
+        { id: "salary", type: "input", value: salary || "" },
+        { id: "start_date", type: "input", value: startDate || "" },
+        { id: "note", type: "textarea", value: note || salaryNote || "" },
+      ];
+      // 异步创建审批，不阻塞响应
+      createApprovalInstance(approvalCode, req.user.openId, formData).catch((err) => {
+        console.warn("[Feishu] Offer审批创建失败:", err.message || err);
+      });
+    } else {
+      console.log("[Feishu] Offer已发放，但未配置 FEISHU_APPROVAL_CODE，跳过创建审批");
+    }
+
+    // 同时发飞书消息通知操作者
+    const msgContent =
+      `**Offer 已发放**\n` +
+      `- 候选人：${c.name || "未知"}\n` +
+      `- 职位：${(d.jobs.find((j) => j.id === c.jobId))?.title || c.jobTitle || "-"}\n` +
+      `- 薪资：${salary || "-"}\n` +
+      `- 入职日期：${startDate || "-"}\n` +
+      `- 操作人：${req.user.name || "系统"}`;
+    sendFeishuMessage(req.user.openId, msgContent).catch((err) => {
+      console.warn("[Feishu] Offer通知发送失败:", err.message || err);
+    });
+  }
+
   res.redirect("/candidates/" + c.id);
 });
 

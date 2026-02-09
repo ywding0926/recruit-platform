@@ -11,6 +11,8 @@ if (!url || !key) {
   console.error("Missing SUPABASE_URL or KEY");
   process.exit(1);
 }
+console.log("URL =", process.env.SUPABASE_URL);
+console.log("KEY head =", (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || "").slice(0, 20));
 
 const sb = createClient(url, key, { auth: { persistSession: false } });
 

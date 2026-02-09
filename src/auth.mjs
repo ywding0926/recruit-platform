@@ -1,7 +1,6 @@
 import cookieSession from "cookie-session";
+import { feishuEnabled, getFeishuAuthUrl, getFeishuUserByCode } from "./feishu.mjs";
 
-// Session 中间件：使用 cookie-session，数据存在客户端 cookie 中
-// 兼容 serverless（Vercel）和本地开发
 export function sessionMiddleware() {
   return cookieSession({
     name: "rp.sid",
@@ -13,10 +12,16 @@ export function sessionMiddleware() {
   });
 }
 
-// 登录页面渲染
 export function registerAuthRoutes(app, renderPage) {
   app.get("/login", (req, res) => {
     if (req.session?.user) return res.redirect("/candidates");
+
+    const feishuBtn = feishuEnabled()
+      ? `<div class="divider"></div>
+         <a href="/auth/feishu" class="btn" style="display:block;text-align:center;background:#3370ff;color:#fff;text-decoration:none;">
+           飞书登录
+         </a>`
+      : "";
 
     res.send(
       renderPage({
@@ -26,7 +31,7 @@ export function registerAuthRoutes(app, renderPage) {
         contentHtml: `
         <div class="card" style="max-width:560px;margin:30px auto;">
           <div style="font-weight:900;font-size:18px">登录 Recruit Platform</div>
-          <div class="muted">（MVP：先用姓名登录，后续再接飞书授权登录）</div>
+          <div class="muted">（MVP：先用姓名登录，或使用飞书授权登录）</div>
           <div class="divider"></div>
           <form method="POST" action="/login">
             <div class="field">
@@ -35,6 +40,7 @@ export function registerAuthRoutes(app, renderPage) {
             </div>
             <button class="btn primary" type="submit">进入系统</button>
           </form>
+          ${feishuBtn}
         </div>
       `,
       })
@@ -48,13 +54,31 @@ export function registerAuthRoutes(app, renderPage) {
     res.redirect("/candidates");
   });
 
+  app.get("/auth/feishu", (req, res) => {
+    if (!feishuEnabled()) return res.redirect("/login");
+    const url = getFeishuAuthUrl("login");
+    res.redirect(url);
+  });
+
+  app.get("/auth/feishu/callback", async (req, res) => {
+    try {
+      const code = req.query.code;
+      if (!code) return res.redirect("/login");
+      const user = await getFeishuUserByCode(code);
+      req.session.user = user;
+      res.redirect("/candidates");
+    } catch (e) {
+      console.error("[Feishu OAuth] 失败:", e.message);
+      res.redirect("/login");
+    }
+  });
+
   app.get("/logout", (req, res) => {
     req.session = null;
     res.redirect("/login");
   });
 }
 
-// 登录保护中间件
 export function requireLogin(req, res, next) {
   if (req.session?.user) {
     req.user = req.session.user;
