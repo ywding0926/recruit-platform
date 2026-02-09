@@ -119,7 +119,6 @@ async function saveResumeSupabaseOrLocal(d, candidateId, file, actorName) {
     pushEvent(d, { candidateId, type: "简历", message: "上传简历（Supabase）：" + meta.originalName, actor: actorName || "系统" });
     return meta;
   } catch (e) {
-    // serverless 环境下无法写本地文件，直接抛错
     if (isServerless) {
       throw new Error("简历上传失败（Supabase）：" + String(e?.message || e));
     }
@@ -186,7 +185,6 @@ function toolbarHtml({ jobs, sources, q = "", jobId = "", source = "", mode = "l
     '</div></div>' +
     '<script>function applyFilters(){var q=document.getElementById("q").value||"";var jobId=document.getElementById("jobId").value||"";var source=document.getElementById("source").value||"";var u=new URL(location.href);u.pathname="' + targetPath + '";if(q)u.searchParams.set("q",q);else u.searchParams.delete("q");if(jobId)u.searchParams.set("jobId",jobId);else u.searchParams.delete("jobId");if(source)u.searchParams.set("source",source);else u.searchParams.delete("source");location.href=u.toString()}</script>';
 }
-
 // ====== 概览 Dashboard（增强版）======
 app.get("/", requireLogin, async (req, res) => {
   const d = await loadData();
@@ -206,7 +204,6 @@ app.get("/", requireLogin, async (req, res) => {
   const hiredCount = byStatus["入职"];
   const rejectedCount = byStatus["淘汰"];
 
-  // 来源分析
   const bySource = {};
   for (const c of d.candidates) {
     const src = c.source || "未知";
@@ -219,7 +216,6 @@ app.get("/", requireLogin, async (req, res) => {
     return '<div style="margin-bottom:10px"><div class="row"><span>' + escapeHtml(name) + '</span><span class="spacer"></span><b>' + count + '</b></div><div class="bar"><div class="bar-fill bar-purple" style="width:' + pct + '%"></div></div></div>';
   }).join("");
 
-  // 岗位招聘进度
   const jobProgressHtml = d.jobs.slice(0, 8).map((j) => {
     const cands = d.candidates.filter((c) => c.jobId === j.id);
     const hired = cands.filter((c) => c.status === "入职").length;
@@ -229,18 +225,15 @@ app.get("/", requireLogin, async (req, res) => {
     return '<div style="margin-bottom:10px"><div class="row"><span style="font-weight:700">' + escapeHtml(j.title || "未命名") + '</span><span class="spacer"></span><span class="muted">' + hired + ' / ' + (hc || "?") + '</span></div><div class="bar"><div class="bar-fill ' + barColor + '" style="width:' + pct + '%"></div></div></div>';
   }).join("");
 
-  // Offer 统计
   const totalOffers = d.offers ? d.offers.length : 0;
   const acceptedOffers = d.offers ? d.offers.filter((o) => o.offerStatus === "已接受").length : 0;
   const pendingOffers = d.offers ? d.offers.filter((o) => o.offerStatus === "待发放" || o.offerStatus === "已发放").length : 0;
 
-  // 最近动态
   const recentEvents = (d.events || []).slice(0, 8);
   const recentHtml = recentEvents.length ? recentEvents.map((e) => {
     return '<div class="titem"><div class="tmeta"><b>' + escapeHtml(e.actor || "系统") + '</b><span class="badge gray" style="font-size:11px">' + escapeHtml(e.type || "-") + '</span><span class="muted">' + escapeHtml((e.createdAt || "").slice(0, 16)) + '</span></div><div class="tmsg" style="font-size:13px">' + escapeHtml(e.message || "").replaceAll("\n", "<br/>") + '</div></div>';
   }).join("") : '<div class="muted">暂无动态</div>';
 
-  // 状态漏斗
   const funnelHtml = STATUS_COLS.map((s) => {
     const count = byStatus[s.key] || 0;
     const pct = total > 0 ? Math.round((count / total) * 100) : 0;
@@ -575,7 +568,6 @@ app.post("/candidates/import", requireLogin, upload.single("csv"), async (req, r
     })
   );
 });
-
 // ====== 全部候选人（列表）======
 app.get("/candidates", requireLogin, async (req, res) => {
   const d = await loadData();
@@ -622,7 +614,6 @@ app.get("/candidates", requireLogin, async (req, res) => {
     return u.pathname + (u.searchParams.toString() ? "?" + u.searchParams.toString() : "");
   })();
 
-  // 构建简历查找 Map（只取有 url 的记录）
   const resumeMap = new Map();
   for (const r of d.resumeFiles) {
     if (!r.url) continue;
@@ -772,7 +763,6 @@ app.get("/candidates/board", requireLogin, async (req, res) => {
   STATUS_COLS.forEach((col) => { grouped[col.key] = []; countsByCol[col.key] = 0; });
   filtered.forEach((c) => { grouped[c.status].push(c); countsByCol[c.status] += 1; });
 
-  // 构建简历 Map 供看板卡片使用（只取有 url 的记录）
   const boardResumeMap = new Map();
   for (const r of d.resumeFiles) {
     if (!r.url) continue;
@@ -874,7 +864,6 @@ app.get("/candidates/:id", requireLogin, async (req, res) => {
     })
   );
 });
-
 // 删除候选人
 app.post("/candidates/:id/delete", requireLogin, async (req, res) => {
   const d = await loadData();
