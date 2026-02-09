@@ -1,0 +1,1243 @@
+{
+  "jobs": [
+    {
+      "id": "job_1770561062967_74bcf0c363d8cf6d",
+      "title": "测试",
+      "department": "测试",
+      "location": "",
+      "owner": "",
+      "headcount": null,
+      "level": "",
+      "state": "open",
+      "category": "",
+      "jd": "测试",
+      "createdAt": "2026-02-08T14:31:02.967+00:00",
+      "updatedAt": "2026-02-08T14:31:02.967+00:00"
+    }
+  ],
+  "candidates": [
+    {
+      "id": "c_f05a32abc0386d03",
+      "name": "111",
+      "phone": "111",
+      "email": "",
+      "jobId": "job_1po58htbmldohsnw",
+      "jobTitle": "1",
+      "source": "boss",
+      "note": "",
+      "status": "待筛选",
+      "tags": [],
+      "follow": {
+        "nextAction": "待联系",
+        "followAt": "",
+        "note": ""
+      },
+      "createdAt": "2026-02-08T16:05:36.830267+00:00",
+      "updatedAt": "2026-02-08T16:34:34.574Z"
+    },
+    {
+      "id": "c_1770567470365_408173eef36aa8e9",
+      "name": "简历测试",
+      "phone": "1111",
+      "email": "",
+      "jobId": "job_1770561062967_74bcf0c363d8cf6d",
+      "jobTitle": "测试",
+      "source": "boss",
+      "note": "",
+      "status": "待筛选",
+      "tags": [],
+      "follow": {
+        "nextAction": "待联系",
+        "followAt": "",
+        "note": ""
+      },
+      "createdAt": "2026-02-08T16:17:51.857283+00:00",
+      "updatedAt": "2026-02-08T16:17:51.857283+00:00"
+    },
+    {
+      "id": "c_b6e1eab302917c13",
+      "name": "电饭煲v",
+      "phone": "阿斯顿发的vb",
+      "email": "",
+      "jobId": "job_1po58htbmldohsnw",
+      "jobTitle": "1",
+      "source": "boss",
+      "note": "",
+      "status": "待筛选",
+      "tags": [],
+      "follow": {
+        "nextAction": "待联系",
+        "followAt": "",
+        "note": ""
+      },
+      "createdAt": "2026-02-08T16:05:36.830267+00:00",
+      "updatedAt": "2026-02-08T16:05:36.830267+00:00"
+    },
+    {
+      "id": "c_ntpboctomldofmvw",
+      "name": "我的风格n",
+      "phone": "都是重复v吧",
+      "email": "",
+      "jobId": "job_o0jIQ9xj",
+      "jobTitle": "agent",
+      "source": "boss",
+      "note": "",
+      "status": "待筛选",
+      "tags": [],
+      "follow": {
+        "nextAction": "待联系",
+        "followAt": "",
+        "note": ""
+      },
+      "createdAt": "2026-02-08T16:05:36.830267+00:00",
+      "updatedAt": "2026-02-08T16:05:36.830267+00:00"
+    },
+    {
+      "id": "c_1wc2opfrmldoc7ej",
+      "name": "史蒂夫的功夫你好吗",
+      "phone": "双方都不够",
+      "email": "",
+      "jobId": "job_DVdWxKKI",
+      "jobTitle": "ux",
+      "source": "boss",
+      "note": "",
+      "status": "待筛选",
+      "tags": [],
+      "follow": {
+        "nextAction": "待联系",
+        "followAt": "",
+        "note": ""
+      },
+      "createdAt": "2026-02-08T16:05:36.830267+00:00",
+      "updatedAt": "2026-02-08T16:05:36.830267+00:00"
+    },
+    {
+      "id": "c_TTL3Ego",
+      "name": "测试1",
+      "phone": "111",
+      "email": "",
+      "jobId": "job_o0jIQ9xj",
+      "jobTitle": "agent",
+      "source": "boss",
+      "note": "",
+      "status": "待筛选",
+      "tags": [],
+      "follow": {
+        "nextAction": "待联系",
+        "followAt": "",
+        "note": ""
+      },
+      "createdAt": "2026-02-08T16:05:36.830267+00:00",
+      "updatedAt": "2026-02-08T16:05:36.830267+00:00"
+    },
+    {
+      "id": "c_U2DlliI",
+      "name": "🐑",
+      "phone": "13245367",
+      "email": "",
+      "jobId": "job_o0jIQ9xj",
+      "jobTitle": "agent",
+      "source": "boss",
+      "note": "",
+      "status": "待筛选",
+      "tags": [],
+      "follow": {
+        "nextAction": "待联系",
+        "followAt": "",
+        "note": ""
+      },
+      "createdAt": "2026-02-08T16:05:36.830267+00:00",
+      "updatedAt": "2026-02-08T16:05:36.830267+00:00"
+    },
+    {
+      "id": "c_bKvmgIs",
+      "name": "不能",
+      "phone": "123",
+      "email": "",
+      "jobId": "job_o0jIQ9xj",
+      "jobTitle": "agent",
+      "source": "boss",
+      "note": "",
+      "status": "待筛选",
+      "tags": [],
+      "follow": {
+        "nextAction": "待联系",
+        "followAt": "",
+        "note": ""
+      },
+      "createdAt": "2026-02-08T16:05:36.830267+00:00",
+      "updatedAt": "2026-02-08T16:05:36.830267+00:00"
+    },
+    {
+      "id": "c_o-zENHs",
+      "name": "🐮1",
+      "phone": "不会v能吃吗",
+      "email": "",
+      "jobId": "job_o0jIQ9xj",
+      "jobTitle": "agent",
+      "source": "boss",
+      "note": "",
+      "status": "待筛选",
+      "tags": [],
+      "follow": {
+        "nextAction": "待联系",
+        "followAt": "",
+        "note": ""
+      },
+      "createdAt": "2026-02-08T16:05:36.830267+00:00",
+      "updatedAt": "2026-02-08T16:05:36.830267+00:00"
+    },
+    {
+      "id": "c_vv89yIo",
+      "name": "🐰",
+      "phone": "1232435",
+      "email": "",
+      "jobId": "job_o0jIQ9xj",
+      "jobTitle": "agent",
+      "source": "boss",
+      "note": "",
+      "status": "待筛选",
+      "tags": [],
+      "follow": {
+        "nextAction": "待联系",
+        "followAt": "",
+        "note": ""
+      },
+      "createdAt": "2026-02-08T16:05:36.830267+00:00",
+      "updatedAt": "2026-02-08T16:05:36.830267+00:00"
+    },
+    {
+      "id": "c__-gKk1k",
+      "name": "豆豆",
+      "phone": "124",
+      "email": "",
+      "jobId": "job_DVdWxKKI",
+      "jobTitle": "ux",
+      "source": "boss",
+      "note": "",
+      "status": "待筛选",
+      "tags": [],
+      "follow": {
+        "nextAction": "待联系",
+        "followAt": "",
+        "note": ""
+      },
+      "createdAt": "2026-02-08T16:05:36.830267+00:00",
+      "updatedAt": "2026-02-08T16:05:36.830267+00:00"
+    },
+    {
+      "id": "c_V_Ov81Ux",
+      "name": "土豆",
+      "phone": "120",
+      "email": "",
+      "jobId": "job_DVdWxKKI",
+      "jobTitle": "",
+      "source": "",
+      "note": "",
+      "status": "待筛选",
+      "tags": [],
+      "follow": {
+        "nextAction": "待联系",
+        "followAt": "",
+        "note": ""
+      },
+      "createdAt": "2026-02-08T16:05:36.830267+00:00",
+      "updatedAt": "2026-02-08T16:05:36.830267+00:00"
+    },
+    {
+      "id": "c_JLbcDu5M",
+      "name": "土豆",
+      "phone": "150",
+      "email": "",
+      "jobId": "",
+      "jobTitle": "",
+      "source": "猎头",
+      "note": "",
+      "status": "待筛选",
+      "tags": [],
+      "follow": {
+        "nextAction": "待联系",
+        "followAt": "",
+        "note": ""
+      },
+      "createdAt": "2026-02-08T16:05:36.830267+00:00",
+      "updatedAt": "2026-02-08T16:05:36.830267+00:00"
+    },
+    {
+      "id": "c_1770564610125_bba3c49ae0069e63",
+      "name": "33",
+      "phone": "333",
+      "email": "",
+      "jobId": "job_1770561062967_74bcf0c363d8cf6d",
+      "jobTitle": "测试",
+      "source": "boss",
+      "note": "",
+      "status": "待筛选",
+      "tags": [],
+      "follow": {
+        "nextAction": "待联系",
+        "followAt": "",
+        "note": ""
+      },
+      "createdAt": "2026-02-08T15:30:11.665054+00:00",
+      "updatedAt": "2026-02-08T15:30:11.665054+00:00"
+    },
+    {
+      "id": "c_1770561079190_9f1d9334bb2ed24c",
+      "name": "测试·1",
+      "phone": "111",
+      "email": "",
+      "jobId": "job_1770561062967_74bcf0c363d8cf6d",
+      "jobTitle": "测试",
+      "source": "boss",
+      "note": "",
+      "status": "待筛选",
+      "tags": [],
+      "follow": {
+        "nextAction": "待联系",
+        "followAt": "",
+        "note": ""
+      },
+      "createdAt": "2026-02-08T14:31:20.706154+00:00",
+      "updatedAt": "2026-02-08T14:31:20.706154+00:00"
+    },
+    {
+      "id": "test_1770544910073",
+      "name": "测试候选人",
+      "phone": "13800000000",
+      "email": "",
+      "jobId": "",
+      "jobTitle": "",
+      "source": "手动录入",
+      "note": "",
+      "status": "待筛选",
+      "tags": [],
+      "follow": {
+        "nextAction": "待联系",
+        "followAt": "",
+        "note": ""
+      },
+      "createdAt": "2026-02-08T10:01:51.890898+00:00",
+      "updatedAt": "2026-02-08T10:01:51.890898+00:00"
+    },
+    {
+      "id": "c_1770554000902_64996110c3",
+      "name": "22",
+      "phone": "213",
+      "email": "",
+      "jobId": "job_o0jIQ9xj",
+      "jobTitle": "agent",
+      "source": "boss",
+      "note": "",
+      "status": "待筛选",
+      "tags": [],
+      "follow": {
+        "nextAction": "待联系",
+        "followAt": "",
+        "note": ""
+      },
+      "createdAt": "2026-02-08T16:05:36.830267+00:00",
+      "updatedAt": "2026-02-08T16:05:36.830267+00:00"
+    }
+  ],
+  "interviews": [
+    {
+      "id": "rv_1770564435562_308f5b8859fc02c6",
+      "candidateId": "c_1770561079190_9f1d9334bb2ed24c",
+      "round": 1,
+      "status": "",
+      "rating": "",
+      "pros": "",
+      "cons": "",
+      "focusNext": "",
+      "note": "",
+      "createdAt": "2026-02-08T15:27:15.905176+00:00"
+    },
+    {
+      "id": "iv_JMV56DWY",
+      "candidateId": "c_JLbcDu5M",
+      "round": 1,
+      "status": "",
+      "rating": "",
+      "pros": "",
+      "cons": "",
+      "focusNext": "",
+      "note": "",
+      "createdAt": "2026-02-08T16:05:36.820247+00:00"
+    },
+    {
+      "id": "rv_Flzequk",
+      "candidateId": "c_V_Ov81Ux",
+      "round": 1,
+      "status": "",
+      "rating": "",
+      "pros": "",
+      "cons": "",
+      "focusNext": "",
+      "note": "",
+      "createdAt": "2026-02-08T16:05:36.820247+00:00"
+    },
+    {
+      "id": "rv_KYqi1D4",
+      "candidateId": "c_V_Ov81Ux",
+      "round": 4,
+      "status": "",
+      "rating": "",
+      "pros": "",
+      "cons": "",
+      "focusNext": "",
+      "note": "",
+      "createdAt": "2026-02-08T16:05:36.820247+00:00"
+    },
+    {
+      "id": "rv_O85aL6k",
+      "candidateId": "c__-gKk1k",
+      "round": 1,
+      "status": "",
+      "rating": "",
+      "pros": "",
+      "cons": "",
+      "focusNext": "",
+      "note": "",
+      "createdAt": "2026-02-08T16:05:36.820247+00:00"
+    }
+  ],
+  "interviewSchedules": [],
+  "resumeFiles": [
+    {
+      "id": "rf_1770566280814_084db22eb86ca5ad",
+      "candidateId": "c_1770564610125_bba3c49ae0069e63",
+      "filename": "c_1770564610125_bba3c49ae0069e63/resume_1770566279680_dc67112bf00f842d.pdf",
+      "originalName": "",
+      "contentType": "",
+      "size": 0,
+      "uploadedAt": "2026-02-08T15:58:01.097754+00:00",
+      "url": "",
+      "storage": "local",
+      "bucket": ""
+    },
+    {
+      "id": "rf_1770566292667_85fbe05379ad9ebb",
+      "candidateId": "c_1770564610125_bba3c49ae0069e63",
+      "filename": "c_1770564610125_bba3c49ae0069e63/resume_1770566291898_a22d5956f8cf94b8.pdf",
+      "originalName": "",
+      "contentType": "",
+      "size": 0,
+      "uploadedAt": "2026-02-08T15:58:13.07209+00:00",
+      "url": "",
+      "storage": "local",
+      "bucket": ""
+    },
+    {
+      "id": "rf_1770561080351_d5c3f933f47c80b4",
+      "candidateId": "c_1770561079190_9f1d9334bb2ed24c",
+      "filename": "c_1770561079190_9f1d9334bb2ed24c/resume_1770561079191_6b0a54ff3e8c0829.pdf",
+      "originalName": "",
+      "contentType": "",
+      "size": 0,
+      "uploadedAt": "2026-02-08T14:31:20.663769+00:00",
+      "url": "",
+      "storage": "local",
+      "bucket": ""
+    },
+    {
+      "id": "rf_1770564474205_ead5af4e91e7ffda",
+      "candidateId": "c_1770561079190_9f1d9334bb2ed24c",
+      "filename": "c_1770561079190_9f1d9334bb2ed24c/resume_1770564472805_8dbf2163f79f8b4c.pdf",
+      "originalName": "",
+      "contentType": "",
+      "size": 0,
+      "uploadedAt": "2026-02-08T15:27:54.530478+00:00",
+      "url": "",
+      "storage": "local",
+      "bucket": ""
+    },
+    {
+      "id": "rf_1770564475899_1a369a532e4a9d4e",
+      "candidateId": "c_1770561079190_9f1d9334bb2ed24c",
+      "filename": "c_1770561079190_9f1d9334bb2ed24c/resume_1770564475276_92bb23c532d517bb.pdf",
+      "originalName": "",
+      "contentType": "",
+      "size": 0,
+      "uploadedAt": "2026-02-08T15:27:56.243029+00:00",
+      "url": "",
+      "storage": "local",
+      "bucket": ""
+    },
+    {
+      "id": "rf_1770564484704_f47b18731ef4fb78",
+      "candidateId": "c_1770561079190_9f1d9334bb2ed24c",
+      "filename": "c_1770561079190_9f1d9334bb2ed24c/resume_1770564483149_596babb9bd78c67a.pdf",
+      "originalName": "",
+      "contentType": "",
+      "size": 0,
+      "uploadedAt": "2026-02-08T15:28:05.11842+00:00",
+      "url": "",
+      "storage": "local",
+      "bucket": ""
+    },
+    {
+      "id": "rf_1770566316876_74bc21adfe10a7e1",
+      "candidateId": "c_1770564610125_bba3c49ae0069e63",
+      "filename": "c_1770564610125_bba3c49ae0069e63/resume_1770566315575_d29a6906d5dd8ca0.pdf",
+      "originalName": "",
+      "contentType": "",
+      "size": 0,
+      "uploadedAt": "2026-02-08T15:58:37.248524+00:00",
+      "url": "",
+      "storage": "local",
+      "bucket": ""
+    },
+    {
+      "id": "rf_1770566485734_001dec65903f0835",
+      "candidateId": "c_1770564610125_bba3c49ae0069e63",
+      "filename": "c_1770564610125_bba3c49ae0069e63/resume_1770566484682_3e93290d26a9ad2c.pdf",
+      "originalName": "ãæ³å¡å®ä¹ ç_ä¸æµ· 200-210å_å¤©ãå¼ æ ©æ§ 28å¹´åºå±ç.pdf",
+      "contentType": "application/pdf",
+      "size": 153816,
+      "uploadedAt": "2026-02-08T16:01:25.734Z",
+      "storage": "supabase",
+      "bucket": "resumes",
+      "url": "https://bijwqlcvrrvnacqthaov.supabase.co/storage/v1/object/sign/resumes/c_1770564610125_bba3c49ae0069e63/resume_1770566484682_3e93290d26a9ad2c.pdf?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV84M2M0ZmFiOS1lNGNiLTRiOWItOWQxYy00ZGI2Mjk3ZTNkNWUiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJyZXN1bWVzL2NfMTc3MDU2NDYxMDEyNV9iYmEzYzQ5YWUwMDY5ZTYzL3Jlc3VtZV8xNzcwNTY2NDg0NjgyXzNlOTMyOTBkMjZhOWFkMmMucGRmIiwiaWF0IjoxNzcwNTY2NDg1LCJleHAiOjE3NzA1NzAwODV9.tSB8HdlgkteP6DtIfKUACfcvuCLaKCH17xg8NK-MAQU"
+    },
+    {
+      "id": "rf_1770566316098_0dc6a75192dd6c56",
+      "candidateId": "c_1770564610125_bba3c49ae0069e63",
+      "filename": "c_1770564610125_bba3c49ae0069e63/resume_1770566314477_d77a14939b2d2385.pdf",
+      "originalName": "",
+      "contentType": "",
+      "size": 0,
+      "uploadedAt": "2026-02-08T15:58:36.4772+00:00",
+      "url": "",
+      "storage": "local",
+      "bucket": ""
+    },
+    {
+      "id": "rf_1770564611251_da59ff03c61f1e5e",
+      "candidateId": "c_1770564610125_bba3c49ae0069e63",
+      "filename": "c_1770564610125_bba3c49ae0069e63/resume_1770564610125_2ee763d414de1c1e.pdf",
+      "originalName": "",
+      "contentType": "",
+      "size": 0,
+      "uploadedAt": "2026-02-08T15:30:11.634587+00:00",
+      "url": "",
+      "storage": "local",
+      "bucket": ""
+    },
+    {
+      "id": "rf_1770565409873_873e5c9548eb5457",
+      "candidateId": "c_1770564610125_bba3c49ae0069e63",
+      "filename": "c_1770564610125_bba3c49ae0069e63/resume_1770565408032_88bc09b131d4fdc9.pdf",
+      "originalName": "",
+      "contentType": "",
+      "size": 0,
+      "uploadedAt": "2026-02-08T15:43:30.223869+00:00",
+      "url": "",
+      "storage": "local",
+      "bucket": ""
+    },
+    {
+      "id": "rf_1770565496874_441956d9ab9c303a",
+      "candidateId": "c_1770564610125_bba3c49ae0069e63",
+      "filename": "c_1770564610125_bba3c49ae0069e63/resume_1770565495688_0744527727260a24.pdf",
+      "originalName": "",
+      "contentType": "",
+      "size": 0,
+      "uploadedAt": "2026-02-08T15:44:57.202123+00:00",
+      "url": "",
+      "storage": "local",
+      "bucket": ""
+    },
+    {
+      "id": "rf_qlif1mU",
+      "candidateId": "c_JLbcDu5M",
+      "filename": "resume_fguUbfM.pdf",
+      "originalName": "",
+      "contentType": "",
+      "size": 0,
+      "uploadedAt": "2026-02-08T16:05:36.861237+00:00",
+      "url": "",
+      "storage": "local",
+      "bucket": ""
+    },
+    {
+      "id": "rf_1xQCtw8",
+      "candidateId": "c_V_Ov81Ux",
+      "filename": "resume_S_yfzo0.pdf",
+      "originalName": "",
+      "contentType": "",
+      "size": 0,
+      "uploadedAt": "2026-02-08T16:05:36.861237+00:00",
+      "url": "",
+      "storage": "local",
+      "bucket": ""
+    },
+    {
+      "id": "rf_avUlWl0",
+      "candidateId": "c_V_Ov81Ux",
+      "filename": "resume_zgmVz5g.pdf",
+      "originalName": "",
+      "contentType": "",
+      "size": 0,
+      "uploadedAt": "2026-02-08T16:05:36.861237+00:00",
+      "url": "",
+      "storage": "local",
+      "bucket": ""
+    },
+    {
+      "id": "rf_GXfq-O0",
+      "candidateId": "c__-gKk1k",
+      "filename": "resume_0ctyUO8.pdf",
+      "originalName": "",
+      "contentType": "",
+      "size": 0,
+      "uploadedAt": "2026-02-08T16:05:36.861237+00:00",
+      "url": "",
+      "storage": "local",
+      "bucket": ""
+    },
+    {
+      "id": "rf_-jctWow",
+      "candidateId": "c_vv89yIo",
+      "filename": "resume_xiEJh4w.pdf",
+      "originalName": "",
+      "contentType": "",
+      "size": 0,
+      "uploadedAt": "2026-02-08T16:05:36.861237+00:00",
+      "url": "",
+      "storage": "local",
+      "bucket": ""
+    },
+    {
+      "id": "rf_BMbzY_c",
+      "candidateId": "c_bKvmgIs",
+      "filename": "resume_SxdO2oA.pdf",
+      "originalName": "",
+      "contentType": "",
+      "size": 0,
+      "uploadedAt": "2026-02-08T16:05:36.861237+00:00",
+      "url": "",
+      "storage": "local",
+      "bucket": ""
+    },
+    {
+      "id": "rf__ZgHAUw",
+      "candidateId": "c_U2DlliI",
+      "filename": "resume_UI9phMo.pdf",
+      "originalName": "",
+      "contentType": "",
+      "size": 0,
+      "uploadedAt": "2026-02-08T16:05:36.861237+00:00",
+      "url": "",
+      "storage": "local",
+      "bucket": ""
+    },
+    {
+      "id": "rf_H4ij99A",
+      "candidateId": "c_TTL3Ego",
+      "filename": "resume_Y3WZQoM.pdf",
+      "originalName": "",
+      "contentType": "",
+      "size": 0,
+      "uploadedAt": "2026-02-08T16:05:36.861237+00:00",
+      "url": "",
+      "storage": "local",
+      "bucket": ""
+    },
+    {
+      "id": "rf_othhtrurmldoc9j0",
+      "candidateId": "c_1wc2opfrmldoc7ej",
+      "filename": "c_1wc2opfrmldoc7ej/resume_xb4j1ye1mldoc7ej.pdf",
+      "originalName": "",
+      "contentType": "",
+      "size": 0,
+      "uploadedAt": "2026-02-08T16:05:36.861237+00:00",
+      "url": "",
+      "storage": "local",
+      "bucket": ""
+    },
+    {
+      "id": "rf_wbuznj6lmldofokn",
+      "candidateId": "c_ntpboctomldofmvw",
+      "filename": "c_ntpboctomldofmvw/resume_vo26befzmldofmvw.pdf",
+      "originalName": "",
+      "contentType": "",
+      "size": 0,
+      "uploadedAt": "2026-02-08T16:05:36.861237+00:00",
+      "url": "",
+      "storage": "local",
+      "bucket": ""
+    },
+    {
+      "id": "rf_f035dc4792fc379a",
+      "candidateId": "c_b6e1eab302917c13",
+      "filename": "resume_989411b9401d2b67.pdf",
+      "originalName": "",
+      "contentType": "",
+      "size": 0,
+      "uploadedAt": "2026-02-08T16:05:36.861237+00:00",
+      "url": "",
+      "storage": "local",
+      "bucket": ""
+    },
+    {
+      "id": "rf_0a398be0cbb1cb2e",
+      "candidateId": "c_f05a32abc0386d03",
+      "filename": "resume_cda55f81290d1c25.pdf",
+      "originalName": "",
+      "contentType": "",
+      "size": 0,
+      "uploadedAt": "2026-02-08T16:05:36.861237+00:00",
+      "url": "",
+      "storage": "local",
+      "bucket": ""
+    },
+    {
+      "id": "rf_1770554000905_fa3f2ae215",
+      "candidateId": "c_1770554000902_64996110c3",
+      "filename": "resume_1770554000903_11ed135dc6.pdf",
+      "originalName": "",
+      "contentType": "",
+      "size": 0,
+      "uploadedAt": "2026-02-08T16:05:36.861237+00:00",
+      "url": "",
+      "storage": "local",
+      "bucket": ""
+    },
+    {
+      "id": "rf_1770566736365_5031864875de8c2c",
+      "candidateId": "c_1770564610125_bba3c49ae0069e63",
+      "filename": "c_1770564610125_bba3c49ae0069e63/resume_1770566735127_20ce44f8848eb8b4.pdf",
+      "originalName": "",
+      "contentType": "",
+      "size": 0,
+      "uploadedAt": "2026-02-08T16:05:36.861237+00:00",
+      "url": "",
+      "storage": "local",
+      "bucket": ""
+    },
+    {
+      "id": "rf_1770567471548_e19bb07b41e0341d",
+      "candidateId": "c_1770567470365_408173eef36aa8e9",
+      "filename": "c_1770567470365_408173eef36aa8e9/resume_1770567470375_4d09af4856e06790.pdf",
+      "originalName": "ãæµè¯å¼åå·¥ç¨å¸_ä¸æµ· 30-60Kãå´ç 8å¹´.pdf",
+      "contentType": "application/pdf",
+      "size": 439309,
+      "uploadedAt": "2026-02-08T16:17:51.548Z",
+      "storage": "supabase",
+      "bucket": "resumes",
+      "url": "https://bijwqlcvrrvnacqthaov.supabase.co/storage/v1/object/sign/resumes/c_1770567470365_408173eef36aa8e9/resume_1770567470375_4d09af4856e06790.pdf?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV84M2M0ZmFiOS1lNGNiLTRiOWItOWQxYy00ZGI2Mjk3ZTNkNWUiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJyZXN1bWVzL2NfMTc3MDU2NzQ3MDM2NV80MDgxNzNlZWYzNmFhOGU5L3Jlc3VtZV8xNzcwNTY3NDcwMzc1XzRkMDlhZjQ4NTZlMDY3OTAucGRmIiwiaWF0IjoxNzcwNTY3NDcxLCJleHAiOjE3NzA1NzEwNzF9.jAuQPl_1P0OcujxNwoTG9bOtofXxRn8x7xSaxihUcls"
+    },
+    {
+      "id": "rf_1770568474574_0d0e2a7a9fed6350",
+      "candidateId": "c_f05a32abc0386d03",
+      "filename": "c_f05a32abc0386d03/resume_1770568473314_b51ad1805e5f6135.pdf",
+      "originalName": "ãæµè¯å¼åå·¥ç¨å¸_ä¸æµ· 30-60Kãå´ç 8å¹´.pdf",
+      "contentType": "application/pdf",
+      "size": 439309,
+      "uploadedAt": "2026-02-08T16:34:34.574Z",
+      "storage": "supabase",
+      "bucket": "resumes",
+      "url": "https://bijwqlcvrrvnacqthaov.supabase.co/storage/v1/object/sign/resumes/c_f05a32abc0386d03/resume_1770568473314_b51ad1805e5f6135.pdf?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV84M2M0ZmFiOS1lNGNiLTRiOWItOWQxYy00ZGI2Mjk3ZTNkNWUiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJyZXN1bWVzL2NfZjA1YTMyYWJjMDM4NmQwMy9yZXN1bWVfMTc3MDU2ODQ3MzMxNF9iNTFhZDE4MDVlNWY2MTM1LnBkZiIsImlhdCI6MTc3MDU2ODQ3NCwiZXhwIjoxNzcwNTcyMDc0fQ.bknk-a7wAG8fSdEsH7skk6sA8Dh_dcTv4CMdqQEYiyo"
+    }
+  ],
+  "events": [
+    {
+      "id": "ev_1770568474574_5bc05443ced2fab8",
+      "candidateId": "c_f05a32abc0386d03",
+      "type": "简历",
+      "message": "上传简历（Supabase）：ãæµè¯å¼åå·¥ç¨å¸_ä¸æµ· 30-60Kãå´ç 8å¹´.pdf",
+      "actor": "土豆",
+      "createdAt": "2026-02-08T16:34:34.574Z"
+    },
+    {
+      "id": "ev_1770567471548_c5530de988ba2e25",
+      "candidateId": "c_1770567470365_408173eef36aa8e9",
+      "type": "简历",
+      "message": "上传简历（Supabase）：ãæµè¯å¼åå·¥ç¨å¸_ä¸æµ· 30-60Kãå´ç 8å¹´.pdf",
+      "actor": "土豆",
+      "createdAt": "2026-02-08T16:17:51.548+00:00"
+    },
+    {
+      "id": "ev_1770567470375_bebafd190de9d700",
+      "candidateId": "c_1770567470365_408173eef36aa8e9",
+      "type": "创建",
+      "message": "创建候选人：简历测试（岗位：测试）",
+      "actor": "土豆",
+      "createdAt": "2026-02-08T16:17:50.375+00:00"
+    },
+    {
+      "id": "ev_1770566736365_9abe9dc41f2926e6",
+      "candidateId": "c_1770564610125_bba3c49ae0069e63",
+      "type": "简历",
+      "message": "上传简历（Supabase）：test_resume.pdf",
+      "actor": "test",
+      "createdAt": "2026-02-08T16:05:36.365+00:00"
+    },
+    {
+      "id": "ev_1770564475899_2bf5ab53691d9b3b",
+      "candidateId": "c_1770561079190_9f1d9334bb2ed24c",
+      "type": "简历",
+      "message": "上传简历（Supabase）：ãæµè¯å¼åå·¥ç¨å¸_ä¸æµ· 30-60Kãå´ç 8å¹´.pdf",
+      "actor": "土豆",
+      "createdAt": "2026-02-08T15:27:55.899+00:00"
+    },
+    {
+      "id": "ev_1770566316098_d748feeaf1ea5680",
+      "candidateId": "c_1770564610125_bba3c49ae0069e63",
+      "type": "简历",
+      "message": "上传简历（Supabase）：ãäº§åè¿è¥ï¼AIåºæµ·æ¹åï¼_ä¸æµ· 25-40Kãé©¬å©å® 4å¹´.pdf",
+      "actor": "土豆",
+      "createdAt": "2026-02-08T15:58:36.098+00:00"
+    },
+    {
+      "id": "ev_1770566316876_77b548f369921986",
+      "candidateId": "c_1770564610125_bba3c49ae0069e63",
+      "type": "简历",
+      "message": "上传简历（Supabase）：ãäº§åè¿è¥ï¼AIåºæµ·æ¹åï¼_ä¸æµ· 25-40Kãé©¬å©å® 4å¹´.pdf",
+      "actor": "土豆",
+      "createdAt": "2026-02-08T15:58:36.876+00:00"
+    },
+    {
+      "id": "ev_1770564474206_5e89cabb8aee91f4",
+      "candidateId": "c_1770561079190_9f1d9334bb2ed24c",
+      "type": "简历",
+      "message": "上传简历（Supabase）：ãæµè¯å¼åå·¥ç¨å¸_ä¸æµ· 30-60Kãå´ç 8å¹´.pdf",
+      "actor": "土豆",
+      "createdAt": "2026-02-08T15:27:54.206+00:00"
+    },
+    {
+      "id": "ev_1770564435562_e138876093d389bb",
+      "candidateId": "c_1770561079190_9f1d9334bb2ed24c",
+      "type": "状态同步",
+      "message": "因面评更新，状态：待筛选 -> 一面通过",
+      "actor": "系统",
+      "createdAt": "2026-02-08T15:27:15.562+00:00"
+    },
+    {
+      "id": "ev_1770564435562_d6fad00a41aaa274",
+      "candidateId": "c_1770561079190_9f1d9334bb2ed24c",
+      "type": "面评",
+      "message": "第1轮：进度=一面通过，评级=A\nPros：1\nCons：1",
+      "actor": "土豆",
+      "createdAt": "2026-02-08T15:27:15.562+00:00"
+    },
+    {
+      "id": "ev_1770561080352_accb20077f8a299f",
+      "candidateId": "c_1770561079190_9f1d9334bb2ed24c",
+      "type": "简历",
+      "message": "上传简历（Supabase）：ãæµè¯å¼åå·¥ç¨å¸_ä¸æµ· 30-60Kãå´ç 8å¹´.pdf",
+      "actor": "cvb",
+      "createdAt": "2026-02-08T14:31:20.352+00:00"
+    },
+    {
+      "id": "ev_1770561079190_add1b86cac147a52",
+      "candidateId": "c_1770561079190_9f1d9334bb2ed24c",
+      "type": "创建",
+      "message": "创建候选人：测试·1（岗位：测试）",
+      "actor": "cvb",
+      "createdAt": "2026-02-08T14:31:19.19+00:00"
+    },
+    {
+      "id": "ev_1770565409874_489abcae5056a54f",
+      "candidateId": "c_1770564610125_bba3c49ae0069e63",
+      "type": "简历",
+      "message": "上传简历（Supabase）：ãæµè¯å¼åå·¥ç¨å¸_ä¸æµ· 30-60Kãå´ç 8å¹´.pdf",
+      "actor": "土豆",
+      "createdAt": "2026-02-08T15:43:29.874+00:00"
+    },
+    {
+      "id": "ev_1770566280815_03ba6e076225b5eb",
+      "candidateId": "c_1770564610125_bba3c49ae0069e63",
+      "type": "简历",
+      "message": "上传简历（Supabase）：ãæ³å¡å®ä¹ ç_ä¸æµ· 200-210å_å¤©ãåªèæ£ 26å¹´åºå±ç.pdf",
+      "actor": "土豆",
+      "createdAt": "2026-02-08T15:58:00.815+00:00"
+    },
+    {
+      "id": "ev_1770565496877_edfe220f5b84e150",
+      "candidateId": "c_1770564610125_bba3c49ae0069e63",
+      "type": "简历",
+      "message": "上传简历（Supabase）：ãæµè¯å¼åå·¥ç¨å¸_ä¸æµ· 30-60Kãå´ç 8å¹´.pdf",
+      "actor": "土豆",
+      "createdAt": "2026-02-08T15:44:56.877+00:00"
+    },
+    {
+      "id": "ev_1770564610125_2183e8f86fe1e8e7",
+      "candidateId": "c_1770564610125_bba3c49ae0069e63",
+      "type": "创建",
+      "message": "创建候选人：33（岗位：测试）",
+      "actor": "土豆",
+      "createdAt": "2026-02-08T15:30:10.125+00:00"
+    },
+    {
+      "id": "ev_1770564611251_95f5f670a08f1cf4",
+      "candidateId": "c_1770564610125_bba3c49ae0069e63",
+      "type": "简历",
+      "message": "上传简历（Supabase）：ãäº§åè¿è¥ï¼AIåºæµ·æ¹åï¼_ä¸æµ· 25-40Kãé©¬å©å® 4å¹´.pdf",
+      "actor": "土豆",
+      "createdAt": "2026-02-08T15:30:11.251+00:00"
+    },
+    {
+      "id": "ev_1770566485738_495446f642458583",
+      "candidateId": "c_1770564610125_bba3c49ae0069e63",
+      "type": "简历",
+      "message": "上传简历（Supabase）：ãæ³å¡å®ä¹ ç_ä¸æµ· 200-210å_å¤©ãå¼ æ ©æ§ 28å¹´åºå±ç.pdf",
+      "actor": "土豆",
+      "createdAt": "2026-02-08T16:01:25.738+00:00"
+    },
+    {
+      "id": "ev_1770566292668_c50d271b48e6cdbe",
+      "candidateId": "c_1770564610125_bba3c49ae0069e63",
+      "type": "简历",
+      "message": "上传简历（Supabase）：ãæ³å¡å®ä¹ ç_ä¸æµ· 200-210å_å¤©ãçä½³ç¦ 29å¹´åºå±ç.pdf",
+      "actor": "土豆",
+      "createdAt": "2026-02-08T15:58:12.668+00:00"
+    },
+    {
+      "id": "ev_1770564484704_49075f1df23a0cb2",
+      "candidateId": "c_1770561079190_9f1d9334bb2ed24c",
+      "type": "简历",
+      "message": "上传简历（Supabase）：ãæµè¯å¼åå·¥ç¨å¸_ä¸æµ· 30-60Kãå´ç 8å¹´.pdf",
+      "actor": "土豆",
+      "createdAt": "2026-02-08T15:28:04.704+00:00"
+    },
+    {
+      "id": "ev_1770567167947_7687aa7118ecb1d6",
+      "candidateId": "c_1770564610125_bba3c49ae0069e63",
+      "type": "简历",
+      "message": "上传简历（Supabase）：verify_resume.pdf",
+      "actor": "test",
+      "createdAt": "2026-02-08T16:12:47.947+00:00"
+    },
+    {
+      "id": "ev_1770554000905_3e0e03ceb5",
+      "candidateId": "c_1770554000902_64996110c3",
+      "type": "简历",
+      "message": "上传简历（本地回退）：【测试开发工程师_上海 30-60K】吴瑞 8年.pdf\n原因：getSupabaseAdmin is not defined",
+      "actor": "dyw",
+      "createdAt": "2026-02-08T12:33:20.905+00:00"
+    },
+    {
+      "id": "ev_1770554000902_66e26d8a76",
+      "candidateId": "c_1770554000902_64996110c3",
+      "type": "创建",
+      "message": "创建候选人：22（岗位：agent）",
+      "actor": "dyw",
+      "createdAt": "2026-02-08T12:33:20.902+00:00"
+    },
+    {
+      "id": "ev_3835bd1e7fe432fd",
+      "candidateId": "c_f05a32abc0386d03",
+      "type": "简历",
+      "message": "上传简历（本地回退）：【法务实习生_上海 200-210元_天】王佳琦 29年应届生.pdf\n原因：[Supabase] Missing env: SUPABASE_URL",
+      "actor": "dyw",
+      "createdAt": "2026-02-08T12:05:30.145+00:00"
+    },
+    {
+      "id": "ev_9e2eedebfe5b8617",
+      "candidateId": "c_f05a32abc0386d03",
+      "type": "创建",
+      "message": "创建候选人：111（岗位：1）",
+      "actor": "dyw",
+      "createdAt": "2026-02-08T12:05:30.143+00:00"
+    },
+    {
+      "id": "ev_eac2ea58521a9520",
+      "candidateId": "c_b6e1eab302917c13",
+      "type": "简历",
+      "message": "上传简历（本地回退）：【法务实习生_上海 200-210元_天】倪芝棋 26年应届生.pdf\n原因：Missing env: SUPABASE_URL",
+      "actor": "dyw",
+      "createdAt": "2026-02-08T11:58:01.695+00:00"
+    },
+    {
+      "id": "ev_2dab643211697af7",
+      "candidateId": "c_b6e1eab302917c13",
+      "type": "创建",
+      "message": "创建候选人：电饭煲v（岗位：1）",
+      "actor": "dyw",
+      "createdAt": "2026-02-08T11:58:01.693+00:00"
+    },
+    {
+      "id": "ev_lqzm8p5wmldofokn",
+      "candidateId": "c_ntpboctomldofmvw",
+      "type": "简历",
+      "message": "上传简历（Supabase）：【产品运营（AI出海方向）_上海 25-40K】马婉宁 4年.pdf",
+      "actor": "dyw",
+      "createdAt": "2026-02-08T11:45:41.927+00:00"
+    },
+    {
+      "id": "ev_0c39y704mldofmvw",
+      "candidateId": "c_ntpboctomldofmvw",
+      "type": "创建",
+      "message": "创建候选人：我的风格n（岗位：agent）",
+      "actor": "dyw",
+      "createdAt": "2026-02-08T11:45:39.74+00:00"
+    },
+    {
+      "id": "ev_5gmjwrl1mldoc9j0",
+      "candidateId": "c_1wc2opfrmldoc7ej",
+      "type": "简历",
+      "message": "上传简历（Supabase）：【产品运营（AI出海方向）_上海 25-40K】马婉宁 4年.pdf",
+      "actor": "dyw",
+      "createdAt": "2026-02-08T11:43:02.46+00:00"
+    },
+    {
+      "id": "ev_o6i0mi1kmldoc7ej",
+      "candidateId": "c_1wc2opfrmldoc7ej",
+      "type": "创建",
+      "message": "创建候选人：史蒂夫的功夫你好吗（岗位：ux）",
+      "actor": "dyw",
+      "createdAt": "2026-02-08T11:42:59.707+00:00"
+    },
+    {
+      "id": "ev_2xydBsU",
+      "candidateId": "c_TTL3Ego",
+      "type": "简历",
+      "message": "上传简历：【测试开发工程师_上海 30-60K】吴瑞 8年.pdf",
+      "actor": "dyw",
+      "createdAt": "2026-02-08T10:07:38+00:00"
+    },
+    {
+      "id": "ev_1kxaArc",
+      "candidateId": "c_TTL3Ego",
+      "type": "创建",
+      "message": "创建候选人：测试1（岗位：agent）",
+      "actor": "dyw",
+      "createdAt": "2026-02-08T10:07:38+00:00"
+    },
+    {
+      "id": "ev_rdmCzzE",
+      "candidateId": "c_U2DlliI",
+      "type": "简历",
+      "message": "上传简历：【海外新媒体运营（城市主编）_上海 25-40K】毕明悦 6年.pdf",
+      "actor": "dyw",
+      "createdAt": "2026-02-08T10:05:29+00:00"
+    },
+    {
+      "id": "ev_6reOoQA",
+      "candidateId": "c_U2DlliI",
+      "type": "创建",
+      "message": "创建候选人：🐑（岗位：agent）",
+      "actor": "dyw",
+      "createdAt": "2026-02-08T10:05:29+00:00"
+    },
+    {
+      "id": "ev_E7tb4sY",
+      "candidateId": "c_bKvmgIs",
+      "type": "简历",
+      "message": "上传简历：【法务实习生_上海 200-210元_天】张栩槟 28年应届生.pdf",
+      "actor": "dyw",
+      "createdAt": "2026-02-07T12:06:45+00:00"
+    },
+    {
+      "id": "ev_1770567174566_73fe0f2fb89c03fc",
+      "candidateId": "c_1770564610125_bba3c49ae0069e63",
+      "type": "简历",
+      "message": "上传简历（Supabase）：verify_resume.pdf",
+      "actor": "test",
+      "createdAt": "2026-02-08T16:12:54.566+00:00"
+    },
+    {
+      "id": "ev_BBjubCg",
+      "candidateId": "c_bKvmgIs",
+      "type": "创建",
+      "message": "创建候选人：不能（岗位：agent）",
+      "actor": "dyw",
+      "createdAt": "2026-02-07T12:06:45+00:00"
+    },
+    {
+      "id": "ev_GJC3E8k",
+      "candidateId": "c_o-zENHs",
+      "type": "创建",
+      "message": "创建候选人：🐮1（岗位：agent）",
+      "actor": "dyw",
+      "createdAt": "2026-02-07T12:06:03+00:00"
+    },
+    {
+      "id": "ev_kDsKaPY",
+      "candidateId": "c_vv89yIo",
+      "type": "简历",
+      "message": "上传简历：【法务实习生_上海 200-210元_天】张栩槟 28年应届生.pdf",
+      "actor": "dyw",
+      "createdAt": "2026-02-07T11:52:38+00:00"
+    },
+    {
+      "id": "ev_opccDuE",
+      "candidateId": "c_vv89yIo",
+      "type": "创建",
+      "message": "创建候选人：🐰（岗位：agent）",
+      "actor": "dyw",
+      "createdAt": "2026-02-07T11:52:38+00:00"
+    },
+    {
+      "id": "ev_fmw4jjU",
+      "candidateId": "c__-gKk1k",
+      "type": "面评",
+      "message": "第1轮：进度=待筛选，评级=S\nPros：好\nCons：坏\n下一轮考察：喝酒",
+      "actor": "dyw",
+      "createdAt": "2026-02-07T11:38:18+00:00"
+    },
+    {
+      "id": "ev_AO5LLRU",
+      "candidateId": "c_JLbcDu5M",
+      "type": "状态流转",
+      "message": "状态：待一面 → 二面通过",
+      "actor": "dyw",
+      "createdAt": "2026-02-07T11:34:12+00:00"
+    },
+    {
+      "id": "ev_Y32kfdU",
+      "candidateId": "c__-gKk1k",
+      "type": "简历",
+      "message": "上传简历：【海外投放与渠道运营_上海 30-60K】Ling 10年.pdf（本地回退）",
+      "actor": "dyw",
+      "createdAt": "2026-02-07T11:26:26+00:00"
+    },
+    {
+      "id": "ev_PTaMUn4",
+      "candidateId": "c__-gKk1k",
+      "type": "创建",
+      "message": "创建候选人：豆豆（岗位：ux）",
+      "actor": "dyw",
+      "createdAt": "2026-02-07T11:26:15+00:00"
+    },
+    {
+      "id": "ev_3yyGuAw",
+      "candidateId": "c_V_Ov81Ux",
+      "type": "简历",
+      "message": "上传简历：【海外达人营销与内容运营_上海 30-60K】秦毓濛 3年(1).pdf（本地回退）",
+      "actor": "dyw",
+      "createdAt": "2026-02-07T11:26:03+00:00"
+    },
+    {
+      "id": "ev_8WW5uvs",
+      "candidateId": "c_V_Ov81Ux",
+      "type": "简历",
+      "message": "上传简历：【海外达人营销与内容运营_上海 30-60K】秦毓濛 3年(1).pdf（本地回退）",
+      "actor": "dyw",
+      "createdAt": "2026-02-07T11:26:03+00:00"
+    },
+    {
+      "id": "ev_QgDGDQw",
+      "candidateId": "c_V_Ov81Ux",
+      "type": "面评",
+      "message": "第1轮：进度=待筛选，评级=S",
+      "actor": "dyw",
+      "createdAt": "2026-02-07T10:04:16+00:00"
+    },
+    {
+      "id": "ev_jrRcR90",
+      "candidateId": "c_V_Ov81Ux",
+      "type": "状态同步",
+      "message": "因面评更新，状态：四面通过 → 待筛选",
+      "actor": "系统",
+      "createdAt": "2026-02-07T10:02:21+00:00"
+    },
+    {
+      "id": "ev_wVtRjMg",
+      "candidateId": "c_V_Ov81Ux",
+      "type": "面评",
+      "message": "第1轮：进度=待筛选，评级=S",
+      "actor": "dyw",
+      "createdAt": "2026-02-07T10:02:21+00:00"
+    },
+    {
+      "id": "ev_78-IGMw",
+      "candidateId": "c_V_Ov81Ux",
+      "type": "状态同步",
+      "message": "因面评更新，状态：待筛选 → 四面通过",
+      "actor": "系统",
+      "createdAt": "2026-02-07T10:00:25+00:00"
+    },
+    {
+      "id": "ev_T6ffzAM",
+      "candidateId": "c_V_Ov81Ux",
+      "type": "面评",
+      "message": "第4轮：进度=四面通过，评级=S\n的法国红酒",
+      "actor": "dyw",
+      "createdAt": "2026-02-07T10:00:25+00:00"
+    },
+    {
+      "id": "ev_KQgk42Y",
+      "candidateId": "c_V_Ov81Ux",
+      "type": "状态同步",
+      "message": "因面评更新，状态：待一面 → 待筛选",
+      "actor": "系统",
+      "createdAt": "2026-02-07T09:58:43+00:00"
+    },
+    {
+      "id": "ev_wV15toc",
+      "candidateId": "c_V_Ov81Ux",
+      "type": "面评",
+      "message": "第1轮：进度=待筛选，评级=S",
+      "actor": "dyw",
+      "createdAt": "2026-02-07T09:58:43+00:00"
+    },
+    {
+      "id": "ev_6VQbibs",
+      "candidateId": "c_V_Ov81Ux",
+      "type": "状态流转",
+      "message": "状态：待一面 → 待一面",
+      "actor": "dyw",
+      "createdAt": "2026-02-07T08:27:28+00:00"
+    },
+    {
+      "id": "ev_sO2MbSo",
+      "candidateId": "c_V_Ov81Ux",
+      "type": "状态流转",
+      "message": "状态：待一面 → 待一面",
+      "actor": "dyw",
+      "createdAt": "2026-02-07T08:27:27+00:00"
+    },
+    {
+      "id": "ev_ZF1hb8s",
+      "candidateId": "c_V_Ov81Ux",
+      "type": "状态流转",
+      "message": "状态：待筛选 → 待一面",
+      "actor": "dyw",
+      "createdAt": "2026-02-07T08:27:26+00:00"
+    },
+    {
+      "id": "ev_QWyVVz4",
+      "candidateId": "c_JLbcDu5M",
+      "type": "状态流转",
+      "message": "状态：interview → 待一面",
+      "actor": "dyw",
+      "createdAt": "2026-02-07T07:50:25+00:00"
+    },
+    {
+      "id": "ev_hnqjL8A",
+      "candidateId": "c_JLbcDu5M",
+      "type": "简历",
+      "message": "上传简历：【产品运营（AI出海方向）_上海 25-40K】马婉宁 4年.pdf",
+      "actor": "dyw",
+      "createdAt": "2026-02-07T07:50:09+00:00"
+    },
+    {
+      "id": "ev_BHhr-mo",
+      "candidateId": "c_V_Ov81Ux",
+      "type": "状态流转",
+      "message": "状态：offer → 待筛选",
+      "actor": "dyw",
+      "createdAt": "2026-02-07T07:31:00+00:00"
+    }
+  ],
+  "offers": [],
+  "sources": [
+    "boss",
+    "内推",
+    "猎头",
+    "官网投递",
+    "社招渠道",
+    "手动录入"
+  ],
+  "tags": [
+    "高潜",
+    "紧急",
+    "待定",
+    "优秀",
+    "内推优先",
+    "已拒绝其他Offer"
+  ]
+}
