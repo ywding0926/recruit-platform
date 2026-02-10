@@ -564,6 +564,17 @@
       "location": "线上",
       "createdAt": "2026-02-10T10:47:28.69+00:00",
       "updatedAt": "2026-02-10T10:47:28.69+00:00"
+    },
+    {
+      "id": "sc_1770724112001_ad989cdea7d58180",
+      "candidateId": "c_1770554000902_64996110c3",
+      "round": 1,
+      "scheduledAt": "2026-02-11T19:48",
+      "interviewers": "土豆",
+      "link": "",
+      "location": "",
+      "createdAt": "2026-02-10T11:48:32.002+00:00",
+      "updatedAt": "2026-02-10T11:48:32.002+00:00"
     }
   ],
   "resumeFiles": [
@@ -658,10 +669,10 @@
       "originalName": "ãæ³å¡å®ä¹ ç_ä¸æµ· 200-210å_å¤©ãå¼ æ ©æ§ 28å¹´åºå±ç.pdf",
       "contentType": "application/pdf",
       "size": 153816,
-      "uploadedAt": "2026-02-08T16:01:25.734Z",
-      "storage": "supabase",
-      "bucket": "resumes",
-      "url": "https://bijwqlcvrrvnacqthaov.supabase.co/storage/v1/object/sign/resumes/c_1770564610125_bba3c49ae0069e63/resume_1770566484682_3e93290d26a9ad2c.pdf?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV84M2M0ZmFiOS1lNGNiLTRiOWItOWQxYy00ZGI2Mjk3ZTNkNWUiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJyZXN1bWVzL2NfMTc3MDU2NDYxMDEyNV9iYmEzYzQ5YWUwMDY5ZTYzL3Jlc3VtZV8xNzcwNTY2NDg0NjgyXzNlOTMyOTBkMjZhOWFkMmMucGRmIiwiaWF0IjoxNzcwNTY2NDg1LCJleHAiOjE3NzA1NzAwODV9.tSB8HdlgkteP6DtIfKUACfcvuCLaKCH17xg8NK-MAQU"
+      "uploadedAt": "2026-02-08T16:01:25.734+00:00",
+      "url": "https://bijwqlcvrrvnacqthaov.supabase.co/storage/v1/object/sign/resumes/c_1770564610125_bba3c49ae0069e63/resume_1770566484682_3e93290d26a9ad2c.pdf?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV84M2M0ZmFiOS1lNGNiLTRiOWItOWQxYy00ZGI2Mjk3ZTNkNWUiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJyZXN1bWVzL2NfMTc3MDU2NDYxMDEyNV9iYmEzYzQ5YWUwMDY5ZTYzL3Jlc3VtZV8xNzcwNTY2NDg0NjgyXzNlOTMyOTBkMjZhOWFkMmMucGRmIiwiaWF0IjoxNzcwNTY2NDg1LCJleHAiOjE3NzA1NzAwODV9.tSB8HdlgkteP6DtIfKUACfcvuCLaKCH17xg8NK-MAQU",
+      "storage": "local",
+      "bucket": ""
     },
     {
       "id": "rf_1770566316098_0dc6a75192dd6c56",
@@ -886,10 +897,10 @@
       "originalName": "ãæµè¯å¼åå·¥ç¨å¸_ä¸æµ· 30-60Kãå´ç 8å¹´.pdf",
       "contentType": "application/pdf",
       "size": 439309,
-      "uploadedAt": "2026-02-08T16:17:51.548Z",
-      "storage": "supabase",
-      "bucket": "resumes",
-      "url": "https://bijwqlcvrrvnacqthaov.supabase.co/storage/v1/object/sign/resumes/c_1770567470365_408173eef36aa8e9/resume_1770567470375_4d09af4856e06790.pdf?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV84M2M0ZmFiOS1lNGNiLTRiOWItOWQxYy00ZGI2Mjk3ZTNkNWUiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJyZXN1bWVzL2NfMTc3MDU2NzQ3MDM2NV80MDgxNzNlZWYzNmFhOGU5L3Jlc3VtZV8xNzcwNTY3NDcwMzc1XzRkMDlhZjQ4NTZlMDY3OTAucGRmIiwiaWF0IjoxNzcwNTY3NDcxLCJleHAiOjE3NzA1NzEwNzF9.jAuQPl_1P0OcujxNwoTG9bOtofXxRn8x7xSaxihUcls"
+      "uploadedAt": "2026-02-08T16:17:51.548+00:00",
+      "url": "https://bijwqlcvrrvnacqthaov.supabase.co/storage/v1/object/sign/resumes/c_1770567470365_408173eef36aa8e9/resume_1770567470375_4d09af4856e06790.pdf?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV84M2M0ZmFiOS1lNGNiLTRiOWItOWQxYy00ZGI2Mjk3ZTNkNWUiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJyZXN1bWVzL2NfMTc3MDU2NzQ3MDM2NV80MDgxNzNlZWYzNmFhOGU5L3Jlc3VtZV8xNzcwNTY3NDcwMzc1XzRkMDlhZjQ4NTZlMDY3OTAucGRmIiwiaWF0IjoxNzcwNTY3NDcxLCJleHAiOjE3NzA1NzEwNzF9.jAuQPl_1P0OcujxNwoTG9bOtofXxRn8x7xSaxihUcls",
+      "storage": "local",
+      "bucket": ""
     },
     {
       "id": "rf_1770568474574_0d0e2a7a9fed6350",
@@ -898,10 +909,10 @@
       "originalName": "ãæµè¯å¼åå·¥ç¨å¸_ä¸æµ· 30-60Kãå´ç 8å¹´.pdf",
       "contentType": "application/pdf",
       "size": 439309,
-      "uploadedAt": "2026-02-08T16:34:34.574Z",
-      "storage": "supabase",
-      "bucket": "resumes",
-      "url": "https://bijwqlcvrrvnacqthaov.supabase.co/storage/v1/object/sign/resumes/c_f05a32abc0386d03/resume_1770568473314_b51ad1805e5f6135.pdf?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV84M2M0ZmFiOS1lNGNiLTRiOWItOWQxYy00ZGI2Mjk3ZTNkNWUiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJyZXN1bWVzL2NfZjA1YTMyYWJjMDM4NmQwMy9yZXN1bWVfMTc3MDU2ODQ3MzMxNF9iNTFhZDE4MDVlNWY2MTM1LnBkZiIsImlhdCI6MTc3MDU2ODQ3NCwiZXhwIjoxNzcwNTcyMDc0fQ.bknk-a7wAG8fSdEsH7skk6sA8Dh_dcTv4CMdqQEYiyo"
+      "uploadedAt": "2026-02-08T16:34:34.574+00:00",
+      "url": "https://bijwqlcvrrvnacqthaov.supabase.co/storage/v1/object/sign/resumes/c_f05a32abc0386d03/resume_1770568473314_b51ad1805e5f6135.pdf?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV84M2M0ZmFiOS1lNGNiLTRiOWItOWQxYy00ZGI2Mjk3ZTNkNWUiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJyZXN1bWVzL2NfZjA1YTMyYWJjMDM4NmQwMy9yZXN1bWVfMTc3MDU2ODQ3MzMxNF9iNTFhZDE4MDVlNWY2MTM1LnBkZiIsImlhdCI6MTc3MDU2ODQ3NCwiZXhwIjoxNzcwNTcyMDc0fQ.bknk-a7wAG8fSdEsH7skk6sA8Dh_dcTv4CMdqQEYiyo",
+      "storage": "local",
+      "bucket": ""
     },
     {
       "id": "rf_1770720502740_1a8e7a754f0a3b1e",
@@ -910,10 +921,10 @@
       "originalName": "test_resume.pdf",
       "contentType": "application/pdf",
       "size": 303,
-      "uploadedAt": "2026-02-10T10:48:22.740Z",
-      "storage": "supabase",
-      "bucket": "resumes",
-      "url": "https://bijwqlcvrrvnacqthaov.supabase.co/storage/v1/object/sign/resumes/c_JLbcDu5M/resume_1770720501400_ef6aba605b72d934.pdf?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV84M2M0ZmFiOS1lNGNiLTRiOWItOWQxYy00ZGI2Mjk3ZTNkNWUiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJyZXN1bWVzL2NfSkxiY0R1NU0vcmVzdW1lXzE3NzA3MjA1MDE0MDBfZWY2YWJhNjA1YjcyZDkzNC5wZGYiLCJpYXQiOjE3NzA3MjA1MDIsImV4cCI6MTc3MDcyNDEwMn0.wXSiu_QlClt9zesc-FyO7Ug9Iestf5WCYX_9451N1K8"
+      "uploadedAt": "2026-02-10T10:48:22.74+00:00",
+      "url": "https://bijwqlcvrrvnacqthaov.supabase.co/storage/v1/object/sign/resumes/c_JLbcDu5M/resume_1770720501400_ef6aba605b72d934.pdf?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV84M2M0ZmFiOS1lNGNiLTRiOWItOWQxYy00ZGI2Mjk3ZTNkNWUiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJyZXN1bWVzL2NfSkxiY0R1NU0vcmVzdW1lXzE3NzA3MjA1MDE0MDBfZWY2YWJhNjA1YjcyZDkzNC5wZGYiLCJpYXQiOjE3NzA3MjA1MDIsImV4cCI6MTc3MDcyNDEwMn0.wXSiu_QlClt9zesc-FyO7Ug9Iestf5WCYX_9451N1K8",
+      "storage": "local",
+      "bucket": ""
     }
   ],
   "events": [
@@ -1606,38 +1617,6 @@
       "createdAt": "2026-02-10T08:23:46.894+00:00"
     },
     {
-      "id": "ev_1770718513351_f7441f67a4051e82",
-      "candidateId": "c_1770718511090_f550622db1246d20",
-      "type": "简历",
-      "message": "上传简历（Supabase）：ãæ³å¡å®ä¹ ç_ä¸æµ· 200-210å_å¤©ãåªèæ£ 26å¹´åºå±ç.pdf",
-      "actor": "丁彦文",
-      "createdAt": "2026-02-10T10:15:13.351+00:00"
-    },
-    {
-      "id": "ev_1770718511090_45ade5bfe518c5b6",
-      "candidateId": "c_1770718511090_f550622db1246d20",
-      "type": "创建",
-      "message": "创建候选人：土豆333（岗位：运营）",
-      "actor": "丁彦文",
-      "createdAt": "2026-02-10T10:15:11.09+00:00"
-    },
-    {
-      "id": "ev_1770711826418_5169ded4ac79f3c8",
-      "candidateId": "c_vv89yIo",
-      "type": "简历",
-      "message": "上传简历（Supabase）：ãæµè¯å¼åå·¥ç¨å¸_ä¸æµ· 30-60Kãå´ç 8å¹´.pdf",
-      "actor": "丁彦文",
-      "createdAt": "2026-02-10T08:23:46.418+00:00"
-    },
-    {
-      "id": "ev_1770564610125_2183e8f86fe1e8e7",
-      "candidateId": "c_1770564610125_bba3c49ae0069e63",
-      "type": "创建",
-      "message": "创建候选人：33（岗位：测试）",
-      "actor": "土豆",
-      "createdAt": "2026-02-08T15:30:10.125+00:00"
-    },
-    {
       "id": "ev_1770719510217_3fd5957daf897576",
       "candidateId": "c_1770554000902_64996110c3",
       "type": "简历",
@@ -1726,6 +1705,46 @@
       "createdAt": "2026-02-07T07:31:00+00:00"
     },
     {
+      "id": "ev_1770718513351_f7441f67a4051e82",
+      "candidateId": "c_1770718511090_f550622db1246d20",
+      "type": "简历",
+      "message": "上传简历（Supabase）：ãæ³å¡å®ä¹ ç_ä¸æµ· 200-210å_å¤©ãåªèæ£ 26å¹´åºå±ç.pdf",
+      "actor": "丁彦文",
+      "createdAt": "2026-02-10T10:15:13.351+00:00"
+    },
+    {
+      "id": "ev_1770718511090_45ade5bfe518c5b6",
+      "candidateId": "c_1770718511090_f550622db1246d20",
+      "type": "创建",
+      "message": "创建候选人：土豆333（岗位：运营）",
+      "actor": "丁彦文",
+      "createdAt": "2026-02-10T10:15:11.09+00:00"
+    },
+    {
+      "id": "ev_1770724112002_63dc7c537746dd7b",
+      "candidateId": "c_1770554000902_64996110c3",
+      "type": "自动流转",
+      "message": "安排第1轮面试，状态：待筛选 -> 待一面",
+      "actor": "系统",
+      "createdAt": "2026-02-10T11:48:32.002+00:00"
+    },
+    {
+      "id": "ev_1770724112002_57600aebe823694b",
+      "candidateId": "c_1770554000902_64996110c3",
+      "type": "面试安排",
+      "message": "第1轮\n时间：2026-02-11T19:48\n面试官：土豆",
+      "actor": "土豆",
+      "createdAt": "2026-02-10T11:48:32.002+00:00"
+    },
+    {
+      "id": "ev_1770564610125_2183e8f86fe1e8e7",
+      "candidateId": "c_1770564610125_bba3c49ae0069e63",
+      "type": "创建",
+      "message": "创建候选人：33（岗位：测试）",
+      "actor": "土豆",
+      "createdAt": "2026-02-08T15:30:10.125+00:00"
+    },
+    {
       "id": "ev_1770711827833_ccc5dcdd218ca5da",
       "candidateId": "c_vv89yIo",
       "type": "简历",
@@ -1740,6 +1759,14 @@
       "message": "上传简历：【法务实习生_上海 200-210元_天】张栩槟 28年应届生.pdf",
       "actor": "dyw",
       "createdAt": "2026-02-07T11:52:38+00:00"
+    },
+    {
+      "id": "ev_1770711826418_5169ded4ac79f3c8",
+      "candidateId": "c_vv89yIo",
+      "type": "简历",
+      "message": "上传简历（Supabase）：ãæµè¯å¼åå·¥ç¨å¸_ä¸æµ· 30-60Kãå´ç 8å¹´.pdf",
+      "actor": "丁彦文",
+      "createdAt": "2026-02-10T08:23:46.418+00:00"
     }
   ],
   "offers": [],
@@ -1750,7 +1777,6 @@
       "unionId": "",
       "name": "测试用户",
       "avatar": "",
-      "role": "interviewer",
       "department": "",
       "jobTitle": "",
       "provider": "dev",
@@ -1762,11 +1788,21 @@
       "unionId": "",
       "name": "TestUser",
       "avatar": "",
-      "role": "interviewer",
       "department": "",
       "jobTitle": "",
       "provider": "dev",
       "createdAt": "2026-02-10T10:25:13.906Z"
+    },
+    {
+      "id": "usr_1770723297926_906d221459ee7021",
+      "openId": "",
+      "unionId": "",
+      "name": "土豆",
+      "avatar": "",
+      "department": "",
+      "jobTitle": "",
+      "provider": "dev",
+      "createdAt": "2026-02-10T11:34:57.926Z"
     },
     {
       "id": "usr_admin_001",
@@ -1781,15 +1817,15 @@
       "createdAt": "2026-02-10T00:00:00.000Z"
     },
     {
-      "id": "usr_1770723297926_906d221459ee7021",
+      "id": "usr_1770726584231_7d5393630e9be4fa",
       "openId": "",
       "unionId": "",
-      "name": "土豆",
+      "name": "dyw",
       "avatar": "",
       "department": "",
       "jobTitle": "",
       "provider": "dev",
-      "createdAt": "2026-02-10T11:34:57.926Z"
+      "createdAt": "2026-02-10T12:29:44.231Z"
     }
   ],
   "sources": [

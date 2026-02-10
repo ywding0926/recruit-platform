@@ -882,7 +882,6 @@ function resumeEmbedHtml(resume) {
   if (lower.endsWith(".png") || lower.endsWith(".jpg") || lower.endsWith(".jpeg") || lower.endsWith(".webp")) return '<img src="' + escapeHtml(resume.url) + '" style="max-width:100%;border-radius:14px" />';
   return '<div class="muted">不支持内嵌预览</div>';
 }
-
 app.get("/candidates/:id", requireLogin, async (req, res) => {
   const d = await loadData();
   const c = d.candidates.find((x) => x.id === req.params.id);
@@ -917,14 +916,12 @@ app.get("/candidates/:id", requireLogin, async (req, res) => {
   const ratingScore = { S: 5, A: 4, "B+": 3.5, B: 3, "B-": 2, C: 1 };
   let summaryHtml = '';
   if (reviews.length) {
-    // 各轮次概览
     const roundSummary = reviews.map(rv => {
       const score = ratingScore[rv.rating] || 0;
       const stars = '★'.repeat(Math.round(score)) + '☆'.repeat(5 - Math.round(score));
       return '<div class="rv-round-row"><span class="badge purple" style="min-width:56px;text-align:center">第' + rv.round + '轮</span><span class="badge ' + (score >= 3.5 ? 'green' : score >= 2 ? 'gray' : 'red') + '">' + escapeHtml(rv.rating || "-") + '</span><span class="rv-stars">' + stars + '</span>' + (rv.interviewer ? '<span class="muted" style="font-size:12px">' + escapeHtml(rv.interviewer) + '</span>' : '') + '</div>';
     }).join("");
 
-    // 各维度平均分
     const dimTotals = {};
     const dimCounts = {};
     for (const rv of reviews) {
@@ -942,7 +939,6 @@ app.get("/candidates/:id", requireLogin, async (req, res) => {
       return '<div class="dim-bar-row"><span class="dim-label">' + escapeHtml(dm.name) + '</span><div class="bar" style="flex:1"><div class="bar-fill bar-purple" style="width:' + pct + '%"></div></div><span class="dim-score">' + (avg ? avg.toFixed(1) : '-') + '</span></div>';
     }).join("");
 
-    // 综合评级
     const allScores = reviews.map(rv => ratingScore[rv.rating] || 0).filter(s => s > 0);
     const avgScore = allScores.length ? (allScores.reduce((a, b) => a + b, 0) / allScores.length) : 0;
     const avgRating = avgScore >= 4.5 ? 'S' : avgScore >= 3.5 ? 'A' : avgScore >= 3 ? 'B+' : avgScore >= 2.5 ? 'B' : avgScore >= 1.5 ? 'B-' : avgScore > 0 ? 'C' : '-';
@@ -950,7 +946,6 @@ app.get("/candidates/:id", requireLogin, async (req, res) => {
     summaryHtml = '<div class="card review-summary"><div class="row"><div style="font-weight:900">面试评分汇总</div><span class="spacer"></span><span class="badge ' + (avgScore >= 3.5 ? 'green' : avgScore >= 2 ? 'gray' : 'red') + '" style="font-size:14px;padding:6px 14px">综合：' + avgRating + ' (' + avgScore.toFixed(1) + ')</span></div><div class="divider"></div><div class="grid"><div><div style="font-weight:700;margin-bottom:8px">各轮评分</div>' + roundSummary + '</div><div><div style="font-weight:700;margin-bottom:8px">维度均分</div>' + dimAvgHtml + '</div></div></div>';
   }
 
-  // ====== 面试官评分对比 ======
   let comparisonHtml = '';
   if (reviews.length > 1) {
     const byRound = {};
@@ -1195,20 +1190,17 @@ app.get("/schedule", requireLogin, async (req, res) => {
   const upcomingHtml = upcoming.map(renderScheduleRow).join("");
   const pastHtml = past.map(renderScheduleRow).join("");
 
-  // 面试官选择列表（从已同步的用户中获取）
   const interviewerOptions = d.users
     .map(u => `<option value="${escapeHtml(u.name)}">${escapeHtml(u.name)}</option>`)
     .join("");
 
-  // 日历视图数据
-  const calMonth = req.query.month || new Date().toISOString().slice(0, 7); // "YYYY-MM"
+  const calMonth = req.query.month || new Date().toISOString().slice(0, 7);
   const [calY, calM] = calMonth.split("-").map(Number);
   const firstDay = new Date(calY, calM - 1, 1);
   const lastDay = new Date(calY, calM, 0);
-  const startDow = firstDay.getDay(); // 0=Sun
+  const startDow = firstDay.getDay();
   const totalDays = lastDay.getDate();
 
-  // 按日期归类面试
   const schedulesByDate = {};
   for (const s of filtered) {
     const dt = (s.scheduledAt || "").slice(0, 10);
@@ -1218,10 +1210,8 @@ app.get("/schedule", requireLogin, async (req, res) => {
     schedulesByDate[dt].push({ ...s, candName: c?.name || "未知", candId: c?.id });
   }
 
-  // 生成日历格子
   let calCells = '';
   const today = new Date().toISOString().slice(0, 10);
-  // 填充空格
   for (let i = 0; i < startDow; i++) calCells += '<div class="cal-cell empty"></div>';
   for (let day = 1; day <= totalDays; day++) {
     const dateStr = `${calY}-${String(calM).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
@@ -1252,7 +1242,6 @@ app.get("/schedule", requireLogin, async (req, res) => {
       </div>
     </div>`;
 
-  // 视图切换
   const view = req.query.view || "calendar";
   const listActive = view === "list" ? "active" : "";
   const calActive = view !== "list" ? "active" : "";
@@ -1356,7 +1345,6 @@ app.post("/api/candidates/:id/status", requireLogin, async (req, res) => {
   pushEvent(d, { candidateId: c.id, type: "状态流转", message: "状态：" + old + " -> " + c.status, actor: req.user?.name || "系统" });
   await saveData(d);
 
-  // 飞书通知：状态变更
   if (feishuEnabled() && req.user?.openId) {
     sendFeishuMessage(req.user.openId,
       `**候选人**：${c.name}\n**状态变更**：${old} → ${c.status}\n**操作人**：${req.user?.name || "系统"}`,
@@ -1383,7 +1371,6 @@ app.post("/api/candidates/:id/follow", requireLogin, async (req, res) => {
   res.json({ ok: true });
 });
 
-// 手动发送飞书通知
 app.post("/api/candidates/:id/notify", requireLogin, async (req, res) => {
   if (!feishuEnabled()) return res.status(400).json({ error: "feishu_not_enabled" });
   const d = await loadData();
@@ -1393,7 +1380,6 @@ app.post("/api/candidates/:id/notify", requireLogin, async (req, res) => {
   const message = String(req.body.message || "").trim();
   if (!message) return res.status(400).json({ error: "empty_message" });
 
-  // 找到与此候选人相关的面试官的 openId
   const relatedSchedules = (d.interviewSchedules || []).filter(s => s.candidateId === c.id);
   const interviewerNames = new Set();
   relatedSchedules.forEach(s => {
@@ -1409,7 +1395,6 @@ app.post("/api/candidates/:id/notify", requireLogin, async (req, res) => {
     }
   }
 
-  // 同时通知当前操作者（如果有 openId）
   if (req.user?.openId) {
     sendFeishuMessage(req.user.openId, `你发送了一条关于候选人「${c.name}」的通知\n\n${message}`, "通知已发送").catch(() => {});
   }
@@ -1458,9 +1443,7 @@ app.post("/api/candidates/:id/schedule", requireLogin, async (req, res) => {
       pushEvent(d, { candidateId: c.id, type: "状态同步", message: "因面试安排同步，状态：" + old + " -> " + c.status, actor: "系统" });
     }
   } else if (syncStatus === "（不同步）" && scheduledAt) {
-    // 自动流转：安排面试时自动推进候选人状态
     const old = c.status || "待筛选";
-    // 定义：安排第N轮时，如果候选人还处于"前序状态"，自动推进到"待N面"
     const autoFlowRules = [
       { round: 1, from: ["待筛选", "简历初筛"], to: "待一面" },
       { round: 2, from: ["一面通过", "待一面"], to: "待二面" },
@@ -1475,7 +1458,6 @@ app.post("/api/candidates/:id/schedule", requireLogin, async (req, res) => {
       pushEvent(d, { candidateId: c.id, type: "自动流转", message: "安排第" + round + "轮面试，状态：" + old + " -> " + rule.to, actor: "系统" });
     }
   }
-  // 自动更新跟进动作
   const followActionMap = { 1: "等面试反馈", 2: "等面试反馈", 3: "等面试反馈", 4: "等面试反馈", 5: "等面试反馈" };
   if (scheduledAt && followActionMap[round]) {
     if (!c.follow) c.follow = {};
@@ -1484,12 +1466,10 @@ app.post("/api/candidates/:id/schedule", requireLogin, async (req, res) => {
   }
   await saveData(d);
 
-  // 飞书日历同步：为面试安排创建日历事件
   if (feishuEnabled() && scheduledAt && req.body.syncCalendar === "on") {
     try {
       const startDt = new Date(scheduledAt.replace(" ", "T"));
-      const endDt = new Date(startDt.getTime() + 60 * 60 * 1000); // 默认1小时
-      // 查找面试官的 openId
+      const endDt = new Date(startDt.getTime() + 60 * 60 * 1000);
       const interviewerNames = interviewers.split(/[\/;,、]/).map(n => n.trim()).filter(Boolean);
       const attendeeOpenIds = [];
       for (const name of interviewerNames) {
@@ -1508,7 +1488,6 @@ app.post("/api/candidates/:id/schedule", requireLogin, async (req, res) => {
     }
   }
 
-  // 飞书通知面试官
   if (feishuEnabled() && scheduledAt && interviewers) {
     const interviewerNames = interviewers.split(/[\/;,、]/).map(n => n.trim()).filter(Boolean);
     for (const name of interviewerNames) {
@@ -1546,7 +1525,6 @@ app.post("/api/candidates/:id/reviews", requireLogin, async (req, res) => {
   if (rating && !INTERVIEW_RATING.includes(rating)) return res.status(400).send("invalid_rating");
   if (!STATUS_SET.has(status)) return res.status(400).send("invalid_status");
 
-  // 多面试官支持：同一轮次不同面试官可以各提交一份面评
   const idx = d.interviews.findIndex((x) => x.candidateId === c.id && x.round === round && (x.interviewer || "") === interviewer);
   const item = {
     id: idx > -1 ? d.interviews[idx].id : rid("rv"),
@@ -1565,7 +1543,6 @@ app.post("/api/candidates/:id/reviews", requireLogin, async (req, res) => {
   if (idx > -1) d.interviews[idx] = item;
   else d.interviews.push(item);
 
-  // 智能状态流转
   let autoFlowMsg = "";
   const RATING_SCORES = { S: 5, A: 4, "B+": 3.5, B: 3, "B-": 2, C: 1 };
   const ratingScore = RATING_SCORES[rating] || 0;
@@ -1573,17 +1550,14 @@ app.post("/api/candidates/:id/reviews", requireLogin, async (req, res) => {
   const old = c.status || "待筛选";
 
   if (rating === "B-" || rating === "C") {
-    // 低评级 → 建议淘汰
-    c.status = status; // 先设置面试进度
+    c.status = status;
     autoFlowMsg = "评级为" + rating + "，建议标记该候选人为淘汰状态。";
   } else if (ratingScore >= 3.5) {
-    // B+ 及以上 → 自动流转到通过状态
     const passStatusMap = { 1: "一面通过", 2: "二面通过", 3: "三面通过", 4: "四面通过", 5: "五面通过" };
     const passStatus = passStatusMap[round];
     if (passStatus && STATUS_SET.has(passStatus)) {
       c.status = passStatus;
       if (round >= 5) {
-        // 最后一轮通过 → 待发offer
         c.status = "待发offer";
         autoFlowMsg = "第" + round + "轮面试通过（评级" + rating + "），已自动流转到「待发Offer」。";
       } else {
@@ -1602,7 +1576,6 @@ app.post("/api/candidates/:id/reviews", requireLogin, async (req, res) => {
   if (old !== c.status) {
     pushEvent(d, { candidateId: c.id, type: "状态同步", message: "因面评更新，状态：" + old + " -> " + c.status, actor: "系统" });
   }
-  // 面评后自动更新跟进动作
   if (!c.follow) c.follow = {};
   if (c.status === "淘汰") {
     c.follow.nextAction = "已结束";
@@ -1680,14 +1653,12 @@ app.post("/api/candidates/:id/offer", requireLogin, async (req, res) => {
 
   await saveData(d);
 
-  // 飞书通知 + 审批：Offer 事件
   if (feishuEnabled() && req.user?.openId) {
     sendFeishuMessage(req.user.openId,
       `**候选人**：${c.name}\n**Offer状态**：${offerStatus}\n**薪资**：${salary || "-"}\n**入职日期**：${startDate || "-"}`,
       "Offer 通知"
     ).catch(() => {});
 
-    // 如果配置了审批 Code，自动发起审批
     const approvalCode = process.env.FEISHU_APPROVAL_CODE;
     if (approvalCode && offerStatus === "待审批") {
       createApprovalInstance(approvalCode, req.user.openId, [
