@@ -9,7 +9,7 @@ import { fileURLToPath } from "url";
 import { renderPage, escapeHtml, statusBadge, followupBadge, offerStatusBadge, tagBadge } from "./ui.mjs";
 import { getSupabaseAdmin, getBucketName, getSignedUrlExpiresIn, supabaseEnabled } from "./supabase.mjs";
 import { loadData, saveData, ensureDataShape, nowIso, rid, deleteFromSupabase, deleteCandidateRelated } from "./db.mjs";
-import { sessionMiddleware, registerAuthRoutes, requireLogin, requireRole, ROLES, ROLE_LABELS } from "./auth.mjs";
+import { sessionMiddleware, registerAuthRoutes, requireLogin } from "./auth.mjs";
 import { feishuEnabled, sendFeishuMessage, createApprovalInstance, getAllFeishuEmployees, createFeishuCalendarEvent } from "./feishu.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -65,6 +65,13 @@ const INTERVIEW_STATUS = STATUS_COLS.map((x) => x.key);
 const NEXT_ACTIONS = ["待联系", "约一面", "等面试反馈", "安排下一轮面试", "约二面", "约三面", "谈薪", "准备Offer", "发Offer", "等入职", "已结束", "其他"];
 const JOB_CATEGORIES = ["技术", "产品", "设计", "运营", "市场", "销售", "人力", "财务", "行政", "其他"];
 const OFFER_STATUSES = ["待发放", "已发放", "已接受", "已拒绝", "已撤回"];
+const REVIEW_DIMENSIONS = [
+  { key: "tech", name: "技术能力", desc: "专业知识深度、编码能力、系统设计" },
+  { key: "comm", name: "沟通表达", desc: "表达清晰度、倾听能力、团队协作" },
+  { key: "logic", name: "逻辑思维", desc: "问题分析、推理能力、解决方案" },
+  { key: "learn", name: "学习能力", desc: "知识迁移、快速掌握新领域" },
+  { key: "culture", name: "文化匹配", desc: "价值观、工作态度、团队融入度" },
+];
 
 function pushEvent(d, { candidateId, type, message, actor }) {
   d.events.unshift({
@@ -262,6 +269,52 @@ app.get("/", requireLogin, async (req, res) => {
     return '<div class="titem"><div class="tmeta"><b>' + escapeHtml(e.actor || "系统") + '</b><span class="badge gray" style="font-size:11px">' + escapeHtml(e.type || "-") + '</span><span class="muted">' + escapeHtml((e.createdAt || "").slice(0, 16)) + '</span></div><div class="tmsg" style="font-size:13px">' + escapeHtml(e.message || "").replaceAll("\n", "<br/>") + '</div></div>';
   }).join("") : '<div class="muted">暂无动态</div>';
 
+  // 今日面试详情列表
+  const candMap = new Map(d.candidates.map(c => [c.id, c]));
+  const todaySchedules = allSchedules.filter(s => (s.scheduledAt || "").slice(0, 10) === todayStr)
+    .sort((a, b) => (a.scheduledAt || "").localeCompare(b.scheduledAt || ""));
+  const todayDetailHtml = todaySchedules.length ? todaySchedules.map(s => {
+    const cand = candMap.get(s.candidateId);
+    const time = (s.scheduledAt || "").slice(11, 16) || "时间待定";
+    const candName = cand ? '<a href="/candidates/' + escapeHtml(cand.id) + '" style="color:var(--primary);font-weight:700">' + escapeHtml(cand.name || "未命名") + '</a>' : '未知候选人';
+    return '<div class="remind-item"><span class="remind-time">' + time + '</span>' + candName + '<span class="muted" style="font-size:12px">第' + (s.round || 1) + '轮</span><span class="muted" style="font-size:12px">' + escapeHtml(s.interviewers || "-") + '</span></div>';
+  }).join("") : '<div class="muted" style="font-size:13px">今日无面试安排</div>';
+
+  // 待面评提醒：已过面试时间但还未提交面评的记录
+  const pastSchedules = allSchedules.filter(s => {
+    const dt = (s.scheduledAt || "").slice(0, 10);
+    return dt && dt <= todayStr;
+  });
+  const pendingReviewItems = [];
+  for (const s of pastSchedules) {
+    const hasReview = d.interviews.some(rv => rv.candidateId === s.candidateId && rv.round === s.round);
+    if (!hasReview) {
+      const cand = candMap.get(s.candidateId);
+      if (cand) pendingReviewItems.push({ schedule: s, cand });
+    }
+  }
+  const pendingReviewHtml = pendingReviewItems.length ? pendingReviewItems.slice(0, 8).map(({ schedule: s, cand }) => {
+    return '<div class="remind-item"><span class="badge orange" style="font-size:11px">待面评</span><a href="/candidates/' + escapeHtml(cand.id) + '" style="color:var(--primary);font-weight:700">' + escapeHtml(cand.name || "未命名") + '</a><span class="muted" style="font-size:12px">第' + (s.round || 1) + '轮 · ' + escapeHtml((s.scheduledAt || "").slice(0, 10)) + '</span></div>';
+  }).join("") : '<div class="muted" style="font-size:13px">暂无待面评记录</div>';
+
+  // 即将逾期的跟进事项
+  const overdueFollowItems = d.candidates.filter(c => {
+    if (!c.follow || !c.follow.followAt) return false;
+    return c.follow.followAt <= todayStr && c.follow.nextAction && c.follow.nextAction !== "已结束";
+  }).slice(0, 8);
+  const overdueFollowHtml = overdueFollowItems.length ? overdueFollowItems.map(c => {
+    return '<div class="remind-item"><span class="badge red" style="font-size:11px">逾期</span><a href="/candidates/' + escapeHtml(c.id) + '" style="color:var(--primary);font-weight:700">' + escapeHtml(c.name || "未命名") + '</a><span class="muted" style="font-size:12px">' + escapeHtml(c.follow.nextAction || "") + ' · ' + escapeHtml(c.follow.followAt || "") + '</span></div>';
+  }).join("") : '<div class="muted" style="font-size:13px">暂无逾期跟进</div>';
+
+  // 面试提醒卡片
+  const remindCardHtml = '<div class="card reminder-card"><div style="font-weight:900;margin-bottom:12px">📋 面试提醒</div>' +
+    '<div class="remind-section"><div class="remind-title">今日面试 <span class="badge purple" style="font-size:11px">' + todaySchedules.length + '</span></div>' + todayDetailHtml + '</div>' +
+    '<div class="divider"></div>' +
+    '<div class="remind-section"><div class="remind-title">待面评 <span class="badge orange" style="font-size:11px">' + pendingReviewItems.length + '</span></div>' + pendingReviewHtml + '</div>' +
+    '<div class="divider"></div>' +
+    '<div class="remind-section"><div class="remind-title">逾期跟进 <span class="badge red" style="font-size:11px">' + overdueFollowItems.length + '</span></div>' + overdueFollowHtml + '</div>' +
+    '</div>';
+
   // 状态漏斗
   const funnelHtml = STATUS_COLS.map((s) => {
     const count = byStatus[s.key] || 0;
@@ -273,7 +326,7 @@ app.get("/", requireLogin, async (req, res) => {
     renderPage({
       title: "招聘概览",
       user: req.user,
-      active: "dashboard",
+      active: "",
       contentHtml: '<div class="row"><div style="font-weight:900;font-size:20px">招聘概览</div><span class="spacer"></span><a class="btn" href="/candidates">全部候选人</a><a class="btn primary" href="/candidates/board">候选人看板</a></div><div class="divider"></div>' +
         '<div class="grid4">' +
         '<div class="card stat-card"><div class="stat-number">' + total + '</div><div class="stat-label">候选人总数</div></div>' +
@@ -287,6 +340,8 @@ app.get("/", requireLogin, async (req, res) => {
         '<div class="card stat-card"><div class="stat-number" style="color:#6366f1">' + convOfferRate + '%</div><div class="stat-label">Offer转化率</div></div>' +
         '<div class="card stat-card"><div class="stat-number" style="color:#6366f1">' + convHireRate + '%</div><div class="stat-label">入职转化率</div></div>' +
         '</div><div style="height:14px"></div>' +
+        remindCardHtml +
+        '<div style="height:14px"></div>' +
         '<div class="grid">' +
         '<div>' +
         '<div class="card"><div style="font-weight:900;margin-bottom:12px">招聘漏斗</div>' + funnelHtml + '</div>' +
@@ -465,7 +520,7 @@ app.get("/candidates/new", requireLogin, async (req, res) => {
     renderPage({
       title: "新建候选人",
       user: req.user,
-      active: "candidates_list",
+      active: "candidates",
       contentHtml: '<div class="card" style="max-width:860px;margin:0 auto;"><div style="font-weight:900;font-size:18px">新建候选人</div><div class="divider"></div><form method="POST" action="/candidates/new" enctype="multipart/form-data"><div class="grid"><div class="card shadowless"><div class="field"><label>姓名</label><input name="name" required /></div><div class="field"><label>手机</label><input name="phone" /></div><div class="field"><label>邮箱</label><input name="email" type="email" placeholder="example@company.com" /></div><div class="field"><label>岗位</label><select name="jobId" required>' + (jobOpts || '<option value="">请先创建职位</option>') + '</select></div><div class="field"><label>简历（可选）</label><input type="file" name="resume" accept=".pdf,.png,.jpg,.jpeg,.webp" /><div class="muted">上传后会自动绑定到候选人</div></div></div><div class="card shadowless"><div class="field"><label>来源</label><select name="source">' + srcOpts + '</select></div><div class="field"><label>标签</label><div>' + (tagCheckboxes || '<span class="muted">暂无标签，可在设置中添加</span>') + '</div></div><div class="field"><label>备注</label><textarea name="note" rows="7"></textarea></div></div></div><div class="divider"></div><div class="row"><button class="btn primary" type="submit">创建候选人</button><a class="btn" href="/candidates">返回</a></div></form></div>',
     })
   );
@@ -528,7 +583,7 @@ app.get("/candidates/import", requireLogin, async (req, res) => {
     renderPage({
       title: "批量导入候选人",
       user: req.user,
-      active: "candidates_list",
+      active: "candidates",
       contentHtml: '<div class="card" style="max-width:820px;margin:0 auto;"><div style="font-weight:900;font-size:18px">批量导入候选人（CSV）</div><div class="divider"></div>' +
         '<div class="muted" style="margin-bottom:12px">CSV 文件格式要求：第一行为表头，支持字段：<b>姓名, 手机, 邮箱, 岗位ID, 来源, 备注, 标签</b>（标签用分号分隔）</div>' +
         '<div class="card shadowless" style="margin-bottom:12px"><div style="font-weight:700;margin-bottom:8px">CSV 模板示例</div><pre style="background:#f8fafc;padding:12px;border-radius:12px;overflow:auto;font-size:13px">姓名,手机,邮箱,岗位ID,来源,备注,标签\n张三,13800138000,zhangsan@test.com,job_xxx,Boss直聘,3年经验,高潜;紧急\n李四,13900139000,lisi@test.com,job_xxx,内推,5年经验,优秀</pre></div>' +
@@ -541,13 +596,13 @@ app.post("/candidates/import", requireLogin, upload.single("csv"), async (req, r
   const d = await loadData();
   const file = req.file;
   if (!file || !file.buffer || !file.buffer.length) {
-    return res.send(renderPage({ title: "导入失败", user: req.user, active: "candidates_list", contentHtml: '<div class="card"><div style="font-weight:900;color:var(--red)">未选择文件</div><div class="divider"></div><a class="btn" href="/candidates/import">返回重试</a></div>' }));
+    return res.send(renderPage({ title: "导入失败", user: req.user, active: "candidates", contentHtml: '<div class="card"><div style="font-weight:900;color:var(--red)">未选择文件</div><div class="divider"></div><a class="btn" href="/candidates/import">返回重试</a></div>' }));
   }
 
   const text = file.buffer.toString("utf-8");
   const lines = text.split(/\r?\n/).filter((l) => l.trim());
   if (lines.length < 2) {
-    return res.send(renderPage({ title: "导入失败", user: req.user, active: "candidates_list", contentHtml: '<div class="card"><div style="font-weight:900;color:var(--red)">CSV文件至少需要表头+1行数据</div><div class="divider"></div><a class="btn" href="/candidates/import">返回重试</a></div>' }));
+    return res.send(renderPage({ title: "导入失败", user: req.user, active: "candidates", contentHtml: '<div class="card"><div style="font-weight:900;color:var(--red)">CSV文件至少需要表头+1行数据</div><div class="divider"></div><a class="btn" href="/candidates/import">返回重试</a></div>' }));
   }
 
   const headers = lines[0].split(",").map((h) => h.trim());
@@ -598,7 +653,7 @@ app.post("/candidates/import", requireLogin, upload.single("csv"), async (req, r
     renderPage({
       title: "导入完成",
       user: req.user,
-      active: "candidates_list",
+      active: "candidates",
       contentHtml: '<div class="card" style="max-width:820px;margin:0 auto;"><div style="font-weight:900;font-size:18px;color:var(--green)">导入完成</div><div class="divider"></div><div class="row"><span class="pill"><span class="muted">成功导入</span><b>' + imported + '</b></span><span class="pill"><span class="muted">失败</span><b>' + errors.length + '</b></span></div>' + errorHtml + '<div class="divider"></div><div class="row"><a class="btn primary" href="/candidates">查看全部候选人</a><a class="btn" href="/candidates/import">继续导入</a></div></div>',
     })
   );
@@ -620,20 +675,7 @@ app.get("/candidates", requireLogin, async (req, res) => {
     if (!Array.isArray(c.tags)) c.tags = [];
   });
 
-  // 面试官角色：只能看到自己参与面试的候选人
-  const userRole = req.user?.role || "interviewer";
-  const userName = req.user?.name || "";
-  let myCandidateIds = null;
-  if (userRole === "interviewer") {
-    myCandidateIds = new Set(
-      (d.interviewSchedules || [])
-        .filter(s => (s.interviewers || "").includes(userName))
-        .map(s => s.candidateId)
-    );
-  }
-
   const filtered = d.candidates.filter((c) => {
-    if (myCandidateIds && !myCandidateIds.has(c.id)) return false;
     if (jobId && c.jobId !== jobId) return false;
     if (source && String(c.source || "") !== source) return false;
     if (status && c.status !== status) return false;
@@ -698,7 +740,7 @@ app.get("/candidates", requireLogin, async (req, res) => {
     renderPage({
       title: "全部候选人",
       user: req.user,
-      active: "candidates_list",
+      active: "candidates",
       contentHtml: '<div class="row"><div style="font-weight:900;font-size:18px">全部候选人 <span class="muted" style="font-weight:400">（' + filtered.length + '/' + d.candidates.length + '）</span></div><span class="spacer"></span><a class="btn" href="/candidates/board">去看板</a></div><div class="divider"></div>' +
         toolbarHtml({ jobs: d.jobs, sources: d.sources, q, jobId, source, mode: "list" }) +
         '<div style="height:12px"></div>' +
@@ -798,20 +840,7 @@ app.get("/candidates/board", requireLogin, async (req, res) => {
     if (!Array.isArray(c.tags)) c.tags = [];
   });
 
-  // 面试官角色：只能看到自己参与面试的候选人
-  const userRole = req.user?.role || "interviewer";
-  const userName = req.user?.name || "";
-  let myCandidateIds = null;
-  if (userRole === "interviewer") {
-    myCandidateIds = new Set(
-      (d.interviewSchedules || [])
-        .filter(s => (s.interviewers || "").includes(userName))
-        .map(s => s.candidateId)
-    );
-  }
-
   const filtered = d.candidates.filter((c) => {
-    if (myCandidateIds && !myCandidateIds.has(c.id)) return false;
     if (jobId && c.jobId !== jobId) return false;
     if (source && String(c.source || "") !== source) return false;
     if (q) {
@@ -839,7 +868,7 @@ app.get("/candidates/board", requireLogin, async (req, res) => {
     renderPage({
       title: "候选人看板",
       user: req.user,
-      active: "candidates_board",
+      active: "board",
       contentHtml: toolbarHtml({ jobs: d.jobs, sources: d.sources, q, jobId, source, mode: "board" }) + '<div style="height:12px"></div>' + kanbanHtml({ grouped, countsByCol, resumeMap: boardResumeMap }) + '<datalist id="board-interviewer-list">' + d.users.map(u => '<option value="' + escapeHtml(u.name) + '">').join("") + '</datalist>',
     })
   );
@@ -858,7 +887,7 @@ app.get("/candidates/:id", requireLogin, async (req, res) => {
   const d = await loadData();
   const c = d.candidates.find((x) => x.id === req.params.id);
   if (!c) {
-    return res.send(renderPage({ title: "候选人不存在", user: req.user, active: "candidates_list", contentHtml: '<div class="card"><div style="font-weight:900">候选人不存在</div><div class="divider"></div><a class="btn" href="/candidates">返回</a></div>' }));
+    return res.send(renderPage({ title: "候选人不存在", user: req.user, active: "candidates", contentHtml: '<div class="card"><div style="font-weight:900">候选人不存在</div><div class="divider"></div><a class="btn" href="/candidates">返回</a></div>' }));
   }
   if (!STATUS_SET.has(c.status)) c.status = "待筛选";
   if (!c.follow) c.follow = { nextAction: "待联系", followAt: "", note: "" };
@@ -879,16 +908,84 @@ app.get("/candidates/:id", requireLogin, async (req, res) => {
   const nextOpts = NEXT_ACTIONS.map((x) => '<option value="' + escapeHtml(x) + '" ' + (c.follow.nextAction === x ? "selected" : "") + '>' + escapeHtml(x) + '</option>').join("");
   const syncOpts = '<option value="（不同步）">（不同步）</option>' + INTERVIEW_STATUS.map((x) => '<option value="' + escapeHtml(x) + '">' + escapeHtml(x) + '</option>').join("");
   const offerStOpts = OFFER_STATUSES.map((x) => '<option value="' + escapeHtml(x) + '" ' + ((offer && offer.offerStatus === x) ? "selected" : "") + '>' + escapeHtml(x) + '</option>').join("");
-  const interviewerDatalist = d.users.map(u => '<option value="' + escapeHtml(u.name) + '">' + escapeHtml(u.name) + (u.role === "interviewer" ? " (面试官)" : u.role === "hr" ? " (HR)" : "") + '</option>').join("");
+  const interviewerDatalist = d.users.map(u => '<option value="' + escapeHtml(u.name) + '">' + escapeHtml(u.name) + '</option>').join("");
+  const dimOpts = REVIEW_DIMENSIONS.map(dm => '<option value="' + escapeHtml(dm.key) + '">' + escapeHtml(dm.name) + '</option>').join("");
 
   const tagsHtml = (c.tags || []).map((t) => tagBadge(t)).join(" ");
+
+  // ====== 面试评分汇总卡片 ======
+  const ratingScore = { S: 5, A: 4, "B+": 3.5, B: 3, "B-": 2, C: 1 };
+  let summaryHtml = '';
+  if (reviews.length) {
+    // 各轮次概览
+    const roundSummary = reviews.map(rv => {
+      const score = ratingScore[rv.rating] || 0;
+      const stars = '★'.repeat(Math.round(score)) + '☆'.repeat(5 - Math.round(score));
+      return '<div class="rv-round-row"><span class="badge purple" style="min-width:56px;text-align:center">第' + rv.round + '轮</span><span class="badge ' + (score >= 3.5 ? 'green' : score >= 2 ? 'gray' : 'red') + '">' + escapeHtml(rv.rating || "-") + '</span><span class="rv-stars">' + stars + '</span>' + (rv.interviewer ? '<span class="muted" style="font-size:12px">' + escapeHtml(rv.interviewer) + '</span>' : '') + '</div>';
+    }).join("");
+
+    // 各维度平均分
+    const dimTotals = {};
+    const dimCounts = {};
+    for (const rv of reviews) {
+      const dims = rv.dimensions || {};
+      for (const dm of REVIEW_DIMENSIONS) {
+        if (dims[dm.key] && Number(dims[dm.key]) > 0) {
+          dimTotals[dm.key] = (dimTotals[dm.key] || 0) + Number(dims[dm.key]);
+          dimCounts[dm.key] = (dimCounts[dm.key] || 0) + 1;
+        }
+      }
+    }
+    const dimAvgHtml = REVIEW_DIMENSIONS.map(dm => {
+      const avg = dimCounts[dm.key] ? (dimTotals[dm.key] / dimCounts[dm.key]) : 0;
+      const pct = Math.round(avg / 5 * 100);
+      return '<div class="dim-bar-row"><span class="dim-label">' + escapeHtml(dm.name) + '</span><div class="bar" style="flex:1"><div class="bar-fill bar-purple" style="width:' + pct + '%"></div></div><span class="dim-score">' + (avg ? avg.toFixed(1) : '-') + '</span></div>';
+    }).join("");
+
+    // 综合评级
+    const allScores = reviews.map(rv => ratingScore[rv.rating] || 0).filter(s => s > 0);
+    const avgScore = allScores.length ? (allScores.reduce((a, b) => a + b, 0) / allScores.length) : 0;
+    const avgRating = avgScore >= 4.5 ? 'S' : avgScore >= 3.5 ? 'A' : avgScore >= 3 ? 'B+' : avgScore >= 2.5 ? 'B' : avgScore >= 1.5 ? 'B-' : avgScore > 0 ? 'C' : '-';
+
+    summaryHtml = '<div class="card review-summary"><div class="row"><div style="font-weight:900">面试评分汇总</div><span class="spacer"></span><span class="badge ' + (avgScore >= 3.5 ? 'green' : avgScore >= 2 ? 'gray' : 'red') + '" style="font-size:14px;padding:6px 14px">综合：' + avgRating + ' (' + avgScore.toFixed(1) + ')</span></div><div class="divider"></div><div class="grid"><div><div style="font-weight:700;margin-bottom:8px">各轮评分</div>' + roundSummary + '</div><div><div style="font-weight:700;margin-bottom:8px">维度均分</div>' + dimAvgHtml + '</div></div></div>';
+  }
+
+  // ====== 面试官评分对比 ======
+  let comparisonHtml = '';
+  if (reviews.length > 1) {
+    const byRound = {};
+    for (const rv of reviews) { if (!byRound[rv.round]) byRound[rv.round] = []; byRound[rv.round].push(rv); }
+    const compRows = Object.keys(byRound).sort().map(round => {
+      const rvs = byRound[round];
+      if (rvs.length < 1) return '';
+      const header = '<div style="font-weight:700;margin-top:12px;margin-bottom:6px">第' + round + '轮</div>';
+      const rows = rvs.map(rv => {
+        const dims = rv.dimensions || {};
+        const dimCells = REVIEW_DIMENSIONS.map(dm => {
+          const v = Number(dims[dm.key] || 0);
+          return '<td style="text-align:center">' + (v > 0 ? '<span class="badge ' + (v >= 4 ? 'green' : v >= 3 ? 'gray' : 'red') + '" style="font-size:11px">' + v + '</span>' : '-') + '</td>';
+        }).join("");
+        return '<tr><td><b>' + escapeHtml(rv.interviewer || "未知") + '</b></td><td>' + escapeHtml(rv.rating || "-") + '</td>' + dimCells + '<td class="muted" style="font-size:11px">' + escapeHtml((rv.createdAt || "").slice(0, 16)) + '</td></tr>';
+      }).join("");
+      const dimHeaders = REVIEW_DIMENSIONS.map(dm => '<th style="font-size:11px">' + escapeHtml(dm.name) + '</th>').join("");
+      return header + '<table><thead><tr><th>面试官</th><th>评级</th>' + dimHeaders + '<th>时间</th></tr></thead><tbody>' + rows + '</tbody></table>';
+    }).join("");
+    comparisonHtml = '<div style="margin-top:14px"><div style="font-weight:900;margin-bottom:8px">面试官评分对比</div>' + compRows + '</div>';
+  }
 
   const scheduleHtml = schedules.length ? schedules.map((x) => {
     const roundPassStatus = x.round === 1 ? "一面通过" : x.round === 2 ? "二面通过" : x.round === 3 ? "三面通过" : x.round === 4 ? "四面通过" : "五面通过";
     return '<div class="card shadowless" style="padding:12px;border-radius:14px;margin-bottom:10px"><div class="row"><b>第' + x.round + '轮</b><span class="pill"><span class="muted">时间</span><b>' + escapeHtml(x.scheduledAt || "-") + '</b></span><span class="spacer"></span><span class="muted">' + escapeHtml(x.updatedAt || x.createdAt || "") + '</span></div><div class="divider"></div><div class="muted">面试官：' + escapeHtml(x.interviewers || "-") + '</div><div class="muted">地点/形式：' + escapeHtml(x.location || "-") + '</div>' + (x.link ? '<div class="muted">链接：<a class="btn sm" target="_blank" href="' + escapeHtml(x.link) + '">打开</a></div>' : "") + '<div class="divider"></div><div class="row" style="gap:6px"><button class="btn sm" style="background:rgba(22,163,74,.1);color:#16a34a" onclick="quickStatus(\'' + escapeHtml(roundPassStatus) + '\')">✓ 标记通过</button><button class="btn sm" style="background:rgba(239,68,68,.1);color:#ef4444" onclick="quickStatus(\'淘汰\')">✗ 淘汰</button>' + (x.round < 5 ? '<button class="btn sm" onclick="prefillNextRound(' + (x.round + 1) + ')">安排第' + (x.round + 1) + '轮</button>' : '') + '</div></div>';
   }).join("") : '<div class="muted">暂无面试安排</div>';
 
-  const reviewHtml = reviews.length ? reviews.map((x) => '<div class="card shadowless" style="padding:12px;border-radius:14px;margin-bottom:10px"><div class="row"><b>第' + x.round + '轮</b><span class="pill"><span class="muted">进度</span><b>' + escapeHtml(x.status || "-") + '</b></span><span class="pill"><span class="muted">评级</span><b>' + escapeHtml(x.rating || "-") + '</b></span><span class="spacer"></span><span class="muted">' + escapeHtml(x.createdAt || "") + '</span></div><div class="divider"></div><div style="margin-bottom:6px"><b>Pros</b><div class="muted">' + escapeHtml(x.pros || "-").replaceAll("\n", "<br/>") + '</div></div><div style="margin-bottom:6px"><b>Cons</b><div class="muted">' + escapeHtml(x.cons || "-").replaceAll("\n", "<br/>") + '</div></div><div><b>下一轮考察点</b><div class="muted">' + escapeHtml(x.focusNext || "-").replaceAll("\n", "<br/>") + '</div></div></div>').join("") : '<div class="muted">暂无面评</div>';
+  const reviewHtml = reviews.length ? reviews.map((x) => {
+    const dims = x.dimensions || {};
+    const dimHtml = REVIEW_DIMENSIONS.map(dm => {
+      const v = Number(dims[dm.key] || 0);
+      return v > 0 ? '<span class="pill" style="padding:4px 8px"><span class="muted" style="font-size:11px">' + escapeHtml(dm.name) + '</span><b>' + v + '</b></span>' : '';
+    }).filter(Boolean).join(" ");
+    return '<div class="card shadowless" style="padding:12px;border-radius:14px;margin-bottom:10px"><div class="row"><b>第' + x.round + '轮</b><span class="pill"><span class="muted">评级</span><b>' + escapeHtml(x.rating || "-") + '</b></span>' + (x.interviewer ? '<span class="pill"><span class="muted">面试官</span><b>' + escapeHtml(x.interviewer) + '</b></span>' : '') + '<span class="spacer"></span><span class="muted">' + escapeHtml((x.createdAt || "").slice(0, 16)) + '</span></div>' + (dimHtml ? '<div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">' + dimHtml + '</div>' : '') + '<div class="divider"></div><div style="margin-bottom:6px"><b>Pros</b><div class="muted">' + escapeHtml(x.pros || "-").replaceAll("\n", "<br/>") + '</div></div><div style="margin-bottom:6px"><b>Cons</b><div class="muted">' + escapeHtml(x.cons || "-").replaceAll("\n", "<br/>") + '</div></div><div><b>下一轮考察点</b><div class="muted">' + escapeHtml(x.focusNext || "-").replaceAll("\n", "<br/>") + '</div></div></div>';
+  }).join("") : '<div class="muted">暂无面评</div>';
 
   const eventHtml = events.length ? '<div class="timeline">' + events.map((e) => '<div class="titem"><div class="tmeta"><b>' + escapeHtml(e.actor || "系统") + '</b><span class="pill"><span class="muted">时间</span><b>' + escapeHtml(e.createdAt || "") + '</b></span><span class="pill"><span class="muted">类型</span><b>' + escapeHtml(e.type || "-") + '</b></span></div><div class="tmsg">' + escapeHtml(e.message || "").replaceAll("\n", "<br/>") + '</div></div>').join("") + '</div>' : '<div class="muted">暂无动态</div>';
 
@@ -901,9 +998,13 @@ app.get("/candidates/:id", requireLogin, async (req, res) => {
     renderPage({
       title: "候选人：" + (c.name || ""),
       user: req.user,
-      active: "candidates_list",
+      active: "candidates",
       contentHtml: '<div class="row"><div style="font-weight:900;font-size:18px">候选人详情：' + escapeHtml(c.name || "未命名") + '</div><span class="spacer"></span>' + (feishuEnabled() ? '<button class="btn sm" onclick="sendNotify()" id="notifyBtn" style="background:rgba(59,130,246,.08);color:#1d4ed8">发送飞书通知</button>' : '') + '<a class="btn" href="/candidates">返回列表</a><a class="btn" href="/candidates/board">去看板</a><form method="POST" action="/candidates/' + cid + '/delete" style="display:inline" onsubmit="return confirm(\'确定删除此候选人及所有关联数据？\')"><button class="btn danger sm" type="submit">删除</button></form></div><div class="divider"></div>' +
         '<div class="card"><div class="row"><span class="pill"><span class="muted">ID</span><b class="mono">' + escapeHtml(c.id) + '</b></span><span class="pill"><span class="muted">岗位</span><b>' + escapeHtml(c.jobTitle || c.jobId || "-") + '</b></span><span class="pill"><span class="muted">来源</span><b>' + escapeHtml(c.source || "-") + '</b></span><span class="pill"><span class="muted">手机</span><b>' + escapeHtml(c.phone || "-") + '</b></span><span class="pill"><span class="muted">邮箱</span><b>' + escapeHtml(c.email || "-") + '</b></span><span class="pill"><span class="muted">状态</span><b>' + escapeHtml(c.status || "-") + '</b></span>' + followupBadge(c.follow) + '</div>' +
+        '</div>' +
+        (summaryHtml ? '<div style="height:14px"></div>' + summaryHtml : '') +
+        '<div style="height:14px"></div>' +
+        '<div class="card">' +
         '<div style="margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">' +
         (resume && resume.url ? '<a class="btn sm" href="' + escapeHtml(resume.url) + '" target="_blank" rel="noreferrer" style="background:rgba(139,92,246,.08)">📎 ' + escapeHtml((resume.originalName || resume.filename || "简历").slice(0, 20)) + '</a>' : '<span class="badge gray">暂无简历</span>') +
         (tagsHtml ? ' ' + tagsHtml : '') +
@@ -917,7 +1018,7 @@ app.get("/candidates/:id", requireLogin, async (req, res) => {
         '<div class="tabpanel" id="panel-follow"><div class="divider"></div><div class="card shadowless" style="padding:12px;border-radius:14px"><div class="row"><div style="font-weight:900">下一步 & 跟进时间</div></div><div class="divider"></div><div class="field"><label>下一步动作</label><select id="fuAction">' + nextOpts + '</select></div><div class="field"><label>跟进时间</label><input id="fuAt" value="' + escapeHtml(c.follow.followAt || "") + '" placeholder="2026-02-08 14:00" /></div><div class="field"><label>跟进备注</label><textarea id="fuNote" rows="4">' + escapeHtml(c.follow.note || "") + '</textarea></div><button class="btn primary" onclick="saveFollow()">保存跟进</button></div></div>' +
         '<div class="tabpanel" id="panel-schedule"><div class="divider"></div><div class="card shadowless" style="padding:12px;border-radius:14px"><div class="row"><div style="font-weight:900">新增/更新面试安排</div></div><div class="divider"></div><div class="row" style="gap:10px"><div class="field" style="min-width:120px"><label>轮次</label><select id="scRound">' + roundOpts + '</select></div><div class="field" style="min-width:220px"><label>面试时间</label><input id="scAt" type="datetime-local" /></div></div><div class="field"><label>面试官</label><input id="scInterviewers" list="interviewer-datalist" placeholder="张三 / 李四" /></div><datalist id="interviewer-datalist">' + interviewerDatalist + '</datalist><div class="field"><label>会议链接</label><input id="scLink" /></div><div class="field"><label>地点/形式</label><input id="scLocation" /></div><div class="field"><label>同步状态</label><select id="scSyncStatus">' + syncOpts + '</select></div>' + (feishuEnabled() ? '<div class="field"><label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="scSyncCalendar" style="width:auto" /> 同步到飞书日历</label></div>' : '') + '<button class="btn primary" onclick="saveSchedule()">保存面试安排</button></div><div style="height:12px"></div>' + scheduleHtml + '</div>' +
         '<div class="tabpanel" id="panel-resume"><div class="divider"></div><div class="row"><div style="font-weight:900">上传简历</div><span class="spacer"></span>' + (resume?.url ? '<a class="btn" href="' + escapeHtml(resume.url) + '" target="_blank" rel="noreferrer">新窗口打开</a>' : '') + '</div><div class="divider"></div><form id="resumeUploadForm" enctype="multipart/form-data"><div class="row"><input type="file" name="resume" accept=".pdf,.png,.jpg,.jpeg,.webp" /><button class="btn primary" type="submit">上传</button></div></form><div class="divider"></div>' + resumeEmbedHtml(resume) + '</div>' +
-        '<div class="tabpanel" id="panel-review"><div class="divider"></div><div class="card shadowless" style="padding:12px;border-radius:14px"><div class="row"><div style="font-weight:900">新增/更新面评</div></div><div class="divider"></div><div class="row" style="gap:10px"><div class="field" style="min-width:120px"><label>轮次</label><select id="rvRound">' + roundOpts + '</select></div><div class="field" style="min-width:160px"><label>面试进度</label><select id="rvStatus">' + stOpts + '</select></div><div class="field" style="min-width:120px"><label>评级</label><select id="rvRating">' + rtOpts + '</select></div></div><div class="field"><label>Pros</label><textarea id="rvPros" rows="3"></textarea></div><div class="field"><label>Cons</label><textarea id="rvCons" rows="3"></textarea></div><div class="field"><label>下一轮考察点</label><textarea id="rvFocusNext" rows="3"></textarea></div><button class="btn primary" onclick="addReview()">新增/更新面评</button></div><div style="height:12px"></div>' + reviewHtml + '</div>' +
+        '<div class="tabpanel" id="panel-review"><div class="divider"></div><div class="card shadowless" style="padding:12px;border-radius:14px"><div class="row"><div style="font-weight:900">新增/更新面评</div></div><div class="divider"></div><div class="row" style="gap:10px"><div class="field" style="min-width:120px"><label>轮次</label><select id="rvRound">' + roundOpts + '</select></div><div class="field" style="min-width:160px"><label>面试进度</label><select id="rvStatus">' + stOpts + '</select></div><div class="field" style="min-width:120px"><label>评级</label><select id="rvRating">' + rtOpts + '</select></div></div><div class="field"><label>面试官</label><input id="rvInterviewer" list="interviewer-datalist" placeholder="填写面试官姓名" value="' + escapeHtml(req.user?.name || '') + '" /></div><div style="font-weight:700;margin:12px 0 8px">维度评分 <span class="muted" style="font-weight:400;font-size:12px">（1-5星，至少填3项）</span></div><div class="dim-score-grid">' + REVIEW_DIMENSIONS.map(function(dm) { return '<div class="dim-score-row"><label class="dim-label">' + escapeHtml(dm.name) + ' <span class="muted" style="font-size:11px">' + escapeHtml(dm.desc) + '</span></label><div class="dim-stars" data-dim="' + escapeHtml(dm.key) + '">' + [1,2,3,4,5].map(function(n) { return '<span class="dim-star" data-val="' + n + '" onclick="setDimStar(\'' + dm.key + '\',' + n + ')" title="' + n + '星">☆</span>'; }).join('') + '</div></div>'; }).join('') + '</div><div class="divider"></div><div class="field"><label>Pros</label><textarea id="rvPros" rows="3" placeholder="候选人的优势和亮点"></textarea></div><div class="field"><label>Cons</label><textarea id="rvCons" rows="3" placeholder="候选人的不足和风险"></textarea></div><div class="field"><label>下一轮考察点</label><textarea id="rvFocusNext" rows="3" placeholder="如果进入下一轮，需要重点考察的方向"></textarea></div><button class="btn primary" onclick="addReview()">提交面评</button></div><div style="height:12px"></div>' + (comparisonHtml ? '<div class="card shadowless" style="padding:12px;border-radius:14px">' + comparisonHtml + '</div><div style="height:12px"></div>' : '') + reviewHtml + '</div>' +
         '<div class="tabpanel" id="panel-offer"><div class="divider"></div>' + offerHtml + '</div>' +
         '<div class="tabpanel" id="panel-activity"><div class="divider"></div>' + eventHtml + '</div>' +
         '</div></div>' +
@@ -926,7 +1027,8 @@ app.get("/candidates/:id", requireLogin, async (req, res) => {
         'async function updateStatus(){var v=document.getElementById("statusSelect").value;var res=await fetch("/api/candidates/' + cid + '/status",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({status:v})});if(res.ok)location.reload();else alert("更新失败")}' +
         'async function saveFollow(){var payload={nextAction:document.getElementById("fuAction").value,followAt:document.getElementById("fuAt").value,note:document.getElementById("fuNote").value};var res=await fetch("/api/candidates/' + cid + '/follow",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});if(res.ok)location.reload();else alert("保存失败")}' +
         'async function saveSchedule(){var sc=document.getElementById("scSyncCalendar");var payload={round:Number(document.getElementById("scRound").value),scheduledAt:document.getElementById("scAt").value,interviewers:document.getElementById("scInterviewers").value,link:document.getElementById("scLink").value,location:document.getElementById("scLocation").value,syncStatus:document.getElementById("scSyncStatus").value,syncCalendar:sc&&sc.checked?"on":"off"};var res=await fetch("/api/candidates/' + cid + '/schedule",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});if(res.ok)location.reload();else alert("保存失败")}' +
-        'async function addReview(){var payload={round:Number(document.getElementById("rvRound").value),status:document.getElementById("rvStatus").value,rating:document.getElementById("rvRating").value,pros:document.getElementById("rvPros").value,cons:document.getElementById("rvCons").value,focusNext:document.getElementById("rvFocusNext").value};var res=await fetch("/api/candidates/' + cid + '/reviews",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});if(res.ok)location.reload();else alert("保存失败")}' +
+        'function setDimStar(key,val){var container=document.querySelector(".dim-stars[data-dim=\\""+key+"\\"]");if(!container)return;container.dataset.score=val;var stars=container.querySelectorAll(".dim-star");for(var i=0;i<stars.length;i++){stars[i].textContent=parseInt(stars[i].dataset.val)<=val?"★":"☆";stars[i].classList.toggle("active",parseInt(stars[i].dataset.val)<=val)}}' +
+        'async function addReview(){var rating=document.getElementById("rvRating").value;if(!rating){alert("请选择评级");return}var interviewer=document.getElementById("rvInterviewer").value.trim();if(!interviewer){alert("请填写面试官姓名");return}var dims={};var filledCount=0;document.querySelectorAll(".dim-stars").forEach(function(el){var k=el.dataset.dim;var s=parseInt(el.dataset.score||"0");if(s>0){dims[k]=s;filledCount++}});if(filledCount<3){alert("请至少为3个维度评分");return}var pros=document.getElementById("rvPros").value.trim();var cons=document.getElementById("rvCons").value.trim();if(!pros&&!cons){alert("Pros和Cons至少填写一项");return}var payload={round:Number(document.getElementById("rvRound").value),status:document.getElementById("rvStatus").value,rating:rating,interviewer:interviewer,dimensions:dims,pros:pros,cons:cons,focusNext:document.getElementById("rvFocusNext").value};var res=await fetch("/api/candidates/' + cid + '/reviews",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});if(res.ok){var data=await res.json();if(data.autoFlowMsg){alert(data.autoFlowMsg)}location.reload()}else{alert("提交失败")}}' +
         'var f=document.getElementById("resumeUploadForm");if(f){f.onsubmit=async function(e){e.preventDefault();var fd=new FormData(f);var r=await fetch("/api/candidates/' + cid + '/resume",{method:"POST",body:fd});if(r.ok)location.reload();else alert("上传失败："+await r.text())}}' +
         'async function quickStatus(st){if(!confirm("确认将状态更新为【"+st+"】？"))return;var r=await fetch("/api/candidates/' + cid + '/status",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({status:st})});if(r.ok)location.reload();else alert("更新失败")}' +
         'function prefillNextRound(n){switchTab("schedule");document.getElementById("scRound").value=n;document.getElementById("scAt").focus()}' +
@@ -1023,77 +1125,11 @@ app.post("/settings/tags", requireLogin, async (req, res) => {
   res.redirect("/settings");
 });
 
-// ====== 用户管理（仅管理员） ======
-app.get("/users", requireLogin, async (req, res) => {
-  const d = await loadData();
-  const usersHtml = d.users.map(u => {
-    const roleBadge = u.role === "admin" ? '<span class="badge purple">管理员</span>'
-      : u.role === "hr" ? '<span class="badge blue">HR</span>'
-      : '<span class="badge gray">面试官</span>';
-    const avatar = u.avatar ? `<img src="${escapeHtml(u.avatar)}" style="width:28px;height:28px;border-radius:50%;vertical-align:middle" />` : "";
-    return `<tr>
-      <td>${avatar} ${escapeHtml(u.name)}</td>
-      <td>${roleBadge}</td>
-      <td>${escapeHtml(u.department || "-")}</td>
-      <td>${escapeHtml(u.jobTitle || "-")}</td>
-      <td>${escapeHtml(u.provider || "-")}</td>
-      <td>
-        <form method="POST" action="/api/users/${u.id}/role" style="display:inline">
-          <select name="role" onchange="this.form.submit()" style="width:auto;padding:4px 8px">
-            <option value="admin" ${u.role === "admin" ? "selected" : ""}>管理员</option>
-            <option value="hr" ${u.role === "hr" ? "selected" : ""}>HR</option>
-            <option value="interviewer" ${u.role === "interviewer" ? "selected" : ""}>面试官</option>
-          </select>
-        </form>
-      </td>
-    </tr>`;
-  }).join("");
-
-  res.send(renderPage({
-    title: "用户管理",
-    user: req.user,
-    active: "users",
-    contentHtml: `
-      <div class="card">
-        <div class="row">
-          <div style="font-weight:900;font-size:18px">用户管理</div>
-          <span class="muted">共 ${d.users.length} 人</span>
-          <div class="spacer"></div>
-          ${feishuEnabled() ? '<form method="POST" action="/api/users/sync-feishu"><button class="btn primary" type="submit">从飞书同步通讯录</button></form>' : ''}
-        </div>
-        <div class="divider"></div>
-        <table>
-          <thead><tr><th>姓名</th><th>角色</th><th>部门</th><th>职位</th><th>来源</th><th>操作</th></tr></thead>
-          <tbody>${usersHtml || '<tr><td colspan="6" class="muted">暂无用户</td></tr>'}</tbody>
-        </table>
-      </div>
-    `,
-  }));
-});
-
-// 修改用户角色
-app.post("/api/users/:id/role", requireLogin, async (req, res) => {
-  const d = await loadData();
-  const u = d.users.find(x => x.id === req.params.id);
-  if (!u) return res.status(404).send("user_not_found");
-  const newRole = String(req.body.role || "").trim();
-  const currentUserRole = req.user?.role || "interviewer";
-  // HR 不能设置 admin 角色，也不能修改 admin 的角色
-  if (currentUserRole === "hr" && (newRole === "admin" || u.role === "admin")) {
-    return res.status(403).send("HR无权设置管理员角色");
-  }
-  if (["admin", "hr", "interviewer"].includes(newRole)) {
-    u.role = newRole;
-    await saveData(d);
-  }
-  res.redirect("/users");
-});
-
-// 从飞书同步通讯录
+// ====== 从飞书同步通讯录 ======
 app.post("/api/users/sync-feishu", requireLogin, async (req, res) => {
   try {
     const employees = await getAllFeishuEmployees();
-    if (!employees.length) return res.redirect("/users");
+    if (!employees.length) return res.redirect("/settings");
     const d = await loadData();
     let added = 0;
     for (const emp of employees) {
@@ -1110,7 +1146,6 @@ app.post("/api/users/sync-feishu", requireLogin, async (req, res) => {
           unionId: emp.unionId || "",
           name: emp.name,
           avatar: emp.avatar,
-          role: "interviewer",
           department: emp.department || "",
           jobTitle: emp.jobTitle || "",
           provider: "feishu",
@@ -1120,10 +1155,10 @@ app.post("/api/users/sync-feishu", requireLogin, async (req, res) => {
       }
     }
     await saveData(d);
-    res.redirect("/users");
+    res.redirect("/settings");
   } catch (e) {
     console.error("[Sync] 飞书通讯录同步失败:", e.message);
-    res.redirect("/users");
+    res.redirect("/settings");
   }
 });
 
@@ -1134,12 +1169,7 @@ app.get("/schedule", requireLogin, async (req, res) => {
     .filter(s => s.scheduledAt)
     .sort((a, b) => (a.scheduledAt > b.scheduledAt ? 1 : -1));
 
-  // 面试官为当前用户的筛选（面试官角色只看自己的）
-  const userRole = req.user?.role || "interviewer";
-  const userName = req.user?.name || "";
-  const filtered = userRole === "interviewer"
-    ? schedules.filter(s => (s.interviewers || "").includes(userName))
-    : schedules;
+  const filtered = schedules;
 
   const upcoming = filtered.filter(s => new Date(s.scheduledAt.replace(" ", "T")) >= new Date());
   const past = filtered.filter(s => new Date(s.scheduledAt.replace(" ", "T")) < new Date());
@@ -1167,7 +1197,7 @@ app.get("/schedule", requireLogin, async (req, res) => {
 
   // 面试官选择列表（从已同步的用户中获取）
   const interviewerOptions = d.users
-    .map(u => `<option value="${escapeHtml(u.name)}">${escapeHtml(u.name)}${u.role === "interviewer" ? " (面试官)" : u.role === "hr" ? " (HR)" : ""}</option>`)
+    .map(u => `<option value="${escapeHtml(u.name)}">${escapeHtml(u.name)}</option>`)
     .join("");
 
   // 日历视图数据
@@ -1506,6 +1536,8 @@ app.post("/api/candidates/:id/reviews", requireLogin, async (req, res) => {
   var pros = String(req.body.pros || "");
   var cons = String(req.body.cons || "");
   var focusNext = String(req.body.focusNext || "");
+  const interviewer = String(req.body.interviewer || req.user?.name || "");
+  const dimensions = req.body.dimensions || {};
 
   const note = String(req.body.note || "");
   if (!pros && !cons && !focusNext && note) pros = note;
@@ -1514,13 +1546,16 @@ app.post("/api/candidates/:id/reviews", requireLogin, async (req, res) => {
   if (rating && !INTERVIEW_RATING.includes(rating)) return res.status(400).send("invalid_rating");
   if (!STATUS_SET.has(status)) return res.status(400).send("invalid_status");
 
-  const idx = d.interviews.findIndex((x) => x.candidateId === c.id && x.round === round);
+  // 多面试官支持：同一轮次不同面试官可以各提交一份面评
+  const idx = d.interviews.findIndex((x) => x.candidateId === c.id && x.round === round && (x.interviewer || "") === interviewer);
   const item = {
     id: idx > -1 ? d.interviews[idx].id : rid("rv"),
     candidateId: c.id,
     round,
     status,
     rating,
+    interviewer,
+    dimensions,
     pros,
     cons,
     focusNext,
@@ -1530,27 +1565,56 @@ app.post("/api/candidates/:id/reviews", requireLogin, async (req, res) => {
   if (idx > -1) d.interviews[idx] = item;
   else d.interviews.push(item);
 
+  // 智能状态流转
+  let autoFlowMsg = "";
+  const RATING_SCORES = { S: 5, A: 4, "B+": 3.5, B: 3, "B-": 2, C: 1 };
+  const ratingScore = RATING_SCORES[rating] || 0;
+
   const old = c.status || "待筛选";
-  c.status = status;
+
+  if (rating === "B-" || rating === "C") {
+    // 低评级 → 建议淘汰
+    c.status = status; // 先设置面试进度
+    autoFlowMsg = "评级为" + rating + "，建议标记该候选人为淘汰状态。";
+  } else if (ratingScore >= 3.5) {
+    // B+ 及以上 → 自动流转到通过状态
+    const passStatusMap = { 1: "一面通过", 2: "二面通过", 3: "三面通过", 4: "四面通过", 5: "五面通过" };
+    const passStatus = passStatusMap[round];
+    if (passStatus && STATUS_SET.has(passStatus)) {
+      c.status = passStatus;
+      if (round >= 5) {
+        // 最后一轮通过 → 待发offer
+        c.status = "待发offer";
+        autoFlowMsg = "第" + round + "轮面试通过（评级" + rating + "），已自动流转到「待发Offer」。";
+      } else {
+        autoFlowMsg = "评级" + rating + "，已自动流转到「" + passStatus + "」。";
+      }
+    } else {
+      c.status = status;
+    }
+  } else {
+    c.status = status;
+  }
   c.updatedAt = nowIso();
 
-  pushEvent(d, { candidateId: c.id, type: "面评", message: "第" + round + "轮：进度=" + status + "，评级=" + (rating || "-") + "\nPros：" + (pros || "-") + "\nCons：" + (cons || "-"), actor: req.user?.name || "系统" });
+  const dimSummary = Object.keys(dimensions).length > 0 ? "\n维度评分：" + REVIEW_DIMENSIONS.filter(dm => dimensions[dm.key]).map(dm => dm.name + "=" + dimensions[dm.key] + "★").join("，") : "";
+  pushEvent(d, { candidateId: c.id, type: "面评", message: "第" + round + "轮（" + interviewer + "）：进度=" + status + "，评级=" + (rating || "-") + dimSummary + "\nPros：" + (pros || "-") + "\nCons：" + (cons || "-"), actor: req.user?.name || "系统" });
   if (old !== c.status) {
     pushEvent(d, { candidateId: c.id, type: "状态同步", message: "因面评更新，状态：" + old + " -> " + c.status, actor: "系统" });
   }
   // 面评后自动更新跟进动作
   if (!c.follow) c.follow = {};
-  if (status === "淘汰") {
+  if (c.status === "淘汰") {
     c.follow.nextAction = "已结束";
     c.follow.note = (c.follow.note ? c.follow.note + "\n" : "") + "第" + round + "轮面试淘汰";
-  } else if (status.includes("通过")) {
+  } else if (c.status.includes("通过")) {
     c.follow.nextAction = "安排下一轮面试";
     c.follow.followAt = new Date(Date.now() + 2 * 86400000).toISOString().slice(0, 10);
-  } else if (status === "待发offer") {
+  } else if (c.status === "待发offer") {
     c.follow.nextAction = "准备Offer";
   }
   await saveData(d);
-  res.json({ ok: true });
+  res.json({ ok: true, autoFlowMsg });
 });
 
 app.post("/api/candidates/:id/resume", requireLogin, upload.single("resume"), async (req, res) => {
@@ -1658,7 +1722,7 @@ app.use((err, req, res, _next) => {
 
 // ====== 启动（本地开发时 listen，Vercel 上由 api/index.mjs 导出）======
 if (!isServerless) {
-  const port = Number(process.env.PORT || 3001);
+  const port = Number(process.env.PORT || 3000);
   app.listen(port, "0.0.0.0", () => {
     console.log("[OK] Web: http://localhost:" + port);
     console.log("[OK] 全部候选人: http://localhost:" + port + "/candidates");
