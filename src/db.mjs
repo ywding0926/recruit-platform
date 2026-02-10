@@ -3,9 +3,7 @@ import path from "path";
 import crypto from "crypto";
 import { supabaseEnabled, getSupabaseAdmin } from "./supabase.mjs";
 
-// Vercel serverless 环境检测：无持久文件系统，跳过本地 JSON 读写
 const isServerless = !!process.env.VERCEL;
-
 const DATA_PATH = path.join(process.cwd(), "data.json");
 
 // ===== 通用工具 =====
@@ -35,12 +33,19 @@ export function ensureDataShape(d) {
   return d;
 }
 
-// ===== 本地读写（serverless 下返回空数据）=====
+// ===== 本地读写 =====
 export function loadDataLocal() {
   if (isServerless) return ensureDataShape({});
   try {
     const raw = fs.readFileSync(DATA_PATH, "utf-8");
-    return ensureDataShape(JSON.parse(raw));
+    const d = ensureDataShape(JSON.parse(raw));
+    // 修复本地存储简历 URL 为空的问题
+    for (const rf of d.resumeFiles) {
+      if (!rf.url && rf.filename && (rf.storage === "local" || !rf.storage)) {
+        rf.url = "/uploads/" + encodeURIComponent(rf.filename);
+      }
+    }
+    return d;
   } catch {
     const init = ensureDataShape({});
     try { fs.writeFileSync(DATA_PATH, JSON.stringify(init, null, 2), "utf-8"); } catch {}
@@ -53,7 +58,7 @@ export function saveDataLocal(d) {
   fs.writeFileSync(DATA_PATH, JSON.stringify(ensureDataShape(d), null, 2), "utf-8");
 }
 
-// ===== Supabase 映射（camelCase <-> snake_case）=====
+// ===== Supabase 映射 =====
 function candToRow(c) {
   const follow = c.follow || {};
   return {
@@ -138,6 +143,8 @@ function interviewToRow(x) {
     round: x.round ?? null,
     status: x.status ?? null,
     rating: x.rating ?? null,
+    interviewer: x.interviewer ?? null,
+    dimensions: x.dimensions ? JSON.stringify(x.dimensions) : null,
     pros: x.pros ?? null,
     cons: x.cons ?? null,
     focus_next: x.focusNext ?? null,
@@ -146,12 +153,18 @@ function interviewToRow(x) {
   };
 }
 function interviewFromRow(r) {
+  let dims = {};
+  if (r.dimensions) {
+    try { dims = typeof r.dimensions === "string" ? JSON.parse(r.dimensions) : r.dimensions; } catch { dims = {}; }
+  }
   return {
     id: r.id,
     candidateId: r.candidate_id ?? "",
     round: r.round ?? 1,
     status: r.status ?? "",
     rating: r.rating ?? "",
+    interviewer: r.interviewer ?? "",
+    dimensions: dims,
     pros: r.pros ?? "",
     cons: r.cons ?? "",
     focusNext: r.focus_next ?? "",
@@ -197,8 +210,6 @@ function resumeToRow(x) {
     size: x.size ?? null,
     uploaded_at: x.uploadedAt ?? null,
     url: x.url ?? null,
-    storage: x.storage ?? null,
-    bucket: x.bucket ?? null,
   };
 }
 function resumeFromRow(r) {
@@ -273,7 +284,6 @@ function userToRow(u) {
     union_id: u.unionId ?? null,
     name: u.name ?? null,
     avatar: u.avatar ?? null,
-    role: u.role ?? "interviewer",
     department: u.department ?? null,
     job_title: u.jobTitle ?? null,
     provider: u.provider ?? null,
@@ -287,7 +297,6 @@ function userFromRow(r) {
     unionId: r.union_id ?? "",
     name: r.name ?? "",
     avatar: r.avatar ?? "",
-    role: r.role ?? "interviewer",
     department: r.department ?? "",
     jobTitle: r.job_title ?? "",
     provider: r.provider ?? "feishu",
@@ -303,9 +312,7 @@ async function sbSelectAll(admin, table) {
 
 async function upsertWithRetry(admin, table, rows, minimalKeys = []) {
   if (!rows.length) return;
-
   let { error } = await admin.from(table).upsert(rows, { onConflict: "id" });
-
   if (error && minimalKeys.length) {
     const slim = rows.map((r) => {
       const o = {};
@@ -335,11 +342,10 @@ export async function loadData() {
       sbSelectAll(admin, "events"),
     ]);
 
-    // offers / users 表可能不存在，容错处理
     let offers = [];
-    try { offers = await sbSelectAll(admin, "offers"); } catch { /* 表不存在时忽略 */ }
+    try { offers = await sbSelectAll(admin, "offers"); } catch {}
     let users = [];
-    try { users = await sbSelectAll(admin, "users"); } catch { /* 表不存在时忽略 */ }
+    try { users = await sbSelectAll(admin, "users"); } catch {}
 
     const d = ensureDataShape({
       jobs: jobs.map(jobFromRow),
@@ -352,27 +358,18 @@ export async function loadData() {
       users: users.map(userFromRow),
     });
 
-    // serverless 环境下不读取本地文件，直接从 Supabase 数据中提取 sources/tags
     if (isServerless) {
-      d.sources = Array.from(
-        new Set([...d.sources, ...d.candidates.map((c) => c.source).filter(Boolean)])
-      );
-      d.tags = Array.from(
-        new Set([...d.tags, ...d.candidates.flatMap((c) => c.tags || []).filter(Boolean)])
-      );
+      d.sources = Array.from(new Set([...d.sources, ...d.candidates.map((c) => c.source).filter(Boolean)]));
+      d.tags = Array.from(new Set([...d.tags, ...d.candidates.flatMap((c) => c.tags || []).filter(Boolean)]));
       return ensureDataShape(d);
     }
 
-    // 非 serverless：合并本地数据
+    // 合并本地数据
     const local = loadDataLocal();
-    d.sources = Array.from(
-      new Set([...(local.sources || []), ...d.candidates.map((c) => c.source).filter(Boolean)])
-    );
-    d.tags = Array.from(
-      new Set([...(local.tags || []), ...d.candidates.flatMap((c) => c.tags || []).filter(Boolean)])
-    );
+    d.sources = Array.from(new Set([...(local.sources || []), ...d.candidates.map((c) => c.source).filter(Boolean)]));
+    d.tags = Array.from(new Set([...(local.tags || []), ...d.candidates.flatMap((c) => c.tags || []).filter(Boolean)]));
 
-    // 合并本地 resumeFiles（防止 Supabase upsert 失败或字段丢失导致简历不显示）
+    // 合并本地 resumeFiles
     const sbResumeMap = new Map(d.resumeFiles.map((r) => [r.id, r]));
     for (const lr of (local.resumeFiles || [])) {
       const sbr = sbResumeMap.get(lr.id);
@@ -384,53 +381,26 @@ export async function loadData() {
       }
     }
 
-    // 合并本地 offers
-    const sbOfferIds = new Set(d.offers.map((o) => o.id));
-    for (const lo of (local.offers || [])) {
-      if (!sbOfferIds.has(lo.id)) {
-        d.offers.push(lo);
+    // 修复简历 URL
+    for (const rf of d.resumeFiles) {
+      if (!rf.url && rf.filename && rf.storage === "local") {
+        rf.url = "/uploads/" + encodeURIComponent(rf.filename);
       }
     }
 
-    // 合并本地 events
-    const sbEventIds = new Set(d.events.map((e) => e.id));
-    for (const le of (local.events || [])) {
-      if (!sbEventIds.has(le.id)) {
-        d.events.push(le);
+    // 合并其他本地数据
+    const merge = (arr, localArr, key = "id") => {
+      const ids = new Set(arr.map((x) => x[key]));
+      for (const item of (localArr || [])) {
+        if (!ids.has(item[key])) arr.push(item);
       }
-    }
-
-    // 合并本地 interviews
-    const sbIntIds = new Set(d.interviews.map((x) => x.id));
-    for (const li of (local.interviews || [])) {
-      if (!sbIntIds.has(li.id)) {
-        d.interviews.push(li);
-      }
-    }
-
-    // 合并本地 interviewSchedules
-    const sbScIds = new Set(d.interviewSchedules.map((x) => x.id));
-    for (const ls of (local.interviewSchedules || [])) {
-      if (!sbScIds.has(ls.id)) {
-        d.interviewSchedules.push(ls);
-      }
-    }
-
-    // 合并本地 candidates
-    const sbCandIds = new Set(d.candidates.map((x) => x.id));
-    for (const lc of (local.candidates || [])) {
-      if (!sbCandIds.has(lc.id)) {
-        d.candidates.push(lc);
-      }
-    }
-
-    // 合并本地 users
-    const sbUserIds = new Set(d.users.map((x) => x.id));
-    for (const lu of (local.users || [])) {
-      if (!sbUserIds.has(lu.id)) {
-        d.users.push(lu);
-      }
-    }
+    };
+    merge(d.offers, local.offers);
+    merge(d.events, local.events);
+    merge(d.interviews, local.interviews);
+    merge(d.interviewSchedules, local.interviewSchedules);
+    merge(d.candidates, local.candidates);
+    merge(d.users, local.users);
 
     return ensureDataShape(d);
   } catch (e) {
@@ -453,39 +423,32 @@ export async function saveData(d) {
   try {
     const admin = getSupabaseAdmin();
 
-    await Promise.all([
+    const results = await Promise.allSettled([
       upsertWithRetry(admin, "jobs", shaped.jobs.map(jobToRow), ["id", "title"]),
-      upsertWithRetry(admin, "candidates", shaped.candidates.map(candToRow), [
-        "id",
-        "name",
-        "phone",
-        "job_id",
-        "job_title",
-        "source",
-      ]),
+      upsertWithRetry(admin, "candidates", shaped.candidates.map(candToRow), ["id", "name", "phone", "job_id", "job_title", "source"]),
       upsertWithRetry(admin, "interviews", shaped.interviews.map(interviewToRow), ["id", "candidate_id", "round"]),
-      upsertWithRetry(admin, "interview_schedules", shaped.interviewSchedules.map(scheduleToRow), [
-        "id",
-        "candidate_id",
-        "round",
-      ]),
-      upsertWithRetry(admin, "resume_files", shaped.resumeFiles.map(resumeToRow), ["id", "candidate_id", "filename", "url", "original_name", "content_type", "size", "storage", "bucket", "uploaded_at"]),
+      upsertWithRetry(admin, "interview_schedules", shaped.interviewSchedules.map(scheduleToRow), ["id", "candidate_id", "round"]),
+      upsertWithRetry(admin, "resume_files", shaped.resumeFiles.map(resumeToRow), ["id", "candidate_id", "filename", "url", "original_name", "content_type", "size", "uploaded_at"]),
       upsertWithRetry(admin, "events", shaped.events.map(eventToRow), ["id", "candidate_id", "type"]),
     ]);
+    const tableNames = ["jobs", "candidates", "interviews", "interview_schedules", "resume_files", "events"];
+    for (let i = 0; i < results.length; i++) {
+      if (results[i].status === "rejected") {
+        console.warn("[WARN] saveData upsert " + tableNames[i] + " failed:", String(results[i].reason?.message || results[i].reason));
+      }
+    }
 
-    // offers 表可能不存在
     try {
       if (shaped.offers.length) {
         await upsertWithRetry(admin, "offers", shaped.offers.map(offerToRow), ["id", "candidate_id"]);
       }
-    } catch { /* 忽略 */ }
+    } catch {}
 
-    // users 表可能不存在
     try {
       if (shaped.users.length) {
-        await upsertWithRetry(admin, "users", shaped.users.map(userToRow), ["id", "open_id", "name", "role"]);
+        await upsertWithRetry(admin, "users", shaped.users.map(userToRow), ["id", "open_id", "name"]);
       }
-    } catch { /* 忽略 */ }
+    } catch {}
   } catch (e) {
     console.warn("[WARN] saveData to supabase failed:", String(e?.message || e));
   }
@@ -513,7 +476,6 @@ export async function deleteCandidateRelated(candidateId) {
       admin.from("events").delete().eq("candidate_id", candidateId),
       admin.from("candidates").delete().eq("id", candidateId),
     ]);
-    // offers 可能不存在
     try { await admin.from("offers").delete().eq("candidate_id", candidateId); } catch {}
   } catch (e) {
     console.warn("[WARN] deleteCandidateRelated failed:", String(e?.message || e));
