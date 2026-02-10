@@ -54,12 +54,12 @@ export function registerAuthRoutes(app, renderPage) {
     if (!existing) {
       existing = {
         id: rid("usr"), openId: "", unionId: "", name, avatar: "",
-        department: "", jobTitle: "", provider: "dev", createdAt: nowIso(),
+        department: "", jobTitle: "", provider: "dev", role: "member", createdAt: nowIso(),
       };
       d.users.push(existing);
       await saveData(d);
     }
-    req.session.user = { id: existing.id, name: existing.name, provider: "dev" };
+    req.session.user = { id: existing.id, name: existing.name, role: existing.role || "member", provider: "dev" };
     res.redirect("/candidates");
   });
 
@@ -82,14 +82,14 @@ export function registerAuthRoutes(app, renderPage) {
         existing = {
           id: rid("usr"), openId: feishuUser.openId, unionId: feishuUser.unionId || "",
           name: feishuUser.name, avatar: feishuUser.avatar,
-          department: "", jobTitle: "", provider: "feishu", createdAt: nowIso(),
+          department: "", jobTitle: "", provider: "feishu", role: "member", createdAt: nowIso(),
         };
         d.users.push(existing);
       }
       await saveData(d);
       req.session.user = {
         id: existing.id, name: existing.name, avatar: existing.avatar,
-        openId: existing.openId, unionId: existing.unionId, provider: "feishu",
+        openId: existing.openId, unionId: existing.unionId, role: existing.role || "member", provider: "feishu",
       };
       res.redirect("/candidates");
     } catch (e) {
@@ -110,4 +110,22 @@ export function requireLogin(req, res, next) {
     return next();
   }
   return res.redirect("/login");
+}
+
+export function requireAdmin(req, res, next) {
+  if (req.user?.role === "admin") {
+    return next();
+  }
+  const isApi = req.path.startsWith("/api/");
+  if (isApi) {
+    return res.status(403).json({ error: "权限不足，需要管理员权限" });
+  }
+  return res.status(403).send(
+    `<!doctype html><html><head><meta charset="utf-8"><title>权限不足</title>
+    <style>body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC",sans-serif;display:flex;justify-content:center;align-items:center;min-height:100vh;margin:0;background:#faf7ff}
+    .box{text-align:center;padding:40px;border-radius:18px;background:#fff;border:1px solid rgba(237,233,254,.9);box-shadow:0 10px 30px rgba(17,24,39,.08)}
+    .box h2{margin:0 0 8px;color:#111827}.box p{color:#6b7280;margin:0 0 16px}
+    a{display:inline-block;padding:9px 16px;border-radius:12px;background:linear-gradient(180deg,#a78bfa,#8b5cf6);color:#fff;text-decoration:none;font-weight:600}</style></head>
+    <body><div class="box"><h2>权限不足</h2><p>该操作需要管理员权限，请联系管理员。</p><a href="/">返回首页</a></div></body></html>`
+  );
 }

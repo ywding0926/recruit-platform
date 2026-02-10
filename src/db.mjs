@@ -287,6 +287,7 @@ function userToRow(u) {
     department: u.department ?? null,
     job_title: u.jobTitle ?? null,
     provider: u.provider ?? null,
+    role: u.role ?? "member",
     created_at: u.createdAt ?? null,
   };
 }
@@ -300,6 +301,7 @@ function userFromRow(r) {
     department: r.department ?? "",
     jobTitle: r.job_title ?? "",
     provider: r.provider ?? "feishu",
+    role: r.role ?? "member",
     createdAt: r.created_at ?? nowIso(),
   };
 }
@@ -401,6 +403,15 @@ export async function loadData() {
     merge(d.interviewSchedules, local.interviewSchedules);
     merge(d.candidates, local.candidates);
     merge(d.users, local.users);
+
+    // 合并本地 users 的 role 字段（Supabase 表可能没有 role 列）
+    const localUserMap = new Map((local.users || []).map(u => [u.id, u]));
+    for (const u of d.users) {
+      const lu = localUserMap.get(u.id);
+      if (lu && lu.role && lu.role !== "member" && (!u.role || u.role === "member")) {
+        u.role = lu.role;
+      }
+    }
 
     return ensureDataShape(d);
   } catch (e) {

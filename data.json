@@ -579,42 +579,6 @@
   ],
   "resumeFiles": [
     {
-      "id": "rf_1770566280814_084db22eb86ca5ad",
-      "candidateId": "c_1770564610125_bba3c49ae0069e63",
-      "filename": "c_1770564610125_bba3c49ae0069e63/resume_1770566279680_dc67112bf00f842d.pdf",
-      "originalName": "",
-      "contentType": "",
-      "size": 0,
-      "uploadedAt": "2026-02-08T15:58:01.097754+00:00",
-      "url": "/uploads/c_1770564610125_bba3c49ae0069e63%2Fresume_1770566279680_dc67112bf00f842d.pdf",
-      "storage": "local",
-      "bucket": ""
-    },
-    {
-      "id": "rf_1770566292667_85fbe05379ad9ebb",
-      "candidateId": "c_1770564610125_bba3c49ae0069e63",
-      "filename": "c_1770564610125_bba3c49ae0069e63/resume_1770566291898_a22d5956f8cf94b8.pdf",
-      "originalName": "",
-      "contentType": "",
-      "size": 0,
-      "uploadedAt": "2026-02-08T15:58:13.07209+00:00",
-      "url": "/uploads/c_1770564610125_bba3c49ae0069e63%2Fresume_1770566291898_a22d5956f8cf94b8.pdf",
-      "storage": "local",
-      "bucket": ""
-    },
-    {
-      "id": "rf_1770561080351_d5c3f933f47c80b4",
-      "candidateId": "c_1770561079190_9f1d9334bb2ed24c",
-      "filename": "c_1770561079190_9f1d9334bb2ed24c/resume_1770561079191_6b0a54ff3e8c0829.pdf",
-      "originalName": "",
-      "contentType": "",
-      "size": 0,
-      "uploadedAt": "2026-02-08T14:31:20.663769+00:00",
-      "url": "/uploads/c_1770561079190_9f1d9334bb2ed24c%2Fresume_1770561079191_6b0a54ff3e8c0829.pdf",
-      "storage": "local",
-      "bucket": ""
-    },
-    {
       "id": "rf_1770564474205_ead5af4e91e7ffda",
       "candidateId": "c_1770561079190_9f1d9334bb2ed24c",
       "filename": "c_1770561079190_9f1d9334bb2ed24c/resume_1770564472805_8dbf2163f79f8b4c.pdf",
@@ -651,6 +615,18 @@
       "bucket": ""
     },
     {
+      "id": "rf_1770566280814_084db22eb86ca5ad",
+      "candidateId": "c_1770564610125_bba3c49ae0069e63",
+      "filename": "c_1770564610125_bba3c49ae0069e63/resume_1770566279680_dc67112bf00f842d.pdf",
+      "originalName": "",
+      "contentType": "",
+      "size": 0,
+      "uploadedAt": "2026-02-08T15:58:01.097754+00:00",
+      "url": "/uploads/c_1770564610125_bba3c49ae0069e63%2Fresume_1770566279680_dc67112bf00f842d.pdf",
+      "storage": "local",
+      "bucket": ""
+    },
+    {
       "id": "rf_1770566316876_74bc21adfe10a7e1",
       "candidateId": "c_1770564610125_bba3c49ae0069e63",
       "filename": "c_1770564610125_bba3c49ae0069e63/resume_1770566315575_d29a6906d5dd8ca0.pdf",
@@ -659,6 +635,18 @@
       "size": 0,
       "uploadedAt": "2026-02-08T15:58:37.248524+00:00",
       "url": "/uploads/c_1770564610125_bba3c49ae0069e63%2Fresume_1770566315575_d29a6906d5dd8ca0.pdf",
+      "storage": "local",
+      "bucket": ""
+    },
+    {
+      "id": "rf_1770561080351_d5c3f933f47c80b4",
+      "candidateId": "c_1770561079190_9f1d9334bb2ed24c",
+      "filename": "c_1770561079190_9f1d9334bb2ed24c/resume_1770561079191_6b0a54ff3e8c0829.pdf",
+      "originalName": "",
+      "contentType": "",
+      "size": 0,
+      "uploadedAt": "2026-02-08T14:31:20.663769+00:00",
+      "url": "/uploads/c_1770561079190_9f1d9334bb2ed24c%2Fresume_1770561079191_6b0a54ff3e8c0829.pdf",
       "storage": "local",
       "bucket": ""
     },
@@ -707,6 +695,42 @@
       "size": 0,
       "uploadedAt": "2026-02-08T15:43:30.223869+00:00",
       "url": "/uploads/c_1770564610125_bba3c49ae0069e63%2Fresume_1770565408032_88bc09b131d4fdc9.pdf",
+      "storage": "local",
+      "bucket": ""
+    },
+    {
+      "id": "rf_1770566292667_85fbe05379ad9ebb",
+      "candidateId": "c_1770564610125_bba3c49ae0069e63",
+      "filename": "c_1770564610125_bba3c49ae0069e63/resume_1770566291898_a22d5956f8cf94b8.pdf",
+      "originalName": "",
+      "contentType": "",
+      "size": 0,
+      "uploadedAt": "2026-02-08T15:58:13.07209+00:00",
+      "url": "/uploads/c_1770564610125_bba3c49ae0069e63%2Fresume_1770566291898_a22d5956f8cf94b8.pdf",
+      "storage": "local",
+      "bucket": ""
+    },
+    {
+      "id": "rf_1770566736365_5031864875de8c2c",
+      "candidateId": "c_1770564610125_bba3c49ae0069e63",
+      "filename": "c_1770564610125_bba3c49ae0069e63/resume_1770566735127_20ce44f8848eb8b4.pdf",
+      "originalName": "",
+      "contentType": "",
+      "size": 0,
+      "uploadedAt": "2026-02-08T16:05:36.861237+00:00",
+      "url": "/uploads/c_1770564610125_bba3c49ae0069e63%2Fresume_1770566735127_20ce44f8848eb8b4.pdf",
+      "storage": "local",
+      "bucket": ""
+    },
+    {
+      "id": "rf_1770567471548_e19bb07b41e0341d",
+      "candidateId": "c_1770567470365_408173eef36aa8e9",
+      "filename": "c_1770567470365_408173eef36aa8e9/resume_1770567470375_4d09af4856e06790.pdf",
+      "originalName": "ãæµè¯å¼åå·¥ç¨å¸_ä¸æµ· 30-60Kãå´ç 8å¹´.pdf",
+      "contentType": "application/pdf",
+      "size": 439309,
+      "uploadedAt": "2026-02-08T16:17:51.548+00:00",
+      "url": "https://bijwqlcvrrvnacqthaov.supabase.co/storage/v1/object/sign/resumes/c_1770567470365_408173eef36aa8e9/resume_1770567470375_4d09af4856e06790.pdf?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV84M2M0ZmFiOS1lNGNiLTRiOWItOWQxYy00ZGI2Mjk3ZTNkNWUiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJyZXN1bWVzL2NfMTc3MDU2NzQ3MDM2NV80MDgxNzNlZWYzNmFhOGU5L3Jlc3VtZV8xNzcwNTY3NDcwMzc1XzRkMDlhZjQ4NTZlMDY3OTAucGRmIiwiaWF0IjoxNzcwNTY3NDcxLCJleHAiOjE3NzA1NzEwNzF9.jAuQPl_1P0OcujxNwoTG9bOtofXxRn8x7xSaxihUcls",
       "storage": "local",
       "bucket": ""
     },
@@ -875,30 +899,6 @@
       "size": 0,
       "uploadedAt": "2026-02-08T16:05:36.861237+00:00",
       "url": "/uploads/resume_1770554000903_11ed135dc6.pdf",
-      "storage": "local",
-      "bucket": ""
-    },
-    {
-      "id": "rf_1770566736365_5031864875de8c2c",
-      "candidateId": "c_1770564610125_bba3c49ae0069e63",
-      "filename": "c_1770564610125_bba3c49ae0069e63/resume_1770566735127_20ce44f8848eb8b4.pdf",
-      "originalName": "",
-      "contentType": "",
-      "size": 0,
-      "uploadedAt": "2026-02-08T16:05:36.861237+00:00",
-      "url": "/uploads/c_1770564610125_bba3c49ae0069e63%2Fresume_1770566735127_20ce44f8848eb8b4.pdf",
-      "storage": "local",
-      "bucket": ""
-    },
-    {
-      "id": "rf_1770567471548_e19bb07b41e0341d",
-      "candidateId": "c_1770567470365_408173eef36aa8e9",
-      "filename": "c_1770567470365_408173eef36aa8e9/resume_1770567470375_4d09af4856e06790.pdf",
-      "originalName": "ãæµè¯å¼åå·¥ç¨å¸_ä¸æµ· 30-60Kãå´ç 8å¹´.pdf",
-      "contentType": "application/pdf",
-      "size": 439309,
-      "uploadedAt": "2026-02-08T16:17:51.548+00:00",
-      "url": "https://bijwqlcvrrvnacqthaov.supabase.co/storage/v1/object/sign/resumes/c_1770567470365_408173eef36aa8e9/resume_1770567470375_4d09af4856e06790.pdf?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV84M2M0ZmFiOS1lNGNiLTRiOWItOWQxYy00ZGI2Mjk3ZTNkNWUiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJyZXN1bWVzL2NfMTc3MDU2NzQ3MDM2NV80MDgxNzNlZWYzNmFhOGU5L3Jlc3VtZV8xNzcwNTY3NDcwMzc1XzRkMDlhZjQ4NTZlMDY3OTAucGRmIiwiaWF0IjoxNzcwNTY3NDcxLCJleHAiOjE3NzA1NzEwNzF9.jAuQPl_1P0OcujxNwoTG9bOtofXxRn8x7xSaxihUcls",
       "storage": "local",
       "bucket": ""
     },
@@ -1569,6 +1569,14 @@
       "createdAt": "2026-02-10T07:53:20.944+00:00"
     },
     {
+      "id": "ev_1770711826894_a8f578e884741be2",
+      "candidateId": "c_vv89yIo",
+      "type": "简历",
+      "message": "上传简历（Supabase）：ãæµè¯å¼åå·¥ç¨å¸_ä¸æµ· 30-60Kãå´ç 8å¹´.pdf",
+      "actor": "丁彦文",
+      "createdAt": "2026-02-10T08:23:46.894+00:00"
+    },
+    {
       "id": "ev_1770709975165_3c67011fe2b00a37",
       "candidateId": "c_TTL3Ego",
       "type": "简历",
@@ -1607,22 +1615,6 @@
       "message": "上传简历：【海外投放与渠道运营_上海 30-60K】Ling 10年.pdf（本地回退）",
       "actor": "dyw",
       "createdAt": "2026-02-07T11:26:26+00:00"
-    },
-    {
-      "id": "ev_1770711826894_a8f578e884741be2",
-      "candidateId": "c_vv89yIo",
-      "type": "简历",
-      "message": "上传简历（Supabase）：ãæµè¯å¼åå·¥ç¨å¸_ä¸æµ· 30-60Kãå´ç 8å¹´.pdf",
-      "actor": "丁彦文",
-      "createdAt": "2026-02-10T08:23:46.894+00:00"
-    },
-    {
-      "id": "ev_1770719510217_3fd5957daf897576",
-      "candidateId": "c_1770554000902_64996110c3",
-      "type": "简历",
-      "message": "上传简历（Supabase）：ãæµè¯å¼åå·¥ç¨å¸_ä¸æµ· 30-60Kãå´ç 8å¹´.pdf",
-      "actor": "丁彦文",
-      "createdAt": "2026-02-10T10:31:50.217+00:00"
     },
     {
       "id": "ev_1770719314939_6d0c83fc2d6e34d7",
@@ -1753,6 +1745,14 @@
       "createdAt": "2026-02-10T08:23:47.833+00:00"
     },
     {
+      "id": "ev_1770719510217_3fd5957daf897576",
+      "candidateId": "c_1770554000902_64996110c3",
+      "type": "简历",
+      "message": "上传简历（Supabase）：ãæµè¯å¼åå·¥ç¨å¸_ä¸æµ· 30-60Kãå´ç 8å¹´.pdf",
+      "actor": "丁彦文",
+      "createdAt": "2026-02-10T10:31:50.217+00:00"
+    },
+    {
       "id": "ev_kDsKaPY",
       "candidateId": "c_vv89yIo",
       "type": "简历",
@@ -1780,6 +1780,7 @@
       "department": "",
       "jobTitle": "",
       "provider": "dev",
+      "role": "interviewer",
       "createdAt": "2026-02-10T10:25:01.122Z"
     },
     {
@@ -1791,6 +1792,7 @@
       "department": "",
       "jobTitle": "",
       "provider": "dev",
+      "role": "interviewer",
       "createdAt": "2026-02-10T10:25:13.906Z"
     },
     {
@@ -1802,6 +1804,7 @@
       "department": "",
       "jobTitle": "",
       "provider": "dev",
+      "role": "interviewer",
       "createdAt": "2026-02-10T11:34:57.926Z"
     },
     {
@@ -1810,10 +1813,10 @@
       "unionId": "",
       "name": "丁彦文",
       "avatar": "",
-      "role": "admin",
       "department": "",
       "jobTitle": "",
       "provider": "feishu",
+      "role": "interviewer",
       "createdAt": "2026-02-10T00:00:00.000Z"
     },
     {
@@ -1825,7 +1828,32 @@
       "department": "",
       "jobTitle": "",
       "provider": "dev",
+      "role": "interviewer",
       "createdAt": "2026-02-10T12:29:44.231Z"
+    },
+    {
+      "id": "usr_1770728243070_b6b674bba65ff233",
+      "openId": "",
+      "unionId": "",
+      "name": "测试成员",
+      "avatar": "",
+      "department": "",
+      "jobTitle": "",
+      "provider": "dev",
+      "role": "member",
+      "createdAt": "2026-02-10T12:57:23.070Z"
+    },
+    {
+      "id": "usr_1770728312596_7b0640f35c95984f",
+      "openId": "",
+      "unionId": "",
+      "name": "管理员测试",
+      "avatar": "",
+      "department": "",
+      "jobTitle": "",
+      "provider": "dev",
+      "role": "admin",
+      "createdAt": "2026-02-10T12:58:32.596Z"
     }
   ],
   "sources": [
