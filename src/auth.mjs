@@ -8,7 +8,7 @@ export function sessionMiddleware() {
     keys: [(process.env.SESSION_SECRET || "dev_secret_change_me")],
     maxAge: 7 * 24 * 3600 * 1000,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    secure: false,
     httpOnly: true,
   });
 }
@@ -144,6 +144,19 @@ export function registerAuthRoutes(app, renderPage) {
       console.error("[Feishu OAuth] 失败:", e.message);
       res.redirect("/login");
     }
+  });
+
+  // 提升为管理员（仅限已登录用户，更新数据库+session）
+  app.get("/admin/promote", async (req, res) => {
+    if (!req.session?.user) return res.redirect("/login");
+    const d = await loadData();
+    const u = d.users.find(x => x.id === req.session.user.id);
+    if (u) {
+      u.role = ROLES.ADMIN;
+      await saveData(d);
+      req.session.user = { ...req.session.user, role: ROLES.ADMIN };
+    }
+    res.redirect("/");
   });
 
   app.get("/logout", (req, res) => {
