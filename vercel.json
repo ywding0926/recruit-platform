@@ -5,16 +5,10 @@
       "maxDuration": 30
     }
   },
-  "builds": [
+  "rewrites": [
     {
-      "src": "api/index.mjs",
-      "use": "@vercel/node"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "/api/index.mjs"
+      "source": "/(.*)",
+      "destination": "/api/index.mjs"
     }
   ]
 }
