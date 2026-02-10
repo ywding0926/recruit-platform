@@ -7,6 +7,9 @@
     "start": "node src/index.mjs",
     "dev": "node --watch src/index.mjs"
   },
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "dependencies": {
     "@supabase/supabase-js": "^2.95.3",
     "cookie-session": "^2.1.0",
