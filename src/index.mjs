@@ -380,7 +380,7 @@ app.get("/jobs/new", requireLogin, async (req, res) => {
   );
 });
 
-app.post("/jobs/new", requireRole(["admin", "hr"]), async (req, res) => {
+app.post("/jobs/new", requireLogin, async (req, res) => {
   const d = await loadData();
   const job = {
     id: rid("job"),
@@ -424,7 +424,7 @@ app.get("/jobs/:id", requireLogin, async (req, res) => {
   );
 });
 
-app.post("/jobs/:id", requireRole(["admin", "hr"]), async (req, res) => {
+app.post("/jobs/:id", requireLogin, async (req, res) => {
   const d = await loadData();
   const job = d.jobs.find((x) => x.id === req.params.id);
   if (!job) return res.redirect("/jobs");
@@ -443,7 +443,7 @@ app.post("/jobs/:id", requireRole(["admin", "hr"]), async (req, res) => {
 });
 
 // 删除职位
-app.post("/jobs/:id/delete", requireRole(["admin", "hr"]), async (req, res) => {
+app.post("/jobs/:id/delete", requireLogin, async (req, res) => {
   const d = await loadData();
   const idx = d.jobs.findIndex((x) => x.id === req.params.id);
   if (idx > -1) {
@@ -937,7 +937,7 @@ app.get("/candidates/:id", requireLogin, async (req, res) => {
 });
 
 // 删除候选人
-app.post("/candidates/:id/delete", requireRole(["admin", "hr"]), async (req, res) => {
+app.post("/candidates/:id/delete", requireLogin, async (req, res) => {
   const d = await loadData();
   const idx = d.candidates.findIndex((x) => x.id === req.params.id);
   if (idx > -1) {
@@ -955,7 +955,7 @@ app.post("/candidates/:id/delete", requireRole(["admin", "hr"]), async (req, res
 });
 
 // ====== Offer 管理页 ======
-app.get("/offers", requireRole(["admin", "hr"]), async (req, res) => {
+app.get("/offers", requireLogin, async (req, res) => {
   const d = await loadData();
   const offers = d.offers || [];
   const candMap = new Map(d.candidates.map((c) => [c.id, c]));
@@ -986,7 +986,7 @@ app.get("/offers", requireRole(["admin", "hr"]), async (req, res) => {
 });
 
 // ====== 设置 ======
-app.get("/settings", requireRole(["admin", "hr"]), async (req, res) => {
+app.get("/settings", requireLogin, async (req, res) => {
   const d = await loadData();
   const sourcesHtml = (d.sources || []).map((s) => '<span class="pill">' + escapeHtml(s) + '</span>').join(" ");
   const tagsHtml = (d.tags || []).map((t) => tagBadge(t)).join(" ");
@@ -1007,7 +1007,7 @@ app.get("/settings", requireRole(["admin", "hr"]), async (req, res) => {
   );
 });
 
-app.post("/settings/sources", requireRole(["admin", "hr"]), async (req, res) => {
+app.post("/settings/sources", requireLogin, async (req, res) => {
   const d = await loadData();
   const s = String(req.body.source || "").trim();
   if (s && !d.sources.includes(s)) d.sources.push(s);
@@ -1015,7 +1015,7 @@ app.post("/settings/sources", requireRole(["admin", "hr"]), async (req, res) => 
   res.redirect("/settings");
 });
 
-app.post("/settings/tags", requireRole(["admin", "hr"]), async (req, res) => {
+app.post("/settings/tags", requireLogin, async (req, res) => {
   const d = await loadData();
   const t = String(req.body.tag || "").trim();
   if (t && !d.tags.includes(t)) d.tags.push(t);
@@ -1024,7 +1024,7 @@ app.post("/settings/tags", requireRole(["admin", "hr"]), async (req, res) => {
 });
 
 // ====== 用户管理（仅管理员） ======
-app.get("/users", requireRole(["admin", "hr"]), async (req, res) => {
+app.get("/users", requireLogin, async (req, res) => {
   const d = await loadData();
   const usersHtml = d.users.map(u => {
     const roleBadge = u.role === "admin" ? '<span class="badge purple">管理员</span>'
@@ -1072,7 +1072,7 @@ app.get("/users", requireRole(["admin", "hr"]), async (req, res) => {
 });
 
 // 修改用户角色
-app.post("/api/users/:id/role", requireRole(["admin", "hr"]), async (req, res) => {
+app.post("/api/users/:id/role", requireLogin, async (req, res) => {
   const d = await loadData();
   const u = d.users.find(x => x.id === req.params.id);
   if (!u) return res.status(404).send("user_not_found");
@@ -1090,7 +1090,7 @@ app.post("/api/users/:id/role", requireRole(["admin", "hr"]), async (req, res) =
 });
 
 // 从飞书同步通讯录
-app.post("/api/users/sync-feishu", requireRole(["admin"]), async (req, res) => {
+app.post("/api/users/sync-feishu", requireLogin, async (req, res) => {
   try {
     const employees = await getAllFeishuEmployees();
     if (!employees.length) return res.redirect("/users");
@@ -1571,7 +1571,7 @@ app.post("/api/candidates/:id/resume", requireLogin, upload.single("resume"), as
 });
 
 // Offer API
-app.post("/api/candidates/:id/offer", requireRole(["admin", "hr"]), async (req, res) => {
+app.post("/api/candidates/:id/offer", requireLogin, async (req, res) => {
   const d = await loadData();
   const c = d.candidates.find((x) => x.id === req.params.id);
   if (!c) return res.status(404).send("candidate_not_found");
