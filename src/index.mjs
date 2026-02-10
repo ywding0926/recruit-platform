@@ -1583,6 +1583,23 @@ app.post("/api/candidates/:id/offer", requireRole(["admin", "hr"]), async (req, 
   res.redirect("/candidates/" + c.id);
 });
 
+// ====== 全局错误处理中间件 ======
+app.use((err, req, res, _next) => {
+  console.error("[ERROR]", req.method, req.url, err?.message || err);
+  if (res.headersSent) return;
+  res.status(500).send(
+    renderPage({
+      title: "服务器错误",
+      user: req.user || null,
+      active: "",
+      contentHtml: '<div class="card" style="max-width:600px;margin:40px auto;text-align:center">' +
+        '<h2 style="color:#dc2626">服务器内部错误</h2>' +
+        '<p class="muted">' + escapeHtml(String(err?.message || "未知错误")) + '</p>' +
+        '<a class="btn primary" href="/candidates">返回首页</a></div>',
+    })
+  );
+});
+
 // ====== 启动（本地开发时 listen，Vercel 上由 api/index.mjs 导出）======
 if (!isServerless) {
   const port = Number(process.env.PORT || 3001);
