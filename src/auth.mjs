@@ -128,9 +128,10 @@ export function registerAuthRoutes(app, renderPage) {
         };
         d.users.push(existing);
       }
-      // 管理员白名单：指定 openId 强制设为管理员
-      const ADMIN_OPEN_IDS = ["ou_9e192ed89ed068cc3edc68e10ab05a23"];
-      if (ADMIN_OPEN_IDS.includes(feishuUser.openId) && existing.role !== ROLES.ADMIN) {
+      // 管理员白名单：通过环境变量或硬编码指定
+      const envAdmins = (process.env.ADMIN_OPEN_IDS || "").split(",").map(s => s.trim()).filter(Boolean);
+      const ADMIN_OPEN_IDS = [...new Set(["ou_9e192ed89ed068cc3edc68e10ab05a23", ...envAdmins])];
+      if (ADMIN_OPEN_IDS.includes(feishuUser.openId)) {
         existing.role = ROLES.ADMIN;
       }
       await saveData(d);
@@ -151,12 +152,34 @@ export function registerAuthRoutes(app, renderPage) {
     }
   });
 
-  // 提升为管理员（仅限已登录用户，更新数据库+session）
+  // 初始化管理员：如果系统中没有admin，当前登录用户可以自己升级
+  app.get("/admin/setup", async (req, res) => {
+    if (!req.session?.user) return res.redirect("/login");
+    const d = await loadData();
+    const hasAdmin = d.users.some(u => u.role === ROLES.ADMIN);
+    if (hasAdmin) {
+      return res.send(`<div style="text-align:center;padding:60px;font-family:sans-serif;"><h2>系统已有管理员</h2><p>请联系管理员修改你的角色。</p><a href="/">返回首页</a></div>`);
+    }
+    const u = d.users.find(x => x.id === req.session.user.id);
+    if (u) {
+      u.role = ROLES.ADMIN;
+      await saveData(d);
+      req.session.user = { ...req.session.user, role: ROLES.ADMIN };
+    }
+    res.redirect("/");
+  });
+
+  // 提升为管理员（白名单内用户或系统无admin时可用）
   app.get("/admin/promote", async (req, res) => {
     if (!req.session?.user) return res.redirect("/login");
     const d = await loadData();
     const u = d.users.find(x => x.id === req.session.user.id);
-    if (u) {
+    if (!u) return res.redirect("/");
+    // 检查白名单
+    const envAdmins = (process.env.ADMIN_OPEN_IDS || "").split(",").map(s => s.trim()).filter(Boolean);
+    const ADMIN_OPEN_IDS = [...new Set(["ou_9e192ed89ed068cc3edc68e10ab05a23", ...envAdmins])];
+    const hasAdmin = d.users.some(x => x.role === ROLES.ADMIN);
+    if (ADMIN_OPEN_IDS.includes(u.openId) || !hasAdmin) {
       u.role = ROLES.ADMIN;
       await saveData(d);
       req.session.user = { ...req.session.user, role: ROLES.ADMIN };
