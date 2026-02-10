@@ -9,8 +9,8 @@ import { fileURLToPath } from "url";
 import { renderPage, escapeHtml, statusBadge, followupBadge, offerStatusBadge, tagBadge } from "./ui.mjs";
 import { getSupabaseAdmin, getBucketName, getSignedUrlExpiresIn, supabaseEnabled } from "./supabase.mjs";
 import { loadData, saveData, ensureDataShape, nowIso, rid, deleteFromSupabase, deleteCandidateRelated } from "./db.mjs";
-import { sessionMiddleware, registerAuthRoutes, requireLogin } from "./auth.mjs";
-import { feishuEnabled, sendFeishuMessage, createApprovalInstance } from "./feishu.mjs";
+import { sessionMiddleware, registerAuthRoutes, requireLogin, requireRole, ROLES, ROLE_LABELS } from "./auth.mjs";
+import { feishuEnabled, sendFeishuMessage, createApprovalInstance, getAllFeishuEmployees, createFeishuCalendarEvent } from "./feishu.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -120,6 +120,7 @@ async function saveResumeSupabaseOrLocal(d, candidateId, file, actorName) {
     pushEvent(d, { candidateId, type: "简历", message: "上传简历（Supabase）：" + meta.originalName, actor: actorName || "系统" });
     return meta;
   } catch (e) {
+    // serverless 环境下无法写本地文件，直接抛错
     if (isServerless) {
       throw new Error("简历上传失败（Supabase）：" + String(e?.message || e));
     }
@@ -186,6 +187,7 @@ function toolbarHtml({ jobs, sources, q = "", jobId = "", source = "", mode = "l
     '</div></div>' +
     '<script>function applyFilters(){var q=document.getElementById("q").value||"";var jobId=document.getElementById("jobId").value||"";var source=document.getElementById("source").value||"";var u=new URL(location.href);u.pathname="' + targetPath + '";if(q)u.searchParams.set("q",q);else u.searchParams.delete("q");if(jobId)u.searchParams.set("jobId",jobId);else u.searchParams.delete("jobId");if(source)u.searchParams.set("source",source);else u.searchParams.delete("source");location.href=u.toString()}</script>';
 }
+
 // ====== 概览 Dashboard（增强版）======
 app.get("/", requireLogin, async (req, res) => {
   const d = await loadData();
@@ -205,6 +207,7 @@ app.get("/", requireLogin, async (req, res) => {
   const hiredCount = byStatus["入职"];
   const rejectedCount = byStatus["淘汰"];
 
+  // 来源分析
   const bySource = {};
   for (const c of d.candidates) {
     const src = c.source || "未知";
@@ -217,6 +220,7 @@ app.get("/", requireLogin, async (req, res) => {
     return '<div style="margin-bottom:10px"><div class="row"><span>' + escapeHtml(name) + '</span><span class="spacer"></span><b>' + count + '</b></div><div class="bar"><div class="bar-fill bar-purple" style="width:' + pct + '%"></div></div></div>';
   }).join("");
 
+  // 岗位招聘进度
   const jobProgressHtml = d.jobs.slice(0, 8).map((j) => {
     const cands = d.candidates.filter((c) => c.jobId === j.id);
     const hired = cands.filter((c) => c.status === "入职").length;
@@ -226,15 +230,33 @@ app.get("/", requireLogin, async (req, res) => {
     return '<div style="margin-bottom:10px"><div class="row"><span style="font-weight:700">' + escapeHtml(j.title || "未命名") + '</span><span class="spacer"></span><span class="muted">' + hired + ' / ' + (hc || "?") + '</span></div><div class="bar"><div class="bar-fill ' + barColor + '" style="width:' + pct + '%"></div></div></div>';
   }).join("");
 
+  // Offer 统计
   const totalOffers = d.offers ? d.offers.length : 0;
   const acceptedOffers = d.offers ? d.offers.filter((o) => o.offerStatus === "已接受").length : 0;
   const pendingOffers = d.offers ? d.offers.filter((o) => o.offerStatus === "待发放" || o.offerStatus === "已发放").length : 0;
 
+  // 面试安排统计
+  const allSchedules = d.interviewSchedules || [];
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const thisWeekEnd = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
+  const todayInterviews = allSchedules.filter(s => (s.scheduledAt || "").slice(0, 10) === todayStr).length;
+  const weekInterviews = allSchedules.filter(s => {
+    const dt = (s.scheduledAt || "").slice(0, 10);
+    return dt >= todayStr && dt <= thisWeekEnd;
+  }).length;
+  const totalInterviews = allSchedules.length;
+
+  // 转化率
+  const convOfferRate = total > 0 ? Math.round(((byStatus["Offer发放"] || 0) + hiredCount) / total * 100) : 0;
+  const convHireRate = total > 0 ? Math.round(hiredCount / total * 100) : 0;
+
+  // 最近动态
   const recentEvents = (d.events || []).slice(0, 8);
   const recentHtml = recentEvents.length ? recentEvents.map((e) => {
     return '<div class="titem"><div class="tmeta"><b>' + escapeHtml(e.actor || "系统") + '</b><span class="badge gray" style="font-size:11px">' + escapeHtml(e.type || "-") + '</span><span class="muted">' + escapeHtml((e.createdAt || "").slice(0, 16)) + '</span></div><div class="tmsg" style="font-size:13px">' + escapeHtml(e.message || "").replaceAll("\n", "<br/>") + '</div></div>';
   }).join("") : '<div class="muted">暂无动态</div>';
 
+  // 状态漏斗
   const funnelHtml = STATUS_COLS.map((s) => {
     const count = byStatus[s.key] || 0;
     const pct = total > 0 ? Math.round((count / total) * 100) : 0;
@@ -252,6 +274,12 @@ app.get("/", requireLogin, async (req, res) => {
         '<div class="card stat-card"><div class="stat-number" style="color:var(--primary)">' + interviewingCount + '</div><div class="stat-label">面试中</div></div>' +
         '<div class="card stat-card"><div class="stat-number" style="color:var(--orange)">' + offerCount + '</div><div class="stat-label">Offer阶段</div></div>' +
         '<div class="card stat-card"><div class="stat-number" style="color:var(--green)">' + hiredCount + '</div><div class="stat-label">已入职</div></div>' +
+        '</div><div style="height:14px"></div>' +
+        '<div class="grid4">' +
+        '<div class="card stat-card"><div class="stat-number" style="color:#6366f1">' + todayInterviews + '</div><div class="stat-label">今日面试</div></div>' +
+        '<div class="card stat-card"><div class="stat-number" style="color:#6366f1">' + weekInterviews + '</div><div class="stat-label">本周面试</div></div>' +
+        '<div class="card stat-card"><div class="stat-number" style="color:#6366f1">' + convOfferRate + '%</div><div class="stat-label">Offer转化率</div></div>' +
+        '<div class="card stat-card"><div class="stat-number" style="color:#6366f1">' + convHireRate + '%</div><div class="stat-label">入职转化率</div></div>' +
         '</div><div style="height:14px"></div>' +
         '<div class="grid">' +
         '<div>' +
@@ -346,7 +374,7 @@ app.get("/jobs/new", requireLogin, async (req, res) => {
   );
 });
 
-app.post("/jobs/new", requireLogin, async (req, res) => {
+app.post("/jobs/new", requireRole(["admin", "hr"]), async (req, res) => {
   const d = await loadData();
   const job = {
     id: rid("job"),
@@ -390,7 +418,7 @@ app.get("/jobs/:id", requireLogin, async (req, res) => {
   );
 });
 
-app.post("/jobs/:id", requireLogin, async (req, res) => {
+app.post("/jobs/:id", requireRole(["admin", "hr"]), async (req, res) => {
   const d = await loadData();
   const job = d.jobs.find((x) => x.id === req.params.id);
   if (!job) return res.redirect("/jobs");
@@ -409,7 +437,7 @@ app.post("/jobs/:id", requireLogin, async (req, res) => {
 });
 
 // 删除职位
-app.post("/jobs/:id/delete", requireLogin, async (req, res) => {
+app.post("/jobs/:id/delete", requireRole(["admin", "hr"]), async (req, res) => {
   const d = await loadData();
   const idx = d.jobs.findIndex((x) => x.id === req.params.id);
   if (idx > -1) {
@@ -569,6 +597,7 @@ app.post("/candidates/import", requireLogin, upload.single("csv"), async (req, r
     })
   );
 });
+
 // ====== 全部候选人（列表）======
 app.get("/candidates", requireLogin, async (req, res) => {
   const d = await loadData();
@@ -585,7 +614,20 @@ app.get("/candidates", requireLogin, async (req, res) => {
     if (!Array.isArray(c.tags)) c.tags = [];
   });
 
+  // 面试官角色：只能看到自己参与面试的候选人
+  const userRole = req.user?.role || "interviewer";
+  const userName = req.user?.name || "";
+  let myCandidateIds = null;
+  if (userRole === "interviewer") {
+    myCandidateIds = new Set(
+      (d.interviewSchedules || [])
+        .filter(s => (s.interviewers || "").includes(userName))
+        .map(s => s.candidateId)
+    );
+  }
+
   const filtered = d.candidates.filter((c) => {
+    if (myCandidateIds && !myCandidateIds.has(c.id)) return false;
     if (jobId && c.jobId !== jobId) return false;
     if (source && String(c.source || "") !== source) return false;
     if (status && c.status !== status) return false;
@@ -615,6 +657,7 @@ app.get("/candidates", requireLogin, async (req, res) => {
     return u.pathname + (u.searchParams.toString() ? "?" + u.searchParams.toString() : "");
   })();
 
+  // 构建简历查找 Map（只取有 url 的记录）
   const resumeMap = new Map();
   for (const r of d.resumeFiles) {
     if (!r.url) continue;
@@ -705,7 +748,7 @@ function kanbanHtml({ grouped, countsByCol, resumeMap }) {
     '<div class="tabpanels">' +
     '<div class="tabpanel active" id="panel-info"><div class="card shadowless" style="padding:12px"><div class="row"><span class="pill"><span class="muted">状态</span><b id="cStatus"></b></span><span class="pill"><span class="muted">岗位</span><b id="cJob"></b></span><span class="pill"><span class="muted">来源</span><b id="cSource"></b></span><span class="spacer"></span><a class="btn" id="fullOpenBtn">打开完整详情</a></div><div class="divider"></div><div class="field"><label>状态流转</label><div class="row"><select id="statusSelect" style="max-width:220px"></select><button class="btn primary" onclick="updateStatus()">更新状态</button></div></div><div class="divider"></div><div style="font-weight:900;margin-bottom:8px">编辑候选人信息</div><div class="field"><label>姓名</label><input id="editName" /></div><div class="field"><label>手机</label><input id="editPhone" /></div><div class="field"><label>邮箱</label><input id="editEmail" /></div><div class="field"><label>来源</label><input id="editSource" /></div><div class="field"><label>备注</label><textarea id="editNote" rows="3"></textarea></div><button class="btn" onclick="saveCandidate()">保存信息</button></div></div>' +
     '<div class="tabpanel" id="panel-follow"><div class="card shadowless" style="padding:12px"><div class="row"><div style="font-weight:900">下一步 & 跟进时间</div><span class="muted">（逾期会标红）</span></div><div class="divider"></div><div class="field"><label>下一步动作</label><select id="fuAction"></select></div><div class="field"><label>跟进时间（YYYY-MM-DD HH:MM）</label><input id="fuAt" placeholder="例如：2026-02-08 14:00" /></div><div class="field"><label>跟进备注</label><textarea id="fuNote" rows="3"></textarea></div><button class="btn primary" onclick="saveFollow()">保存跟进</button></div></div>' +
-    '<div class="tabpanel" id="panel-schedule"><div class="card shadowless" style="padding:12px"><div class="row"><div style="font-weight:900">面试安排</div></div><div class="divider"></div><div class="row" style="gap:10px"><div class="field" style="min-width:120px"><label>轮次</label><select id="scRound"></select></div><div class="field" style="min-width:220px"><label>面试时间</label><input id="scAt" placeholder="2026-02-08 19:00" /></div></div><div class="field"><label>面试官</label><input id="scInterviewers" placeholder="张三 / 李四" /></div><div class="field"><label>会议链接</label><input id="scLink" /></div><div class="field"><label>地点/形式</label><input id="scLocation" /></div><div class="field"><label>同步状态</label><select id="scSyncStatus"></select></div><button class="btn primary" onclick="saveSchedule()">保存面试安排</button><div class="divider"></div><div style="font-weight:900;margin-bottom:8px">已安排</div><div id="scheduleList" class="muted">暂无</div></div></div>' +
+    '<div class="tabpanel" id="panel-schedule"><div class="card shadowless" style="padding:12px"><div class="row"><div style="font-weight:900">面试安排</div></div><div class="divider"></div><div class="row" style="gap:10px"><div class="field" style="min-width:120px"><label>轮次</label><select id="scRound"></select></div><div class="field" style="min-width:220px"><label>面试时间</label><input id="scAt" placeholder="2026-02-08 19:00" /></div></div><div class="field"><label>面试官</label><input id="scInterviewers" list="board-interviewer-list" placeholder="张三 / 李四" /></div><div class="field"><label>会议链接</label><input id="scLink" /></div><div class="field"><label>地点/形式</label><input id="scLocation" /></div><div class="field"><label>同步状态</label><select id="scSyncStatus"></select></div><button class="btn primary" onclick="saveSchedule()">保存面试安排</button><div class="divider"></div><div style="font-weight:900;margin-bottom:8px">已安排</div><div id="scheduleList" class="muted">暂无</div></div></div>' +
     '<div class="tabpanel" id="panel-resume"><div class="card shadowless" style="padding:12px"><div class="row"><div style="font-weight:900">简历</div><span class="spacer"></span><a class="btn" id="resumeOpenBtn" target="_blank" rel="noreferrer">新窗口打开</a></div><div class="divider"></div><form id="resumeUploadForm" enctype="multipart/form-data"><div class="row"><input type="file" name="resume" accept=".pdf,.png,.jpg,.jpeg,.webp" /><button class="btn primary" type="submit">上传</button></div></form><div class="divider"></div><div id="resumeArea" class="muted">暂无简历</div></div></div>' +
     '<div class="tabpanel" id="panel-review"><div class="card shadowless" style="padding:12px"><div class="row"><div style="font-weight:900">面试评价</div></div><div class="divider"></div><div class="row" style="gap:10px"><div class="field" style="min-width:120px"><label>轮次</label><select id="rvRound"></select></div><div class="field" style="min-width:160px"><label>面试进度</label><select id="rvStatus"></select></div><div class="field" style="min-width:120px"><label>评级</label><select id="rvRating"></select></div></div><div class="field"><label>Pros</label><textarea id="rvPros" rows="3"></textarea></div><div class="field"><label>Cons</label><textarea id="rvCons" rows="3"></textarea></div><div class="field"><label>下一轮考察点</label><textarea id="rvFocusNext" rows="3"></textarea></div><button class="btn primary" onclick="addReview()">新增/更新面评</button><div class="divider"></div><div id="reviewList" class="muted">暂无面评</div></div></div>' +
     '<div class="tabpanel" id="panel-activity"><div class="card shadowless" style="padding:12px"><div style="font-weight:900">动态</div><div class="divider"></div><div id="activityList" class="muted">暂无动态</div></div></div>' +
@@ -749,7 +792,20 @@ app.get("/candidates/board", requireLogin, async (req, res) => {
     if (!Array.isArray(c.tags)) c.tags = [];
   });
 
+  // 面试官角色：只能看到自己参与面试的候选人
+  const userRole = req.user?.role || "interviewer";
+  const userName = req.user?.name || "";
+  let myCandidateIds = null;
+  if (userRole === "interviewer") {
+    myCandidateIds = new Set(
+      (d.interviewSchedules || [])
+        .filter(s => (s.interviewers || "").includes(userName))
+        .map(s => s.candidateId)
+    );
+  }
+
   const filtered = d.candidates.filter((c) => {
+    if (myCandidateIds && !myCandidateIds.has(c.id)) return false;
     if (jobId && c.jobId !== jobId) return false;
     if (source && String(c.source || "") !== source) return false;
     if (q) {
@@ -764,6 +820,7 @@ app.get("/candidates/board", requireLogin, async (req, res) => {
   STATUS_COLS.forEach((col) => { grouped[col.key] = []; countsByCol[col.key] = 0; });
   filtered.forEach((c) => { grouped[c.status].push(c); countsByCol[c.status] += 1; });
 
+  // 构建简历 Map 供看板卡片使用（只取有 url 的记录）
   const boardResumeMap = new Map();
   for (const r of d.resumeFiles) {
     if (!r.url) continue;
@@ -777,7 +834,7 @@ app.get("/candidates/board", requireLogin, async (req, res) => {
       title: "候选人看板",
       user: req.user,
       active: "candidates_board",
-      contentHtml: toolbarHtml({ jobs: d.jobs, sources: d.sources, q, jobId, source, mode: "board" }) + '<div style="height:12px"></div>' + kanbanHtml({ grouped, countsByCol, resumeMap: boardResumeMap }),
+      contentHtml: toolbarHtml({ jobs: d.jobs, sources: d.sources, q, jobId, source, mode: "board" }) + '<div style="height:12px"></div>' + kanbanHtml({ grouped, countsByCol, resumeMap: boardResumeMap }) + '<datalist id="board-interviewer-list">' + d.users.map(u => '<option value="' + escapeHtml(u.name) + '">').join("") + '</datalist>',
     })
   );
 });
@@ -816,6 +873,7 @@ app.get("/candidates/:id", requireLogin, async (req, res) => {
   const nextOpts = NEXT_ACTIONS.map((x) => '<option value="' + escapeHtml(x) + '" ' + (c.follow.nextAction === x ? "selected" : "") + '>' + escapeHtml(x) + '</option>').join("");
   const syncOpts = '<option value="（不同步）">（不同步）</option>' + INTERVIEW_STATUS.map((x) => '<option value="' + escapeHtml(x) + '">' + escapeHtml(x) + '</option>').join("");
   const offerStOpts = OFFER_STATUSES.map((x) => '<option value="' + escapeHtml(x) + '" ' + ((offer && offer.offerStatus === x) ? "selected" : "") + '>' + escapeHtml(x) + '</option>').join("");
+  const interviewerDatalist = d.users.map(u => '<option value="' + escapeHtml(u.name) + '">' + escapeHtml(u.name) + (u.role === "interviewer" ? " (面试官)" : u.role === "hr" ? " (HR)" : "") + '</option>').join("");
 
   const tagsHtml = (c.tags || []).map((t) => tagBadge(t)).join(" ");
 
@@ -835,7 +893,7 @@ app.get("/candidates/:id", requireLogin, async (req, res) => {
       title: "候选人：" + (c.name || ""),
       user: req.user,
       active: "candidates_list",
-      contentHtml: '<div class="row"><div style="font-weight:900;font-size:18px">候选人详情：' + escapeHtml(c.name || "未命名") + '</div><span class="spacer"></span><a class="btn" href="/candidates">返回列表</a><a class="btn" href="/candidates/board">去看板</a><form method="POST" action="/candidates/' + cid + '/delete" style="display:inline" onsubmit="return confirm(\'确定删除此候选人及所有关联数据？\')"><button class="btn danger sm" type="submit">删除</button></form></div><div class="divider"></div>' +
+      contentHtml: '<div class="row"><div style="font-weight:900;font-size:18px">候选人详情：' + escapeHtml(c.name || "未命名") + '</div><span class="spacer"></span>' + (feishuEnabled() ? '<button class="btn sm" onclick="sendNotify()" id="notifyBtn" style="background:rgba(59,130,246,.08);color:#1d4ed8">发送飞书通知</button>' : '') + '<a class="btn" href="/candidates">返回列表</a><a class="btn" href="/candidates/board">去看板</a><form method="POST" action="/candidates/' + cid + '/delete" style="display:inline" onsubmit="return confirm(\'确定删除此候选人及所有关联数据？\')"><button class="btn danger sm" type="submit">删除</button></form></div><div class="divider"></div>' +
         '<div class="card"><div class="row"><span class="pill"><span class="muted">ID</span><b class="mono">' + escapeHtml(c.id) + '</b></span><span class="pill"><span class="muted">岗位</span><b>' + escapeHtml(c.jobTitle || c.jobId || "-") + '</b></span><span class="pill"><span class="muted">来源</span><b>' + escapeHtml(c.source || "-") + '</b></span><span class="pill"><span class="muted">手机</span><b>' + escapeHtml(c.phone || "-") + '</b></span><span class="pill"><span class="muted">邮箱</span><b>' + escapeHtml(c.email || "-") + '</b></span><span class="pill"><span class="muted">状态</span><b>' + escapeHtml(c.status || "-") + '</b></span>' + followupBadge(c.follow) + '</div>' +
         '<div style="margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">' +
         (resume && resume.url ? '<a class="btn sm" href="' + escapeHtml(resume.url) + '" target="_blank" rel="noreferrer" style="background:rgba(139,92,246,.08)">📎 ' + escapeHtml((resume.originalName || resume.filename || "简历").slice(0, 20)) + '</a>' : '<span class="badge gray">暂无简历</span>') +
@@ -848,7 +906,7 @@ app.get("/candidates/:id", requireLogin, async (req, res) => {
         '<div class="tabpanels">' +
         '<div class="tabpanel active" id="panel-info"><div class="divider"></div><div class="grid"><div class="card shadowless"><div style="font-weight:900;margin-bottom:8px">编辑信息</div><div class="field"><label>姓名</label><input id="editName" value="' + escapeHtml(c.name || "") + '" /></div><div class="field"><label>手机</label><input id="editPhone" value="' + escapeHtml(c.phone || "") + '" /></div><div class="field"><label>邮箱</label><input id="editEmail" value="' + escapeHtml(c.email || "") + '" /></div><div class="field"><label>来源</label><input id="editSource" value="' + escapeHtml(c.source || "") + '" /></div><div class="field"><label>备注</label><textarea id="editNote" rows="4">' + escapeHtml(c.note || "") + '</textarea></div><button class="btn primary" onclick="saveCandidate()">保存</button></div><div class="card shadowless"><div style="font-weight:900;margin-bottom:8px">状态流转</div><div class="field"><label>候选人状态</label><select id="statusSelect">' + statusOptions + '</select></div><button class="btn primary" onclick="updateStatus()">更新状态</button></div></div></div>' +
         '<div class="tabpanel" id="panel-follow"><div class="divider"></div><div class="card shadowless" style="padding:12px;border-radius:14px"><div class="row"><div style="font-weight:900">下一步 & 跟进时间</div></div><div class="divider"></div><div class="field"><label>下一步动作</label><select id="fuAction">' + nextOpts + '</select></div><div class="field"><label>跟进时间</label><input id="fuAt" value="' + escapeHtml(c.follow.followAt || "") + '" placeholder="2026-02-08 14:00" /></div><div class="field"><label>跟进备注</label><textarea id="fuNote" rows="4">' + escapeHtml(c.follow.note || "") + '</textarea></div><button class="btn primary" onclick="saveFollow()">保存跟进</button></div></div>' +
-        '<div class="tabpanel" id="panel-schedule"><div class="divider"></div><div class="card shadowless" style="padding:12px;border-radius:14px"><div class="row"><div style="font-weight:900">新增/更新面试安排</div></div><div class="divider"></div><div class="row" style="gap:10px"><div class="field" style="min-width:120px"><label>轮次</label><select id="scRound">' + roundOpts + '</select></div><div class="field" style="min-width:220px"><label>面试时间</label><input id="scAt" placeholder="2026-02-08 19:00" /></div></div><div class="field"><label>面试官</label><input id="scInterviewers" placeholder="张三 / 李四" /></div><div class="field"><label>会议链接</label><input id="scLink" /></div><div class="field"><label>地点/形式</label><input id="scLocation" /></div><div class="field"><label>同步状态</label><select id="scSyncStatus">' + syncOpts + '</select></div><button class="btn primary" onclick="saveSchedule()">保存面试安排</button></div><div style="height:12px"></div>' + scheduleHtml + '</div>' +
+        '<div class="tabpanel" id="panel-schedule"><div class="divider"></div><div class="card shadowless" style="padding:12px;border-radius:14px"><div class="row"><div style="font-weight:900">新增/更新面试安排</div></div><div class="divider"></div><div class="row" style="gap:10px"><div class="field" style="min-width:120px"><label>轮次</label><select id="scRound">' + roundOpts + '</select></div><div class="field" style="min-width:220px"><label>面试时间</label><input id="scAt" placeholder="2026-02-08 19:00" /></div></div><div class="field"><label>面试官</label><input id="scInterviewers" list="interviewer-datalist" placeholder="张三 / 李四" /></div><datalist id="interviewer-datalist">' + interviewerDatalist + '</datalist><div class="field"><label>会议链接</label><input id="scLink" /></div><div class="field"><label>地点/形式</label><input id="scLocation" /></div><div class="field"><label>同步状态</label><select id="scSyncStatus">' + syncOpts + '</select></div>' + (feishuEnabled() ? '<div class="field"><label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="scSyncCalendar" style="width:auto" /> 同步到飞书日历</label></div>' : '') + '<button class="btn primary" onclick="saveSchedule()">保存面试安排</button></div><div style="height:12px"></div>' + scheduleHtml + '</div>' +
         '<div class="tabpanel" id="panel-resume"><div class="divider"></div><div class="row"><div style="font-weight:900">上传简历</div><span class="spacer"></span>' + (resume?.url ? '<a class="btn" href="' + escapeHtml(resume.url) + '" target="_blank" rel="noreferrer">新窗口打开</a>' : '') + '</div><div class="divider"></div><form id="resumeUploadForm" enctype="multipart/form-data"><div class="row"><input type="file" name="resume" accept=".pdf,.png,.jpg,.jpeg,.webp" /><button class="btn primary" type="submit">上传</button></div></form><div class="divider"></div>' + resumeEmbedHtml(resume) + '</div>' +
         '<div class="tabpanel" id="panel-review"><div class="divider"></div><div class="card shadowless" style="padding:12px;border-radius:14px"><div class="row"><div style="font-weight:900">新增/更新面评</div></div><div class="divider"></div><div class="row" style="gap:10px"><div class="field" style="min-width:120px"><label>轮次</label><select id="rvRound">' + roundOpts + '</select></div><div class="field" style="min-width:160px"><label>面试进度</label><select id="rvStatus">' + stOpts + '</select></div><div class="field" style="min-width:120px"><label>评级</label><select id="rvRating">' + rtOpts + '</select></div></div><div class="field"><label>Pros</label><textarea id="rvPros" rows="3"></textarea></div><div class="field"><label>Cons</label><textarea id="rvCons" rows="3"></textarea></div><div class="field"><label>下一轮考察点</label><textarea id="rvFocusNext" rows="3"></textarea></div><button class="btn primary" onclick="addReview()">新增/更新面评</button></div><div style="height:12px"></div>' + reviewHtml + '</div>' +
         '<div class="tabpanel" id="panel-offer"><div class="divider"></div>' + offerHtml + '</div>' +
@@ -858,15 +916,17 @@ app.get("/candidates/:id", requireLogin, async (req, res) => {
         'async function saveCandidate(){var payload={name:document.getElementById("editName").value,phone:document.getElementById("editPhone").value,email:document.getElementById("editEmail").value,source:document.getElementById("editSource").value,note:document.getElementById("editNote").value};var res=await fetch("/api/candidates/' + cid + '",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});if(res.ok)location.reload();else alert("保存失败")}' +
         'async function updateStatus(){var v=document.getElementById("statusSelect").value;var res=await fetch("/api/candidates/' + cid + '/status",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({status:v})});if(res.ok)location.reload();else alert("更新失败")}' +
         'async function saveFollow(){var payload={nextAction:document.getElementById("fuAction").value,followAt:document.getElementById("fuAt").value,note:document.getElementById("fuNote").value};var res=await fetch("/api/candidates/' + cid + '/follow",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});if(res.ok)location.reload();else alert("保存失败")}' +
-        'async function saveSchedule(){var payload={round:Number(document.getElementById("scRound").value),scheduledAt:document.getElementById("scAt").value,interviewers:document.getElementById("scInterviewers").value,link:document.getElementById("scLink").value,location:document.getElementById("scLocation").value,syncStatus:document.getElementById("scSyncStatus").value};var res=await fetch("/api/candidates/' + cid + '/schedule",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});if(res.ok)location.reload();else alert("保存失败")}' +
+        'async function saveSchedule(){var sc=document.getElementById("scSyncCalendar");var payload={round:Number(document.getElementById("scRound").value),scheduledAt:document.getElementById("scAt").value,interviewers:document.getElementById("scInterviewers").value,link:document.getElementById("scLink").value,location:document.getElementById("scLocation").value,syncStatus:document.getElementById("scSyncStatus").value,syncCalendar:sc&&sc.checked?"on":"off"};var res=await fetch("/api/candidates/' + cid + '/schedule",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});if(res.ok)location.reload();else alert("保存失败")}' +
         'async function addReview(){var payload={round:Number(document.getElementById("rvRound").value),status:document.getElementById("rvStatus").value,rating:document.getElementById("rvRating").value,pros:document.getElementById("rvPros").value,cons:document.getElementById("rvCons").value,focusNext:document.getElementById("rvFocusNext").value};var res=await fetch("/api/candidates/' + cid + '/reviews",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});if(res.ok)location.reload();else alert("保存失败")}' +
         'var f=document.getElementById("resumeUploadForm");if(f){f.onsubmit=async function(e){e.preventDefault();var fd=new FormData(f);var r=await fetch("/api/candidates/' + cid + '/resume",{method:"POST",body:fd});if(r.ok)location.reload();else alert("上传失败："+await r.text())}}' +
+        'async function sendNotify(){var btn=document.getElementById("notifyBtn");if(!btn)return;var msg=prompt("飞书通知内容（发给相关面试官）：","请关注候选人 ' + escapeHtml(c.name || "") + ' 的面试安排");if(!msg)return;btn.textContent="发送中...";btn.disabled=true;try{var r=await fetch("/api/candidates/' + cid + '/notify",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({message:msg})});if(r.ok){btn.textContent="已发送";setTimeout(function(){btn.textContent="发送飞书通知";btn.disabled=false},2000)}else{alert("发送失败");btn.textContent="发送飞书通知";btn.disabled=false}}catch(e){alert("发送失败");btn.textContent="发送飞书通知";btn.disabled=false}}' +
         '</script>',
     })
   );
 });
+
 // 删除候选人
-app.post("/candidates/:id/delete", requireLogin, async (req, res) => {
+app.post("/candidates/:id/delete", requireRole(["admin", "hr"]), async (req, res) => {
   const d = await loadData();
   const idx = d.candidates.findIndex((x) => x.id === req.params.id);
   if (idx > -1) {
@@ -884,7 +944,7 @@ app.post("/candidates/:id/delete", requireLogin, async (req, res) => {
 });
 
 // ====== Offer 管理页 ======
-app.get("/offers", requireLogin, async (req, res) => {
+app.get("/offers", requireRole(["admin", "hr"]), async (req, res) => {
   const d = await loadData();
   const offers = d.offers || [];
   const candMap = new Map(d.candidates.map((c) => [c.id, c]));
@@ -915,7 +975,7 @@ app.get("/offers", requireLogin, async (req, res) => {
 });
 
 // ====== 设置 ======
-app.get("/settings", requireLogin, async (req, res) => {
+app.get("/settings", requireRole(["admin", "hr"]), async (req, res) => {
   const d = await loadData();
   const sourcesHtml = (d.sources || []).map((s) => '<span class="pill">' + escapeHtml(s) + '</span>').join(" ");
   const tagsHtml = (d.tags || []).map((t) => tagBadge(t)).join(" ");
@@ -936,7 +996,7 @@ app.get("/settings", requireLogin, async (req, res) => {
   );
 });
 
-app.post("/settings/sources", requireLogin, async (req, res) => {
+app.post("/settings/sources", requireRole(["admin", "hr"]), async (req, res) => {
   const d = await loadData();
   const s = String(req.body.source || "").trim();
   if (s && !d.sources.includes(s)) d.sources.push(s);
@@ -944,12 +1004,239 @@ app.post("/settings/sources", requireLogin, async (req, res) => {
   res.redirect("/settings");
 });
 
-app.post("/settings/tags", requireLogin, async (req, res) => {
+app.post("/settings/tags", requireRole(["admin", "hr"]), async (req, res) => {
   const d = await loadData();
   const t = String(req.body.tag || "").trim();
   if (t && !d.tags.includes(t)) d.tags.push(t);
   await saveData(d);
   res.redirect("/settings");
+});
+
+// ====== 用户管理（仅管理员） ======
+app.get("/users", requireRole(["admin"]), async (req, res) => {
+  const d = await loadData();
+  const usersHtml = d.users.map(u => {
+    const roleBadge = u.role === "admin" ? '<span class="badge purple">管理员</span>'
+      : u.role === "hr" ? '<span class="badge blue">HR</span>'
+      : '<span class="badge gray">面试官</span>';
+    const avatar = u.avatar ? `<img src="${escapeHtml(u.avatar)}" style="width:28px;height:28px;border-radius:50%;vertical-align:middle" />` : "";
+    return `<tr>
+      <td>${avatar} ${escapeHtml(u.name)}</td>
+      <td>${roleBadge}</td>
+      <td>${escapeHtml(u.department || "-")}</td>
+      <td>${escapeHtml(u.jobTitle || "-")}</td>
+      <td>${escapeHtml(u.provider || "-")}</td>
+      <td>
+        <form method="POST" action="/api/users/${u.id}/role" style="display:inline">
+          <select name="role" onchange="this.form.submit()" style="width:auto;padding:4px 8px">
+            <option value="admin" ${u.role === "admin" ? "selected" : ""}>管理员</option>
+            <option value="hr" ${u.role === "hr" ? "selected" : ""}>HR</option>
+            <option value="interviewer" ${u.role === "interviewer" ? "selected" : ""}>面试官</option>
+          </select>
+        </form>
+      </td>
+    </tr>`;
+  }).join("");
+
+  res.send(renderPage({
+    title: "用户管理",
+    user: req.user,
+    active: "users",
+    contentHtml: `
+      <div class="card">
+        <div class="row">
+          <div style="font-weight:900;font-size:18px">用户管理</div>
+          <span class="muted">共 ${d.users.length} 人</span>
+          <div class="spacer"></div>
+          ${feishuEnabled() ? '<form method="POST" action="/api/users/sync-feishu"><button class="btn primary" type="submit">从飞书同步通讯录</button></form>' : ''}
+        </div>
+        <div class="divider"></div>
+        <table>
+          <thead><tr><th>姓名</th><th>角色</th><th>部门</th><th>职位</th><th>来源</th><th>操作</th></tr></thead>
+          <tbody>${usersHtml || '<tr><td colspan="6" class="muted">暂无用户</td></tr>'}</tbody>
+        </table>
+      </div>
+    `,
+  }));
+});
+
+// 修改用户角色
+app.post("/api/users/:id/role", requireRole(["admin"]), async (req, res) => {
+  const d = await loadData();
+  const u = d.users.find(x => x.id === req.params.id);
+  if (!u) return res.status(404).send("user_not_found");
+  const newRole = String(req.body.role || "").trim();
+  if (["admin", "hr", "interviewer"].includes(newRole)) {
+    u.role = newRole;
+    await saveData(d);
+  }
+  res.redirect("/users");
+});
+
+// 从飞书同步通讯录
+app.post("/api/users/sync-feishu", requireRole(["admin"]), async (req, res) => {
+  try {
+    const employees = await getAllFeishuEmployees();
+    if (!employees.length) return res.redirect("/users");
+    const d = await loadData();
+    let added = 0;
+    for (const emp of employees) {
+      const existing = d.users.find(u => u.openId === emp.openId);
+      if (existing) {
+        existing.name = emp.name || existing.name;
+        existing.avatar = emp.avatar || existing.avatar;
+        existing.department = emp.department || existing.department;
+        existing.jobTitle = emp.jobTitle || existing.jobTitle;
+      } else {
+        d.users.push({
+          id: rid("usr"),
+          openId: emp.openId,
+          unionId: emp.unionId || "",
+          name: emp.name,
+          avatar: emp.avatar,
+          role: "interviewer",
+          department: emp.department || "",
+          jobTitle: emp.jobTitle || "",
+          provider: "feishu",
+          createdAt: nowIso(),
+        });
+        added++;
+      }
+    }
+    await saveData(d);
+    res.redirect("/users");
+  } catch (e) {
+    console.error("[Sync] 飞书通讯录同步失败:", e.message);
+    res.redirect("/users");
+  }
+});
+
+// ====== 面试日程页面 ======
+app.get("/schedule", requireLogin, async (req, res) => {
+  const d = await loadData();
+  const schedules = (d.interviewSchedules || [])
+    .filter(s => s.scheduledAt)
+    .sort((a, b) => (a.scheduledAt > b.scheduledAt ? 1 : -1));
+
+  // 面试官为当前用户的筛选（面试官角色只看自己的）
+  const userRole = req.user?.role || "interviewer";
+  const userName = req.user?.name || "";
+  const filtered = userRole === "interviewer"
+    ? schedules.filter(s => (s.interviewers || "").includes(userName))
+    : schedules;
+
+  const upcoming = filtered.filter(s => new Date(s.scheduledAt.replace(" ", "T")) >= new Date());
+  const past = filtered.filter(s => new Date(s.scheduledAt.replace(" ", "T")) < new Date());
+
+  const renderScheduleRow = (s) => {
+    const c = d.candidates.find(x => x.id === s.candidateId);
+    const candName = c ? escapeHtml(c.name) : "未知候选人";
+    const jobTitle = c ? escapeHtml(c.jobTitle || "-") : "-";
+    return `<tr>
+      <td><strong>${candName}</strong><br><span class="muted">${jobTitle}</span></td>
+      <td>第${s.round}轮</td>
+      <td>${escapeHtml(s.scheduledAt)}</td>
+      <td>${escapeHtml(s.interviewers || "-")}</td>
+      <td>${escapeHtml(s.location || s.link || "-")}</td>
+      <td>${c ? `<a href="/candidates/${c.id}" class="btn sm">详情</a>` : ""}</td>
+    </tr>`;
+  };
+
+  const upcomingHtml = upcoming.map(renderScheduleRow).join("");
+  const pastHtml = past.map(renderScheduleRow).join("");
+
+  // 面试官选择列表（从已同步的用户中获取）
+  const interviewerOptions = d.users
+    .map(u => `<option value="${escapeHtml(u.name)}">${escapeHtml(u.name)}${u.role === "interviewer" ? " (面试官)" : u.role === "hr" ? " (HR)" : ""}</option>`)
+    .join("");
+
+  // 日历视图数据
+  const calMonth = req.query.month || new Date().toISOString().slice(0, 7); // "YYYY-MM"
+  const [calY, calM] = calMonth.split("-").map(Number);
+  const firstDay = new Date(calY, calM - 1, 1);
+  const lastDay = new Date(calY, calM, 0);
+  const startDow = firstDay.getDay(); // 0=Sun
+  const totalDays = lastDay.getDate();
+
+  // 按日期归类面试
+  const schedulesByDate = {};
+  for (const s of filtered) {
+    const dt = (s.scheduledAt || "").slice(0, 10);
+    if (!dt) continue;
+    if (!schedulesByDate[dt]) schedulesByDate[dt] = [];
+    const c = d.candidates.find(x => x.id === s.candidateId);
+    schedulesByDate[dt].push({ ...s, candName: c?.name || "未知", candId: c?.id });
+  }
+
+  // 生成日历格子
+  let calCells = '';
+  const today = new Date().toISOString().slice(0, 10);
+  // 填充空格
+  for (let i = 0; i < startDow; i++) calCells += '<div class="cal-cell empty"></div>';
+  for (let day = 1; day <= totalDays; day++) {
+    const dateStr = `${calY}-${String(calM).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    const items = schedulesByDate[dateStr] || [];
+    const isToday = dateStr === today;
+    const dots = items.slice(0, 3).map(s =>
+      `<a href="/candidates/${escapeHtml(s.candId || "")}" class="cal-dot" title="${escapeHtml(s.candName)} 第${s.round}轮 ${escapeHtml(s.scheduledAt?.slice(11) || "")}">${escapeHtml(s.candName?.slice(0, 2) || "")}</a>`
+    ).join("");
+    const more = items.length > 3 ? `<span class="cal-more">+${items.length - 3}</span>` : "";
+    calCells += `<div class="cal-cell${isToday ? ' today' : ''}"><div class="cal-day">${day}</div>${dots}${more}</div>`;
+  }
+
+  const prevMonth = calM === 1 ? `${calY - 1}-12` : `${calY}-${String(calM - 1).padStart(2, "0")}`;
+  const nextMonth = calM === 12 ? `${calY + 1}-01` : `${calY}-${String(calM + 1).padStart(2, "0")}`;
+  const calendarHtml = `
+    <div class="card" style="margin-bottom:14px">
+      <div class="row" style="margin-bottom:12px">
+        <a class="btn sm" href="/schedule?month=${prevMonth}">&larr;</a>
+        <div style="font-weight:900;font-size:16px;margin:0 12px">${calY}年${calM}月</div>
+        <a class="btn sm" href="/schedule?month=${nextMonth}">&rarr;</a>
+        <span class="spacer"></span>
+        <a class="btn sm" href="/schedule">本月</a>
+      </div>
+      <div class="cal-grid">
+        <div class="cal-head">日</div><div class="cal-head">一</div><div class="cal-head">二</div><div class="cal-head">三</div><div class="cal-head">四</div><div class="cal-head">五</div><div class="cal-head">六</div>
+        ${calCells}
+      </div>
+    </div>`;
+
+  // 视图切换
+  const view = req.query.view || "calendar";
+  const listActive = view === "list" ? "active" : "";
+  const calActive = view !== "list" ? "active" : "";
+
+  res.send(renderPage({
+    title: "面试日程",
+    user: req.user,
+    active: "schedule",
+    contentHtml: `
+      <div class="row" style="margin-bottom:14px">
+        <div style="font-weight:900;font-size:18px">面试日程</div>
+        <span class="muted" style="margin-left:12px">${upcoming.length} 场待进行 / ${past.length} 场已完成</span>
+        <span class="spacer"></span>
+        <div class="seg" style="margin:0">
+          <a class="${calActive}" href="/schedule?view=calendar${calMonth !== new Date().toISOString().slice(0,7) ? '&month=' + calMonth : ''}">日历</a>
+          <a class="${listActive}" href="/schedule?view=list">列表</a>
+        </div>
+      </div>
+      ${view !== "list" ? calendarHtml : ''}
+      <div class="card">
+        <div style="font-weight:700;margin-bottom:8px">即将进行的面试</div>
+        <table>
+          <thead><tr><th>候选人</th><th>轮次</th><th>时间</th><th>面试官</th><th>地点/链接</th><th></th></tr></thead>
+          <tbody>${upcomingHtml || '<tr><td colspan="6" class="muted">暂无待进行的面试</td></tr>'}</tbody>
+        </table>
+        <div class="divider"></div>
+        <div style="font-weight:700;margin-bottom:8px">已完成的面试</div>
+        <table>
+          <thead><tr><th>候选人</th><th>轮次</th><th>时间</th><th>面试官</th><th>地点/链接</th><th></th></tr></thead>
+          <tbody>${pastHtml || '<tr><td colspan="6" class="muted">暂无已完成的面试</td></tr>'}</tbody>
+        </table>
+      </div>
+      <datalist id="interviewer-list">${interviewerOptions}</datalist>
+    `,
+  }));
 });
 
 // ====== API 路由 ======
@@ -1017,25 +1304,13 @@ app.post("/api/candidates/:id/status", requireLogin, async (req, res) => {
 
   pushEvent(d, { candidateId: c.id, type: "状态流转", message: "状态：" + old + " -> " + c.status, actor: req.user?.name || "系统" });
   await saveData(d);
+
   // 飞书通知：状态变更
   if (feishuEnabled() && req.user?.openId) {
     sendFeishuMessage(req.user.openId,
       `**候选人**：${c.name}\n**状态变更**：${old} → ${c.status}\n**操作人**：${req.user?.name || "系统"}`,
       "候选人状态变更"
     ).catch(() => {});
-  }
-  // --- 飞书消息通知：候选人状态变更时通知操作者 ---
-  if (feishuEnabled() && req.user?.provider === "feishu" && req.user?.openId) {
-    const msgContent =
-      `**候选人状态变更**\n` +
-      `- 候选人：${c.name || "未知"}\n` +
-      `- 状态变更：${old} -> ${c.status}\n` +
-      `- 操作人：${req.user.name || "系统"}\n` +
-      `- 时间：${c.updatedAt}`;
-    // 异步发送，不阻塞响应
-    sendFeishuMessage(req.user.openId, msgContent).catch((err) => {
-      console.warn("[Feishu] 状态变更通知发送失败:", err.message || err);
-    });
   }
 
   res.json({ ok: true });
@@ -1055,6 +1330,42 @@ app.post("/api/candidates/:id/follow", requireLogin, async (req, res) => {
   pushEvent(d, { candidateId: c.id, type: "跟进", message: "下一步：" + (nextAction || "-") + "\n跟进时间：" + (followAt || "-") + "\n" + (note || ""), actor: req.user?.name || "系统" });
   await saveData(d);
   res.json({ ok: true });
+});
+
+// 手动发送飞书通知
+app.post("/api/candidates/:id/notify", requireLogin, async (req, res) => {
+  if (!feishuEnabled()) return res.status(400).json({ error: "feishu_not_enabled" });
+  const d = await loadData();
+  const c = d.candidates.find((x) => x.id === req.params.id);
+  if (!c) return res.status(404).json({ error: "not_found" });
+
+  const message = String(req.body.message || "").trim();
+  if (!message) return res.status(400).json({ error: "empty_message" });
+
+  // 找到与此候选人相关的面试官的 openId
+  const relatedSchedules = (d.interviewSchedules || []).filter(s => s.candidateId === c.id);
+  const interviewerNames = new Set();
+  relatedSchedules.forEach(s => {
+    (s.interviewers || "").split(/[\/,\s]+/).forEach(n => { if (n.trim()) interviewerNames.add(n.trim()); });
+  });
+
+  const sentTo = [];
+  for (const name of interviewerNames) {
+    const u = d.users.find(x => x.name === name && x.openId);
+    if (u) {
+      sendFeishuMessage(u.openId, `**候选人**：${c.name}\n**职位**：${c.jobTitle || "-"}\n**状态**：${c.status || "-"}\n\n${message}`, "招聘提醒").catch(() => {});
+      sentTo.push(name);
+    }
+  }
+
+  // 同时通知当前操作者（如果有 openId）
+  if (req.user?.openId) {
+    sendFeishuMessage(req.user.openId, `你发送了一条关于候选人「${c.name}」的通知\n\n${message}`, "通知已发送").catch(() => {});
+  }
+
+  pushEvent(d, { candidateId: c.id, type: "飞书通知", message: "手动发送通知：" + message + "\n通知对象：" + (sentTo.length ? sentTo.join("、") : "无匹配面试官"), actor: req.user?.name || "系统" });
+  await saveData(d);
+  res.json({ ok: true, sentTo });
 });
 
 app.post("/api/candidates/:id/schedule", requireLogin, async (req, res) => {
@@ -1097,6 +1408,45 @@ app.post("/api/candidates/:id/schedule", requireLogin, async (req, res) => {
     }
   }
   await saveData(d);
+
+  // 飞书日历同步：为面试安排创建日历事件
+  if (feishuEnabled() && scheduledAt && req.body.syncCalendar === "on") {
+    try {
+      const startDt = new Date(scheduledAt.replace(" ", "T"));
+      const endDt = new Date(startDt.getTime() + 60 * 60 * 1000); // 默认1小时
+      // 查找面试官的 openId
+      const interviewerNames = interviewers.split(/[\/;,、]/).map(n => n.trim()).filter(Boolean);
+      const attendeeOpenIds = [];
+      for (const name of interviewerNames) {
+        const usr = d.users.find(u => u.name === name && u.openId);
+        if (usr) attendeeOpenIds.push(usr.openId);
+      }
+      createFeishuCalendarEvent({
+        summary: `面试：${c.name} - 第${round}轮`,
+        description: `候选人：${c.name}\n职位：${c.jobTitle || "-"}\n轮次：第${round}轮\n${link ? "链接：" + link : ""}${location ? "\n地点：" + location : ""}`,
+        startTime: startDt.toISOString(),
+        endTime: endDt.toISOString(),
+        attendeeOpenIds,
+      }).catch(e => console.error("[Feishu Calendar] 创建失败:", e.message));
+    } catch (e) {
+      console.error("[Feishu Calendar] 异常:", e.message);
+    }
+  }
+
+  // 飞书通知面试官
+  if (feishuEnabled() && scheduledAt && interviewers) {
+    const interviewerNames = interviewers.split(/[\/;,、]/).map(n => n.trim()).filter(Boolean);
+    for (const name of interviewerNames) {
+      const usr = d.users.find(u => u.name === name && u.openId);
+      if (usr) {
+        sendFeishuMessage(usr.openId,
+          `**候选人**：${c.name}\n**职位**：${c.jobTitle || "-"}\n**轮次**：第${round}轮\n**时间**：${scheduledAt}\n**地点**：${location || link || "-"}`,
+          "面试安排通知"
+        ).catch(() => {});
+      }
+    }
+  }
+
   res.json({ ok: true });
 });
 
@@ -1165,7 +1515,7 @@ app.post("/api/candidates/:id/resume", requireLogin, upload.single("resume"), as
 });
 
 // Offer API
-app.post("/api/candidates/:id/offer", requireLogin, async (req, res) => {
+app.post("/api/candidates/:id/offer", requireRole(["admin", "hr"]), async (req, res) => {
   const d = await loadData();
   const c = d.candidates.find((x) => x.id === req.params.id);
   if (!c) return res.status(404).send("candidate_not_found");
@@ -1209,6 +1559,7 @@ app.post("/api/candidates/:id/offer", requireLogin, async (req, res) => {
   }
 
   await saveData(d);
+
   // 飞书通知 + 审批：Offer 事件
   if (feishuEnabled() && req.user?.openId) {
     sendFeishuMessage(req.user.openId,
@@ -1216,6 +1567,7 @@ app.post("/api/candidates/:id/offer", requireLogin, async (req, res) => {
       "Offer 通知"
     ).catch(() => {});
 
+    // 如果配置了审批 Code，自动发起审批
     const approvalCode = process.env.FEISHU_APPROVAL_CODE;
     if (approvalCode && offerStatus === "待审批") {
       createApprovalInstance(approvalCode, req.user.openId, [
@@ -1226,39 +1578,6 @@ app.post("/api/candidates/:id/offer", requireLogin, async (req, res) => {
         { name: "备注", value: note || "-" },
       ]).catch(() => {});
     }
-  }
-  // --- 飞书审批流：Offer 已发放时尝试创建审批实例 ---
-  if (offerStatus === "已发放" && feishuEnabled() && req.user?.provider === "feishu" && req.user?.openId) {
-    const approvalCode = (process.env.FEISHU_APPROVAL_CODE || "").trim();
-    if (approvalCode) {
-      // 查找关联的职位信息
-      const job = d.jobs.find((j) => j.id === c.jobId);
-      const formData = [
-        { id: "candidate_name", type: "input", value: c.name || "" },
-        { id: "job_title", type: "input", value: job?.title || c.jobTitle || "" },
-        { id: "salary", type: "input", value: salary || "" },
-        { id: "start_date", type: "input", value: startDate || "" },
-        { id: "note", type: "textarea", value: note || salaryNote || "" },
-      ];
-      // 异步创建审批，不阻塞响应
-      createApprovalInstance(approvalCode, req.user.openId, formData).catch((err) => {
-        console.warn("[Feishu] Offer审批创建失败:", err.message || err);
-      });
-    } else {
-      console.log("[Feishu] Offer已发放，但未配置 FEISHU_APPROVAL_CODE，跳过创建审批");
-    }
-
-    // 同时发飞书消息通知操作者
-    const msgContent =
-      `**Offer 已发放**\n` +
-      `- 候选人：${c.name || "未知"}\n` +
-      `- 职位：${(d.jobs.find((j) => j.id === c.jobId))?.title || c.jobTitle || "-"}\n` +
-      `- 薪资：${salary || "-"}\n` +
-      `- 入职日期：${startDate || "-"}\n` +
-      `- 操作人：${req.user.name || "系统"}`;
-    sendFeishuMessage(req.user.openId, msgContent).catch((err) => {
-      console.warn("[Feishu] Offer通知发送失败:", err.message || err);
-    });
   }
 
   res.redirect("/candidates/" + c.id);

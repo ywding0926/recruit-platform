@@ -6,7 +6,7 @@ export function escapeHtml(str) {
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
 }
- 
+
 export function statusBadge(status) {
   const s = String(status || "待筛选");
   const map = {
@@ -24,7 +24,7 @@ export function statusBadge(status) {
   const [label, cls] = map[s] || [s, "gray"];
   return `<span class="badge ${cls}">${escapeHtml(label)}</span>`;
 }
- 
+
 export function offerStatusBadge(status) {
   const s = String(status || "");
   const map = {
@@ -37,7 +37,7 @@ export function offerStatusBadge(status) {
   const [label, cls] = map[s] || [s, "gray"];
   return `<span class="badge ${cls}">${escapeHtml(label)}</span>`;
 }
- 
+
 export function tagBadge(tag) {
   const colors = {
     "高潜": "green",
@@ -48,9 +48,9 @@ export function tagBadge(tag) {
     "已拒绝其他Offer": "red",
   };
   const cls = colors[tag] || "gray";
-  return`<span class="badge ${cls}" style="font-size:11px;padding:4px 8px">${escapeHtml(tag)}</span>`;
+  return `<span class="badge ${cls}" style="font-size:11px;padding:4px 8px">${escapeHtml(tag)}</span>`;
 }
- 
+
 export function followupBadge(follow) {
   if (!follow || typeof follow !== "object") return "";
   const action = String(follow.nextAction || "").trim();
@@ -87,31 +87,38 @@ export function followupBadge(follow) {
     .join(" ");
   return `<span class="badge ${cls}">${escapeHtml(text)}</span>`;
 }
- 
+
 export function renderPage({ title, user, active, contentHtml }) {
+  const role = user?.role || "interviewer";
+
   const nav = [
-    ["dashboard", "概览", "/"],
-    ["jobs", "职位管理", "/jobs"],
-    ["candidates_list", "全部候选人", "/candidates"],
-    ["candidates_board", "候选人看板", "/candidates/board"],
-    ["offers", "Offer管理", "/offers"],
-    ["settings", "设置", "/settings"],
+    ["dashboard", "概览", "/", ["admin", "hr", "interviewer"]],
+    ["jobs", "职位管理", "/jobs", ["admin", "hr"]],
+    ["candidates_list", "全部候选人", "/candidates", ["admin", "hr"]],
+    ["candidates_board", "候选人看板", "/candidates/board", ["admin", "hr"]],
+    ["schedule", "面试日程", "/schedule", ["admin", "hr", "interviewer"]],
+    ["offers", "Offer管理", "/offers", ["admin", "hr"]],
+    ["users", "用户管理", "/users", ["admin"]],
+    ["settings", "设置", "/settings", ["admin", "hr"]],
   ];
- 
+
   const navHtml = nav
+    .filter(([, , , roles]) => roles.includes(role))
     .map(([key, label, href]) => {
       const cls = key === active ? "navitem active" : "navitem";
       return `<a class="${cls}" href="${href}">${label}</a>`;
     })
     .join("");
- 
+
+  const roleLabels = { admin: "管理员", hr: "HR", interviewer: "面试官" };
   const userHtml = user
     ? `<div class="user">
+        <span class="badge purple" style="font-size:11px;padding:4px 8px">${escapeHtml(roleLabels[role] || role)}</span>
         <span class="muted">${escapeHtml(user.name || "")}</span>
         <a class="btn" href="/logout">退出</a>
       </div>`
     : "";
- 
+
   return `<!doctype html>
 <html lang="zh-CN">
 <head>
@@ -150,7 +157,7 @@ export function renderPage({ title, user, active, contentHtml }) {
   a{color:inherit;text-decoration:none}
   .muted{color:var(--muted);font-size:13px}
   .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace}
- 
+
   .topbar{
     position:sticky; top:0; z-index:50;
     background:rgba(255,255,255,.72);
@@ -174,13 +181,13 @@ export function renderPage({ title, user, active, contentHtml }) {
   .navitem:hover{border-color:rgba(139,92,246,.22);background:#fff}
   .navitem.active{background:rgba(139,92,246,.12);border-color:rgba(139,92,246,.28);color:var(--text)}
   .user{display:flex;align-items:center;gap:10px}
- 
+
   .container{max-width:1200px;margin:0 auto;padding:18px}
   .grid{display:grid;grid-template-columns: 1.4fr .6fr;gap:14px}
   .grid3{display:grid;grid-template-columns: repeat(3, 1fr);gap:14px}
   .grid4{display:grid;grid-template-columns: repeat(4, 1fr);gap:14px}
   @media (max-width: 960px){ .grid{grid-template-columns:1fr} .grid3{grid-template-columns:1fr} .grid4{grid-template-columns:repeat(2,1fr)} }
- 
+
   .card{
     background:var(--card);
     border:1px solid rgba(237,233,254,.9);
@@ -195,7 +202,7 @@ export function renderPage({ title, user, active, contentHtml }) {
   .row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
   .spacer{flex:1}
   .divider{height:1px;background:rgba(237,233,254,.9);margin:12px 0}
- 
+
   .btn{
     display:inline-flex;align-items:center;justify-content:center;gap:8px;
     border:1px solid rgba(237,233,254,.95);
@@ -220,7 +227,7 @@ export function renderPage({ title, user, active, contentHtml }) {
     color:#7f1d1d;
   }
   .btn.sm{padding:6px 10px;font-size:12px;border-radius:10px}
- 
+
   .field{margin-bottom:12px}
   label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px}
   input,select,textarea{
@@ -236,7 +243,7 @@ export function renderPage({ title, user, active, contentHtml }) {
     border-color:rgba(139,92,246,.55);
     box-shadow:0 0 0 5px rgba(139,92,246,.10);
   }
- 
+
   table{width:100%;border-collapse:separate;border-spacing:0 10px}
   th{font-size:12px;color:var(--muted);text-align:left;padding:0 10px}
   td{
@@ -248,7 +255,7 @@ export function renderPage({ title, user, active, contentHtml }) {
   }
   tr td:first-child{border-left:1px solid rgba(237,233,254,.95);border-top-left-radius:12px;border-bottom-left-radius:12px}
   tr td:last-child{border-right:1px solid rgba(237,233,254,.95);border-top-right-radius:12px;border-bottom-right-radius:12px}
- 
+
   .badge{
     display:inline-flex;align-items:center;gap:6px;
     border-radius:999px;padding:6px 10px;font-size:12px;
@@ -262,7 +269,7 @@ export function renderPage({ title, user, active, contentHtml }) {
   .badge.red{background:rgba(239,68,68,.12);border-color:rgba(239,68,68,.22);color:#7f1d1d}
   .badge.orange{background:rgba(245,158,11,.12);border-color:rgba(245,158,11,.22);color:#78350f}
   .badge.blue{background:rgba(59,130,246,.12);border-color:rgba(59,130,246,.22);color:#1e3a5f}
- 
+
   .toolbar{
     display:flex;align-items:center;gap:10px;flex-wrap:wrap;
     padding:10px;
@@ -279,7 +286,7 @@ export function renderPage({ title, user, active, contentHtml }) {
   .toolbar .ctl input,.toolbar .ctl select{border:none; padding:0; outline:none; background:transparent; width:auto}
   .toolbar .ctl input{min-width:220px}
   .toolbar .ctl select{min-width:140px}
- 
+
   .kanban{
     display:grid;
     grid-template-columns: repeat(10, minmax(230px, 1fr));
@@ -322,7 +329,7 @@ export function renderPage({ title, user, active, contentHtml }) {
   }
   .cardtitle{font-weight:900;display:flex;align-items:center;gap:8px}
   .cardsub{margin-top:6px;display:flex;gap:8px;flex-wrap:wrap}
- 
+
   .drawerMask{
     position:fixed; inset:0;
     background:rgba(17,24,39,.35);
@@ -364,7 +371,7 @@ export function renderPage({ title, user, active, contentHtml }) {
     cursor:pointer;
     font-weight:900;
   }
- 
+
   .tabs{display:flex;gap:8px;flex-wrap:wrap}
   .tab{
     padding:9px 12px;
@@ -384,7 +391,7 @@ export function renderPage({ title, user, active, contentHtml }) {
   .tabpanels{margin-top:12px}
   .tabpanel{display:none}
   .tabpanel.active{display:block}
- 
+
   .pill{
     display:inline-flex;align-items:center;gap:8px;
     padding:8px 10px;border-radius:14px;
@@ -392,7 +399,7 @@ export function renderPage({ title, user, active, contentHtml }) {
     background:#fff;
   }
   .shadowless{box-shadow:none}
- 
+
   .timeline{
     position:relative;
     padding-left:14px;
@@ -424,7 +431,7 @@ export function renderPage({ title, user, active, contentHtml }) {
   .tmeta{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
   .tmeta b{font-weight:900}
   .tmsg{margin-top:8px;color:#111827}
- 
+
   .seg{
     display:flex;gap:8px;flex-wrap:wrap;
     padding:10px;
@@ -443,11 +450,11 @@ export function renderPage({ title, user, active, contentHtml }) {
     border-color:rgba(139,92,246,.28);
     color:#4c1d95;
   }
- 
+
   .stat-number{font-size:28px;font-weight:900;color:var(--primary);line-height:1}
   .stat-label{font-size:13px;color:var(--muted);margin-top:4px}
   .stat-card{text-align:center;padding:20px 12px}
- 
+
   .bar{height:8px;border-radius:999px;background:rgba(237,233,254,.9);overflow:hidden;margin-top:4px}
   .bar-fill{height:100%;border-radius:999px;transition:.3s ease}
   .bar-purple{background:linear-gradient(90deg,var(--primary2),var(--primary))}
@@ -455,11 +462,22 @@ export function renderPage({ title, user, active, contentHtml }) {
   .bar-red{background:var(--red)}
   .bar-orange{background:var(--orange)}
   .bar-blue{background:var(--blue)}
- 
+
   .confirm-mask{position:fixed;inset:0;background:rgba(17,24,39,.35);display:flex;align-items:center;justify-content:center;z-index:200}
   .confirm-box{background:#fff;border-radius:var(--radius);padding:24px;max-width:400px;width:90%;box-shadow:var(--shadow2);text-align:center}
   .confirm-box .confirm-title{font-weight:900;font-size:16px;margin-bottom:12px}
   .confirm-box .confirm-actions{display:flex;gap:10px;justify-content:center;margin-top:16px}
+
+  .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+  .cal-head{text-align:center;font-weight:900;font-size:12px;color:var(--muted);padding:6px 0}
+  .cal-cell{min-height:80px;border:1px solid rgba(237,233,254,.7);border-radius:8px;padding:4px 6px;background:#fff;font-size:12px}
+  .cal-cell.empty{border:none;background:transparent}
+  .cal-cell.today{background:rgba(139,92,246,.06);border-color:rgba(139,92,246,.3)}
+  .cal-day{font-weight:900;font-size:13px;margin-bottom:4px;color:#374151}
+  .cal-cell.today .cal-day{color:var(--primary)}
+  .cal-dot{display:block;padding:2px 4px;margin-bottom:2px;border-radius:4px;background:rgba(139,92,246,.1);color:#4c1d95;font-size:11px;font-weight:700;text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .cal-dot:hover{background:rgba(139,92,246,.22)}
+  .cal-more{display:block;font-size:10px;color:var(--muted);font-weight:700}
 </style>
 </head>
 <body>
@@ -470,11 +488,10 @@ export function renderPage({ title, user, active, contentHtml }) {
       ${userHtml}
     </div>
   </div>
- 
+
   <div class="container">
     ${contentHtml}
   </div>
 </body>
 </html>`;
 }
- 
