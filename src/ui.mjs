@@ -93,9 +93,9 @@ export function renderPage({ title, user, active, contentHtml }) {
 
   const nav = [
     ["dashboard", "概览", "/", ["admin", "hr", "interviewer"]],
-    ["jobs", "职位管理", "/jobs", ["admin", "hr"]],
-    ["candidates_list", "全部候选人", "/candidates", ["admin", "hr"]],
-    ["candidates_board", "候选人看板", "/candidates/board", ["admin", "hr"]],
+    ["jobs", "职位管理", "/jobs", ["admin", "hr", "interviewer"]],
+    ["candidates_list", "全部候选人", "/candidates", ["admin", "hr", "interviewer"]],
+    ["candidates_board", "候选人看板", "/candidates/board", ["admin", "hr", "interviewer"]],
     ["schedule", "面试日程", "/schedule", ["admin", "hr", "interviewer"]],
     ["offers", "Offer管理", "/offers", ["admin", "hr"]],
     ["users", "用户管理", "/users", ["admin"]],
