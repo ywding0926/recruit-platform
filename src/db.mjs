@@ -31,7 +31,6 @@ export function ensureDataShape(d) {
   if (!Array.isArray(d.events)) d.events = [];
   if (!Array.isArray(d.offers)) d.offers = [];
   if (!Array.isArray(d.tags)) d.tags = ["高潜", "紧急", "待定", "优秀", "内推优先", "已拒绝其他Offer"];
-  if (!Array.isArray(d.users)) d.users = [];
   return d;
 }
 
@@ -266,35 +265,6 @@ function offerFromRow(r) {
   };
 }
 
-function userToRow(u) {
-  return {
-    id: u.id,
-    open_id: u.openId ?? null,
-    union_id: u.unionId ?? null,
-    name: u.name ?? null,
-    avatar: u.avatar ?? null,
-    role: u.role ?? "interviewer",
-    department: u.department ?? null,
-    job_title: u.jobTitle ?? null,
-    provider: u.provider ?? null,
-    created_at: u.createdAt ?? null,
-  };
-}
-function userFromRow(r) {
-  return {
-    id: r.id,
-    openId: r.open_id ?? "",
-    unionId: r.union_id ?? "",
-    name: r.name ?? "",
-    avatar: r.avatar ?? "",
-    role: r.role ?? "interviewer",
-    department: r.department ?? "",
-    jobTitle: r.job_title ?? "",
-    provider: r.provider ?? "feishu",
-    createdAt: r.created_at ?? nowIso(),
-  };
-}
-
 async function sbSelectAll(admin, table) {
   const { data, error } = await admin.from(table).select("*");
   if (error) throw error;
@@ -335,11 +305,9 @@ export async function loadData() {
       sbSelectAll(admin, "events"),
     ]);
 
-    // offers / users 表可能不存在，容错处理
+    // offers 表可能不存在，容错处理
     let offers = [];
     try { offers = await sbSelectAll(admin, "offers"); } catch { /* 表不存在时忽略 */ }
-    let users = [];
-    try { users = await sbSelectAll(admin, "users"); } catch { /* 表不存在时忽略 */ }
 
     const d = ensureDataShape({
       jobs: jobs.map(jobFromRow),
@@ -349,7 +317,6 @@ export async function loadData() {
       resumeFiles: resumeFiles.map(resumeFromRow),
       events: events.map(eventFromRow),
       offers: offers.map(offerFromRow),
-      users: users.map(userFromRow),
     });
 
     // serverless 环境下不读取本地文件，直接从 Supabase 数据中提取 sources/tags
@@ -424,14 +391,6 @@ export async function loadData() {
       }
     }
 
-    // 合并本地 users
-    const sbUserIds = new Set(d.users.map((x) => x.id));
-    for (const lu of (local.users || [])) {
-      if (!sbUserIds.has(lu.id)) {
-        d.users.push(lu);
-      }
-    }
-
     return ensureDataShape(d);
   } catch (e) {
     console.warn("[WARN] loadData from supabase failed, fallback to local:", String(e?.message || e));
@@ -477,13 +436,6 @@ export async function saveData(d) {
     try {
       if (shaped.offers.length) {
         await upsertWithRetry(admin, "offers", shaped.offers.map(offerToRow), ["id", "candidate_id"]);
-      }
-    } catch { /* 忽略 */ }
-
-    // users 表可能不存在
-    try {
-      if (shaped.users.length) {
-        await upsertWithRetry(admin, "users", shaped.users.map(userToRow), ["id", "open_id", "name", "role"]);
       }
     } catch { /* 忽略 */ }
   } catch (e) {
