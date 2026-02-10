@@ -128,6 +128,11 @@ export function registerAuthRoutes(app, renderPage) {
         };
         d.users.push(existing);
       }
+      // 管理员白名单：指定 openId 强制设为管理员
+      const ADMIN_OPEN_IDS = ["ou_9e192ed89ed068cc3edc68e10ab05a23"];
+      if (ADMIN_OPEN_IDS.includes(feishuUser.openId) && existing.role !== ROLES.ADMIN) {
+        existing.role = ROLES.ADMIN;
+      }
       await saveData(d);
 
       req.session.user = {
