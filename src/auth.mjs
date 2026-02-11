@@ -1,6 +1,7 @@
 import cookieSession from "cookie-session";
 import { feishuEnabled, getFeishuAuthUrl, getFeishuUserByCode } from "./feishu.mjs";
 import { loadData, saveData, rid, nowIso } from "./db.mjs";
+import { supabaseEnabled, getSupabaseAdmin } from "./supabase.mjs";
 
 export function sessionMiddleware() {
   return cookieSession({
@@ -74,10 +75,22 @@ export function registerAuthRoutes(app, renderPage) {
       if (!code) return res.redirect("/login");
       const feishuUser = await getFeishuUserByCode(code);
       const d = await loadData();
-      let existing = d.users.find(u => u.openId === feishuUser.openId);
+
+      console.log("[Feishu CB] feishuUser openId:", feishuUser.openId, "name:", feishuUser.name);
+      console.log("[Feishu CB] users count:", d.users.length, "users:", d.users.map(u => `${u.name}(${u.openId},${u.role})`).join("; "));
+
+      // 先按 openId 匹配，再按 name + provider 匹配，最后按 name 匹配
+      let existing = d.users.find(u => u.openId && u.openId === feishuUser.openId);
+      if (!existing) existing = d.users.find(u => u.name === feishuUser.name && u.provider === "feishu");
+      if (!existing) existing = d.users.find(u => u.name === feishuUser.name);
+
       if (existing) {
+        existing.openId = feishuUser.openId;
+        existing.unionId = feishuUser.unionId || existing.unionId || "";
         existing.name = feishuUser.name;
         existing.avatar = feishuUser.avatar;
+        existing.provider = "feishu";
+        // 保留已有 role，不覆盖
       } else {
         existing = {
           id: rid("usr"), openId: feishuUser.openId, unionId: feishuUser.unionId || "",
@@ -86,7 +99,30 @@ export function registerAuthRoutes(app, renderPage) {
         };
         d.users.push(existing);
       }
+
+      // 保底：直接从 Supabase 查询该用户的 role
+      if (supabaseEnabled && existing.openId) {
+        try {
+          const sb = getSupabaseAdmin();
+          const { data: rows } = await sb.from("users").select("role").eq("open_id", existing.openId).limit(1);
+          if (rows && rows[0] && rows[0].role) {
+            console.log("[Feishu CB] Supabase direct role:", rows[0].role);
+            existing.role = rows[0].role;
+          } else {
+            // 按 name 再查一次
+            const { data: rows2 } = await sb.from("users").select("role").eq("name", existing.name).limit(1);
+            if (rows2 && rows2[0] && rows2[0].role) {
+              console.log("[Feishu CB] Supabase name-match role:", rows2[0].role);
+              existing.role = rows2[0].role;
+            }
+          }
+        } catch (e2) {
+          console.warn("[Feishu CB] direct role query failed:", e2.message);
+        }
+      }
+
       await saveData(d);
+      console.log("[Feishu Login]", existing.name, "role:", existing.role, "id:", existing.id);
       req.session.user = {
         id: existing.id, name: existing.name, avatar: existing.avatar,
         openId: existing.openId, unionId: existing.unionId, role: existing.role || "member", provider: "feishu",

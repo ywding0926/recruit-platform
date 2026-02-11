@@ -50,25 +50,33 @@ export function followupBadge(follow) {
 }
 
 /**
- * 渲染页面 - 顶部Tab导航，无角色区分
- * 主要Tab: 职位 | 候选人 | 看板 | 日程 | Offer | 设置
+ * 渲染页面 - 顶部Tab导航，根据角色区分可见项
+ * admin: 职位 | 候选人 | 看板 | 日程 | Offer | 设置
+ * member: 职位 | 候选人 | 看板 | 日程 | Offer
  */
 export function renderPage({ title, user, active, contentHtml }) {
+  const isAdmin = user?.role === "admin";
   const nav = [
     ["jobs", "职位", "/jobs"],
     ["candidates", "候选人", "/candidates"],
     ["board", "看板", "/candidates/board"],
     ["schedule", "日程", "/schedule"],
     ["offers", "Offer", "/offers"],
-    ["settings", "设置", "/settings"],
+    ...(isAdmin ? [["settings", "设置", "/settings"]] : []),
   ];
 
   const navHtml = nav
     .map(([key, label, href]) => `<a class="tab-nav ${key === active ? "active" : ""}" href="${href}">${label}</a>`)
     .join("");
 
+  const roleBadge = user
+    ? (isAdmin
+        ? '<span class="badge purple" style="font-size:11px;padding:3px 8px">管理员</span>'
+        : '<span class="badge gray" style="font-size:11px;padding:3px 8px">成员</span>')
+    : "";
+
   const userHtml = user
-    ? `<div class="user-info"><span class="username">${escapeHtml(user.name || "")}</span><a class="btn sm" href="/logout">退出</a></div>`
+    ? `<div class="user-info">${roleBadge}<span class="username">${escapeHtml(user.name || "")}</span><a class="btn sm" href="/logout">退出</a></div>`
     : "";
 
   return `<!doctype html>

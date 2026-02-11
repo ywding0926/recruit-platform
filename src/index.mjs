@@ -39,6 +39,19 @@ if (!isServerless) {
 // ====== 注册登录/登出路由（来自 auth.mjs）======
 registerAuthRoutes(app, renderPage);
 
+// ====== 临时调试接口（排查后删除）======
+app.get("/debug/session", requireLogin, async (req, res) => {
+  const d = await loadData();
+  const sessionUser = req.session.user;
+  const matchedUser = d.users.find(u => u.openId && u.openId === sessionUser.openId)
+    || d.users.find(u => u.name === sessionUser.name);
+  res.json({
+    session: sessionUser,
+    matchedUser: matchedUser || null,
+    allUsers: d.users.map(u => ({ id: u.id, name: u.name, openId: u.openId, role: u.role, provider: u.provider })),
+  });
+});
+
 // ====== 常量 ======
 const STATUS_COLS = [
   { key: "待筛选", name: "待筛选" },
@@ -1024,7 +1037,19 @@ app.get("/candidates/:id", requireLogin, async (req, res) => {
   }).join("") : '<div class="muted">暂无面试安排</div>';
 
   const schedulePanel = isAdmin
-    ? '<div class="tabpanel" id="panel-schedule"><div class="divider"></div><div class="card shadowless" style="padding:12px;border-radius:14px"><div class="row"><div style="font-weight:900">新增/更新面试安排</div></div><div class="divider"></div><div class="row" style="gap:10px"><div class="field" style="min-width:120px"><label>轮次</label><select id="scRound">' + roundOpts + '</select></div><div class="field" style="min-width:220px"><label>面试时间</label><input id="scAt" type="datetime-local" /></div></div><div class="field"><label>面试官</label><input id="scInterviewers" list="interviewer-datalist" placeholder="张三 / 李四" /></div><datalist id="interviewer-datalist">' + interviewerDatalist + '</datalist><div class="field"><label>会议链接</label><input id="scLink" /></div><div class="field"><label>地点/形式</label><input id="scLocation" /></div><div class="field"><label>同步状态</label><select id="scSyncStatus">' + syncOpts + '</select></div>' + (feishuEnabled() ? '<div class="field"><label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="scSyncCalendar" style="width:auto" /> 同步到飞书日历</label></div>' : '') + '<button class="btn primary" onclick="saveSchedule()">保存面试安排</button></div><div style="height:12px"></div>' + scheduleHtml + '</div>'
+    ? '<div class="tabpanel" id="panel-schedule"><div class="divider"></div><div class="card shadowless" style="padding:12px;border-radius:14px"><div class="row"><div style="font-weight:900">新增/更新面试安排</div></div><div class="divider"></div>' +
+      '<div class="row" style="gap:10px"><div class="field" style="min-width:120px"><label>轮次</label><select id="scRound">' + roundOpts + '</select></div><div class="field" style="min-width:220px"><label>面试时间</label><input id="scAt" type="datetime-local" /></div></div>' +
+      '<div class="field"><label>面试官 <span class="muted" style="font-size:12px">（从通讯录选择，可多选）</span></label>' +
+      '<div id="interviewerPicker" style="position:relative">' +
+        '<div id="selectedInterviewers" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px"></div>' +
+        '<input id="scInterviewerSearch" placeholder="搜索面试官姓名..." autocomplete="off" style="width:100%" />' +
+        '<div id="interviewerDropdown" style="display:none;position:absolute;z-index:100;left:0;right:0;top:100%;max-height:200px;overflow-y:auto;background:#fff;border:1px solid #e5e7eb;border-radius:10px;box-shadow:0 4px 12px rgba(0,0,0,.1)"></div>' +
+      '</div></div>' +
+      '<div class="field"><label>会议链接</label><input id="scLink" /></div>' +
+      '<div class="field"><label>地点/形式</label><input id="scLocation" /></div>' +
+      '<div class="field"><label>同步状态</label><select id="scSyncStatus">' + syncOpts + '</select></div>' +
+      (feishuEnabled() ? '<div class="field"><label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="scSyncCalendar" style="width:auto" checked /> 同步到飞书日历（面试官个人日历）</label></div>' : '') +
+      '<button class="btn primary" onclick="saveSchedule()">保存面试安排</button></div><div style="height:12px"></div>' + scheduleHtml + '</div>'
     : '<div class="tabpanel" id="panel-schedule"><div class="divider"></div><div style="font-weight:900;margin-bottom:8px">面试安排（只读）</div>' + scheduleViewHtml + '</div>';
 
   // "简历"tab — member 只能查看，不能上传
@@ -1045,7 +1070,15 @@ app.get("/candidates/:id", requireLogin, async (req, res) => {
     ? 'async function saveCandidate(){var payload={name:document.getElementById("editName").value,phone:document.getElementById("editPhone").value,email:document.getElementById("editEmail").value,source:document.getElementById("editSource").value,note:document.getElementById("editNote").value};var res=await fetch("/api/candidates/' + cid + '",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});if(res.ok)location.reload();else{var d=await res.json().catch(function(){return{}});alert(d.error||"保存失败")}}' +
       'async function updateStatus(){var v=document.getElementById("statusSelect").value;var res=await fetch("/api/candidates/' + cid + '/status",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({status:v})});if(res.ok)location.reload();else{var d=await res.json().catch(function(){return{}});alert(d.error||"更新失败")}}' +
       'async function saveFollow(){var payload={nextAction:document.getElementById("fuAction").value,followAt:document.getElementById("fuAt").value,note:document.getElementById("fuNote").value};var res=await fetch("/api/candidates/' + cid + '/follow",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});if(res.ok)location.reload();else{var d=await res.json().catch(function(){return{}});alert(d.error||"保存失败")}}' +
-      'async function saveSchedule(){var sc=document.getElementById("scSyncCalendar");var payload={round:Number(document.getElementById("scRound").value),scheduledAt:document.getElementById("scAt").value,interviewers:document.getElementById("scInterviewers").value,link:document.getElementById("scLink").value,location:document.getElementById("scLocation").value,syncStatus:document.getElementById("scSyncStatus").value,syncCalendar:sc&&sc.checked?"on":"off"};var res=await fetch("/api/candidates/' + cid + '/schedule",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});if(res.ok)location.reload();else{var d=await res.json().catch(function(){return{}});alert(d.error||"保存失败")}}' +
+      'var _selectedInterviewers=[];' +
+      'async function loadInterviewers(){try{var r=await fetch("/api/interviewers");if(r.ok){window._allInterviewers=await r.json()}else{window._allInterviewers=[]}}catch(e){window._allInterviewers=[]}}' +
+      'function renderSelectedInterviewers(){var c=document.getElementById("selectedInterviewers");if(!c)return;c.innerHTML=_selectedInterviewers.map(function(iv){return \'<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:8px;background:rgba(99,102,241,.08);color:#4f46e5;font-size:13px;font-weight:600">\'+iv.name+\'<span onclick="removeInterviewer(\\x27\'+iv.openId+\'\\x27)" style="cursor:pointer;opacity:.6;margin-left:2px">&times;</span></span>\'}).join("")}' +
+      'function removeInterviewer(oid){_selectedInterviewers=_selectedInterviewers.filter(function(x){return x.openId!==oid});renderSelectedInterviewers()}' +
+      'function addInterviewer(iv){if(_selectedInterviewers.some(function(x){return x.openId===iv.openId}))return;_selectedInterviewers.push(iv);renderSelectedInterviewers();document.getElementById("scInterviewerSearch").value="";document.getElementById("interviewerDropdown").style.display="none"}' +
+      'function initInterviewerPicker(){var inp=document.getElementById("scInterviewerSearch");var dd=document.getElementById("interviewerDropdown");if(!inp||!dd)return;inp.addEventListener("focus",function(){showInterviewerDropdown(inp.value)});inp.addEventListener("input",function(){showInterviewerDropdown(inp.value)});document.addEventListener("click",function(e){if(!document.getElementById("interviewerPicker").contains(e.target)){dd.style.display="none"}})}' +
+      'function showInterviewerDropdown(q){var dd=document.getElementById("interviewerDropdown");var all=window._allInterviewers||[];var selectedIds=_selectedInterviewers.map(function(x){return x.openId});var filtered=all.filter(function(iv){return selectedIds.indexOf(iv.openId)===-1&&(!q||iv.name.indexOf(q)>-1||(iv.department||"").indexOf(q)>-1||(iv.jobTitle||"").indexOf(q)>-1)}).slice(0,15);if(!filtered.length){dd.style.display="none";return}dd.innerHTML=filtered.map(function(iv){return \'<div onclick=\\x27addInterviewer(\'+JSON.stringify(iv)+\')\\x27 style="padding:8px 12px;cursor:pointer;display:flex;align-items:center;gap:8px;border-bottom:1px solid #f3f4f6" onmouseover="this.style.background=\\x27#f9fafb\\x27" onmouseout="this.style.background=\\x27#fff\\x27"><span style="font-weight:600;font-size:13px">\'+iv.name+\'</span><span style="font-size:11px;color:#9ca3af">\'+((iv.department||"")+" "+(iv.jobTitle||"")).trim()+\'</span></div>\'}).join("");dd.style.display="block"}' +
+      'loadInterviewers().then(function(){initInterviewerPicker()});' +
+      'async function saveSchedule(){var sc=document.getElementById("scSyncCalendar");var names=_selectedInterviewers.map(function(x){return x.name}).join(" / ");var openIds=_selectedInterviewers.map(function(x){return x.openId});var payload={round:Number(document.getElementById("scRound").value),scheduledAt:document.getElementById("scAt").value,interviewers:names,interviewerOpenIds:openIds,link:document.getElementById("scLink").value,location:document.getElementById("scLocation").value,syncStatus:document.getElementById("scSyncStatus").value,syncCalendar:sc&&sc.checked?"on":"off"};var res=await fetch("/api/candidates/' + cid + '/schedule",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});if(res.ok)location.reload();else{var d=await res.json().catch(function(){return{}});alert(d.error||"保存失败")}}' +
       'var f=document.getElementById("resumeUploadForm");if(f){f.onsubmit=async function(e){e.preventDefault();var fd=new FormData(f);var r=await fetch("/api/candidates/' + cid + '/resume",{method:"POST",body:fd});if(r.ok)location.reload();else alert("上传失败："+await r.text())}}' +
       'async function quickStatus(st){if(!confirm("确认将状态更新为【"+st+"】？"))return;var r=await fetch("/api/candidates/' + cid + '/status",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({status:st})});if(r.ok)location.reload();else alert("更新失败")}' +
       'function prefillNextRound(n){switchTab("schedule");document.getElementById("scRound").value=n;document.getElementById("scAt").focus()}' +
@@ -1388,6 +1421,15 @@ app.get("/schedule", requireLogin, async (req, res) => {
   }));
 });
 
+// ====== API: 获取面试官列表（通讯录用户） ======
+app.get("/api/interviewers", requireLogin, async (req, res) => {
+  const d = await loadData();
+  const interviewers = d.users
+    .filter(u => u.name && u.openId)
+    .map(u => ({ id: u.id, name: u.name, openId: u.openId, avatar: u.avatar || "", department: u.department || "", jobTitle: u.jobTitle || "" }));
+  res.json(interviewers);
+});
+
 // ====== API 路由 ======
 app.get("/api/candidates/:id", requireLogin, async (req, res) => {
   const d = await loadData();
@@ -1575,19 +1617,25 @@ app.post("/api/candidates/:id/schedule", requireLogin, requireAdmin, async (req,
   }
   await saveData(d);
 
+  // 收集面试官 openId（优先用前端传来的 interviewerOpenIds，兜底按姓名匹配）
+  const reqOpenIds = Array.isArray(req.body.interviewerOpenIds) ? req.body.interviewerOpenIds.filter(Boolean) : [];
+  let attendeeOpenIds = reqOpenIds;
+  if (!attendeeOpenIds.length && interviewers) {
+    const interviewerNames = interviewers.split(/[\/;,、]/).map(n => n.trim()).filter(Boolean);
+    for (const name of interviewerNames) {
+      const usr = d.users.find(u => u.name === name && u.openId);
+      if (usr) attendeeOpenIds.push(usr.openId);
+    }
+  }
+
   if (feishuEnabled() && scheduledAt && req.body.syncCalendar === "on") {
     try {
       const startDt = new Date(scheduledAt.replace(" ", "T"));
       const endDt = new Date(startDt.getTime() + 60 * 60 * 1000);
-      const interviewerNames = interviewers.split(/[\/;,、]/).map(n => n.trim()).filter(Boolean);
-      const attendeeOpenIds = [];
-      for (const name of interviewerNames) {
-        const usr = d.users.find(u => u.name === name && u.openId);
-        if (usr) attendeeOpenIds.push(usr.openId);
-      }
+      console.log("[Schedule] 同步飞书日历, attendees:", attendeeOpenIds.length, "人");
       createFeishuCalendarEvent({
         summary: `面试：${c.name} - 第${round}轮`,
-        description: `候选人：${c.name}\n职位：${c.jobTitle || "-"}\n轮次：第${round}轮\n${link ? "链接：" + link : ""}${location ? "\n地点：" + location : ""}`,
+        description: `候选人：${c.name}\n职位：${c.jobTitle || "-"}\n轮次：第${round}轮\n面试官：${interviewers || "-"}\n${link ? "链接：" + link : ""}${location ? "\n地点：" + location : ""}`,
         startTime: startDt.toISOString(),
         endTime: endDt.toISOString(),
         attendeeOpenIds,
@@ -1597,7 +1645,16 @@ app.post("/api/candidates/:id/schedule", requireLogin, requireAdmin, async (req,
     }
   }
 
-  if (feishuEnabled() && scheduledAt && interviewers) {
+  // 发送飞书消息通知面试官
+  if (feishuEnabled() && scheduledAt && attendeeOpenIds.length > 0) {
+    for (const oid of attendeeOpenIds) {
+      sendFeishuMessage(oid,
+        `**候选人**：${c.name}\n**职位**：${c.jobTitle || "-"}\n**轮次**：第${round}轮\n**时间**：${scheduledAt}\n**地点**：${location || link || "-"}`,
+        "面试安排通知"
+      ).catch(() => {});
+    }
+  } else if (feishuEnabled() && scheduledAt && interviewers) {
+    // 兜底：按姓名匹配发通知
     const interviewerNames = interviewers.split(/[\/;,、]/).map(n => n.trim()).filter(Boolean);
     for (const name of interviewerNames) {
       const usr = d.users.find(u => u.name === name && u.openId);

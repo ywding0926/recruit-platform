@@ -225,7 +225,7 @@ export async function createFeishuCalendarEvent({ summary, description, startTim
   try {
     const token = await getTenantAccessToken();
 
-    // 1. 获取主日历 ID
+    // 1. 获取应用主日历 ID
     const calRes = await fetch(`${FEISHU_HOST}/open-apis/calendar/v4/calendars/primary`, {
       headers: { Authorization: `Bearer ${token}` },
     });
@@ -234,16 +234,19 @@ export async function createFeishuCalendarEvent({ summary, description, startTim
     if (calData.code === 0 && calData.data?.calendars?.[0]?.calendar?.calendar_id) {
       calendarId = calData.data.calendars[0].calendar.calendar_id;
     }
+    console.log("[Feishu Calendar] calendarId:", calendarId);
 
-    // 2. 创建事件
+    // 2. 创建事件（直接在创建时包含参与人，确保同步到个人日历）
     const eventBody = {
       summary,
       description: description || "",
       start_time: { timestamp: String(Math.floor(new Date(startTime).getTime() / 1000)) },
       end_time: { timestamp: String(Math.floor(new Date(endTime).getTime() / 1000)) },
+      attendee_ability: "can_modify_event",
+      need_notification: true,
     };
 
-    const eventRes = await fetch(`${FEISHU_HOST}/open-apis/calendar/v4/calendars/${calendarId}/events`, {
+    const eventRes = await fetch(`${FEISHU_HOST}/open-apis/calendar/v4/calendars/${calendarId}/events?user_id_type=open_id`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -253,16 +256,17 @@ export async function createFeishuCalendarEvent({ summary, description, startTim
     });
     const eventData = await eventRes.json();
     if (eventData.code !== 0) {
-      console.error("[Feishu] 创建日历事件失败:", eventData.msg);
+      console.error("[Feishu] 创建日历事件失败:", eventData.msg, JSON.stringify(eventData));
       return eventData;
     }
 
     const eventId = eventData.data?.event?.event_id;
+    console.log("[Feishu Calendar] eventId:", eventId);
 
-    // 3. 添加参与人
+    // 3. 添加参与人（使用 open_id 类型）
     if (eventId && attendeeOpenIds.length > 0) {
       const attendees = attendeeOpenIds.map(id => ({ type: "user", user_id: id, is_optional: false }));
-      await fetch(`${FEISHU_HOST}/open-apis/calendar/v4/calendars/${calendarId}/events/${eventId}/attendees`, {
+      const attRes = await fetch(`${FEISHU_HOST}/open-apis/calendar/v4/calendars/${calendarId}/events/${eventId}/attendees?user_id_type=open_id`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -270,6 +274,12 @@ export async function createFeishuCalendarEvent({ summary, description, startTim
         },
         body: JSON.stringify({ attendees, need_notification: true }),
       });
+      const attData = await attRes.json();
+      if (attData.code !== 0) {
+        console.error("[Feishu] 添加日历参与人失败:", attData.msg, JSON.stringify(attData));
+      } else {
+        console.log("[Feishu Calendar] 添加参与人成功:", attendeeOpenIds.length, "人");
+      }
     }
 
     return eventData;
