@@ -18,50 +18,48 @@ export function registerAuthRoutes(app, renderPage) {
   app.get("/login", (req, res) => {
     if (req.session?.user) return res.redirect("/candidates");
 
-    const feishuBtn = feishuEnabled()
-      ? `<div class="divider"></div>
-         <a href="/auth/feishu" class="btn" style="display:block;text-align:center;background:#3370ff;color:#fff;text-decoration:none;">飞书登录</a>`
-      : "";
-
-    res.send(
-      renderPage({
-        title: "登录",
-        user: null,
-        active: "",
-        contentHtml: `
-        <div class="card" style="max-width:560px;margin:30px auto;">
-          <div style="font-weight:900;font-size:18px">登录 Recruit Platform</div>
-          <div class="muted">输入姓名快速登录，或使用飞书授权</div>
-          <div class="divider"></div>
-          <form method="POST" action="/login">
-            <div class="field">
-              <label>你的姓名</label>
-              <input name="name" placeholder="例如：张三" required />
-            </div>
-            <button class="btn primary" type="submit">进入系统</button>
-          </form>
-          ${feishuBtn}
-        </div>
-      `,
-      })
-    );
-  });
-
-  app.post("/login", async (req, res) => {
-    const name = String(req.body?.name || "").trim();
-    if (!name) return res.redirect("/login");
-    const d = await loadData();
-    let existing = d.users.find(u => u.name === name && u.provider === "dev");
-    if (!existing) {
-      existing = {
-        id: rid("usr"), openId: "", unionId: "", name, avatar: "",
-        department: "", jobTitle: "", provider: "dev", role: "member", createdAt: nowIso(),
-      };
-      d.users.push(existing);
-      await saveData(d);
+    // 飞书已启用时直接跳转飞书授权
+    if (feishuEnabled() && req.query.direct !== "0") {
+      return res.redirect("/auth/feishu");
     }
-    req.session.user = { id: existing.id, name: existing.name, role: existing.role || "member", provider: "dev" };
-    res.redirect("/candidates");
+
+    res.send(`<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>登录 - Machinepulse招聘系统</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;background:#faf9fb;min-height:100vh;display:flex;align-items:center;justify-content:center}
+.login-box{width:100%;max-width:400px;padding:40px;background:#fff;border-radius:16px;border:1px solid #e8e9eb;box-shadow:0 4px 24px rgba(0,0,0,.06)}
+.logo{display:flex;align-items:center;gap:12px;margin-bottom:8px}
+.logo-icon{width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,#7c5cfc,#6b4ce0);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:18px}
+.logo-text{font-size:20px;font-weight:700;color:#1f2329}
+.logo-sub{font-size:12px;color:#8f959e;font-weight:400}
+.desc{color:#8f959e;font-size:13px;margin-bottom:24px}
+.btn-feishu{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:12px 20px;border-radius:8px;background:linear-gradient(135deg,#7c5cfc,#6b4ce0);color:#fff;text-decoration:none;font-weight:600;font-size:15px;box-shadow:0 2px 12px rgba(124,92,252,.3);transition:all .15s;border:none;cursor:pointer}
+.btn-feishu:hover{background:linear-gradient(135deg,#6b4ce0,#5a3dcf);box-shadow:0 4px 16px rgba(124,92,252,.4)}
+.footer{text-align:center;margin-top:24px;color:#c9cdd4;font-size:11px}
+</style>
+</head>
+<body>
+  <div class="login-box">
+    <div class="logo">
+      <div class="logo-icon">M</div>
+      <div>
+        <div class="logo-text">Machinepulse招聘系统</div>
+        <div class="logo-sub">Machinepulse Recruit</div>
+      </div>
+    </div>
+    <p class="desc">使用飞书账号登录招聘系统</p>
+    <a href="/auth/feishu" class="btn-feishu">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+      飞书账号登录
+    </a>
+    <div class="footer">Machinepulse Recruit v2.3</div>
+  </div>
+</body>
+</html>`);
   });
 
   app.get("/auth/feishu", (req, res) => {
@@ -77,12 +75,23 @@ export function registerAuthRoutes(app, renderPage) {
       const d = await loadData();
 
       console.log("[Feishu CB] feishuUser openId:", feishuUser.openId, "name:", feishuUser.name);
-      console.log("[Feishu CB] users count:", d.users.length, "users:", d.users.map(u => `${u.name}(${u.openId},${u.role})`).join("; "));
+      console.log("[Feishu CB] users count:", d.users.length);
+      const admins = d.users.filter(u => u.role === "admin");
+      console.log("[Feishu CB] admin users:", admins.map(u => `${u.name}(openId=${u.openId},id=${u.id})`).join("; ") || "无");
 
-      // 先按 openId 匹配，再按 name + provider 匹配，最后按 name 匹配
       let existing = d.users.find(u => u.openId && u.openId === feishuUser.openId);
-      if (!existing) existing = d.users.find(u => u.name === feishuUser.name && u.provider === "feishu");
-      if (!existing) existing = d.users.find(u => u.name === feishuUser.name);
+      console.log("[Feishu CB] openId match:", existing ? `${existing.name}(role=${existing.role})` : "无");
+
+      if (!existing) {
+        existing = d.users.find(u => u.name === feishuUser.name && u.provider === "feishu");
+        console.log("[Feishu CB] name+provider match:", existing ? `${existing.name}(role=${existing.role})` : "无");
+      }
+
+      if (!existing) {
+        const byName = d.users.filter(u => u.name === feishuUser.name);
+        existing = byName.find(u => u.role === "admin") || byName[0];
+        console.log("[Feishu CB] name match:", existing ? `${existing.name}(role=${existing.role})` : "无");
+      }
 
       if (existing) {
         existing.openId = feishuUser.openId;
@@ -90,7 +99,6 @@ export function registerAuthRoutes(app, renderPage) {
         existing.name = feishuUser.name;
         existing.avatar = feishuUser.avatar;
         existing.provider = "feishu";
-        // 保留已有 role，不覆盖
       } else {
         existing = {
           id: rid("usr"), openId: feishuUser.openId, unionId: feishuUser.unionId || "",
@@ -100,19 +108,17 @@ export function registerAuthRoutes(app, renderPage) {
         d.users.push(existing);
       }
 
-      // 保底：直接从 Supabase 查询该用户的 role
-      if (supabaseEnabled && existing.openId) {
+      if (supabaseEnabled) {
         try {
           const sb = getSupabaseAdmin();
-          const { data: rows } = await sb.from("users").select("role").eq("open_id", existing.openId).limit(1);
+          const { data: rows, error: err1 } = await sb.from("users").select("role").eq("open_id", feishuUser.openId).limit(1);
+          console.log("[Feishu CB] Supabase query by open_id:", JSON.stringify(rows), "err:", err1?.message || "无");
           if (rows && rows[0] && rows[0].role) {
-            console.log("[Feishu CB] Supabase direct role:", rows[0].role);
             existing.role = rows[0].role;
           } else {
-            // 按 name 再查一次
-            const { data: rows2 } = await sb.from("users").select("role").eq("name", existing.name).limit(1);
+            const { data: rows2, error: err2 } = await sb.from("users").select("role").eq("name", feishuUser.name).limit(1);
+            console.log("[Feishu CB] Supabase query by name:", JSON.stringify(rows2), "err:", err2?.message || "无");
             if (rows2 && rows2[0] && rows2[0].role) {
-              console.log("[Feishu CB] Supabase name-match role:", rows2[0].role);
               existing.role = rows2[0].role;
             }
           }
@@ -122,10 +128,12 @@ export function registerAuthRoutes(app, renderPage) {
       }
 
       await saveData(d);
-      console.log("[Feishu Login]", existing.name, "role:", existing.role, "id:", existing.id);
+
+      const finalRole = existing.role || "member";
+      console.log("[Feishu Login] FINAL:", existing.name, "role:", finalRole, "id:", existing.id, "openId:", existing.openId);
       req.session.user = {
         id: existing.id, name: existing.name, avatar: existing.avatar,
-        openId: existing.openId, unionId: existing.unionId, role: existing.role || "member", provider: "feishu",
+        openId: existing.openId, unionId: existing.unionId, role: finalRole, provider: "feishu",
       };
       res.redirect("/candidates");
     } catch (e) {
@@ -158,10 +166,10 @@ export function requireAdmin(req, res, next) {
   }
   return res.status(403).send(
     `<!doctype html><html><head><meta charset="utf-8"><title>权限不足</title>
-    <style>body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC",sans-serif;display:flex;justify-content:center;align-items:center;min-height:100vh;margin:0;background:#faf7ff}
-    .box{text-align:center;padding:40px;border-radius:18px;background:#fff;border:1px solid rgba(237,233,254,.9);box-shadow:0 10px 30px rgba(17,24,39,.08)}
-    .box h2{margin:0 0 8px;color:#111827}.box p{color:#6b7280;margin:0 0 16px}
-    a{display:inline-block;padding:9px 16px;border-radius:12px;background:linear-gradient(180deg,#a78bfa,#8b5cf6);color:#fff;text-decoration:none;font-weight:600}</style></head>
+    <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,"PingFang SC",sans-serif;display:flex;justify-content:center;align-items:center;min-height:100vh;background:#faf9fb}
+    .box{text-align:center;padding:40px;border-radius:16px;background:#fff;border:1px solid #e8e9eb;box-shadow:0 4px 24px rgba(0,0,0,.06)}
+    .box h2{margin:0 0 8px;color:#1f2329;font-size:18px}.box p{color:#8f959e;margin:0 0 20px;font-size:14px}
+    a{display:inline-block;padding:8px 20px;border-radius:8px;background:#7c5cfc;color:#fff;text-decoration:none;font-weight:600;font-size:14px}</style></head>
     <body><div class="box"><h2>权限不足</h2><p>该操作需要管理员权限，请联系管理员。</p><a href="/">返回首页</a></div></body></html>`
   );
 }
