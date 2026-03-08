@@ -185,8 +185,9 @@ input::placeholder,textarea::placeholder{color:#ccc}
 
 /* === 表格 === */
 table{width:100%;border-collapse:collapse}
-th{font-size:12px;color:var(--muted);text-align:left;padding:8px 12px;border-bottom:1px solid var(--border-light);font-weight:600;white-space:nowrap}
-td{padding:10px 12px;border-bottom:1px solid var(--border-light);font-size:13px;vertical-align:middle}
+th{font-size:12px;color:var(--muted);text-align:left;padding:8px 8px;border-bottom:1px solid var(--border-light);font-weight:600;white-space:nowrap}
+td{padding:8px 8px;border-bottom:1px solid var(--border-light);font-size:13px;vertical-align:middle}
+td.ov{max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 tr:hover td{background:var(--primary-bg)}
 tr:last-child td{border-bottom:none}
 
@@ -233,10 +234,10 @@ tr:last-child td{border-bottom:none}
 .bar-purple{background:linear-gradient(90deg,#a78bfa,#7c5cfc)}
 
 /* === 看板 === */
-.kanban{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;overflow-x:auto;padding-bottom:10px;height:calc(100vh - 200px)}
-@media(max-width:1200px){.kanban{grid-template-columns:repeat(6,210px)}}
-.kanban-status{grid-template-columns:repeat(16,190px)!important}
-@media(max-width:1200px){.kanban-status{grid-template-columns:repeat(16,170px)!important}}
+.kanban{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;overflow-x:auto;padding-bottom:10px;height:calc(100vh - 200px);min-width:0}
+@media(max-width:1400px){.kanban{grid-template-columns:repeat(6,240px)}}
+.kanban-status{grid-template-columns:repeat(16,220px)!important}
+@media(max-width:1400px){.kanban-status{grid-template-columns:repeat(16,200px)!important}}
 .col{border:1px solid var(--border-light);border-radius:var(--radius2);background:#faf9fb;min-height:300px;display:flex;flex-direction:column;height:fit-content;max-height:100%}
 .colhead{padding:12px 14px 10px;border-bottom:1px solid var(--border-light);display:flex;align-items:center;gap:8px;background:#fff;border-radius:var(--radius2) var(--radius2) 0 0}
 .coltitle{font-weight:700;font-size:13px;color:var(--text);display:flex;align-items:center;gap:6px}
@@ -248,6 +249,13 @@ tr:last-child td{border-bottom:none}
 .card-avatar{width:22px;height:22px;border-radius:50%;color:#fff;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0}
 .card-meta{font-size:12px;color:var(--muted);max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .cardsub{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.card-quick{display:flex;gap:6px;margin-top:8px;padding-top:8px;border-top:1px solid var(--border-light);opacity:0;transition:opacity .15s;align-items:center}
+.carditem:hover .card-quick{opacity:1}
+.qbtn{border:1px solid transparent;border-radius:var(--radius);padding:3px 10px;font-size:11px;cursor:pointer;font-weight:600;transition:all .15s;line-height:1.5;white-space:nowrap}
+.qbtn-next{background:var(--primary);color:#fff;border-color:var(--primary)}
+.qbtn-next:hover{background:#6346e0;border-color:#6346e0}
+.qbtn-reject{background:#fff;color:var(--muted);border-color:var(--border-light)}
+.qbtn-reject:hover{background:#fff0f0;color:#f5222d;border-color:#f5222d}
 
 /* === 抽屉 === */
 .drawerMask{position:fixed;inset:0;background:rgba(0,0,0,.2);display:none;z-index:200;backdrop-filter:blur(1px)}

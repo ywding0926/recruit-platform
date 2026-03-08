@@ -91,6 +91,7 @@ function candToRow(c) {
     follow_at: follow.followAt ?? null,
     follow_note: follow.note ?? null,
     headhunter_id: c.headhunterId ?? null,
+    careers_app_id: c.careersAppId ?? null,
     created_at: c.createdAt ?? null,
     updated_at: c.updatedAt ?? null,
   };
@@ -115,6 +116,7 @@ function candFromRow(r) {
       note: r.follow_note ?? "",
     },
     headhunterId: r.headhunter_id ?? "",
+    careersAppId: r.careers_app_id ?? "",
     createdAt: r.created_at ?? nowIso(),
     updatedAt: r.updated_at ?? r.created_at ?? nowIso(),
   };
@@ -390,8 +392,46 @@ async function upsertWithRetry(admin, table, rows, minimalKeys = []) {
   console.warn("[upsert] " + table + " 重试次数用完，dropped:", dropped.join(","));
 }
 
+// ===== 内存缓存 =====
+let _cache = null;
+let _cacheTime = 0;
+const CACHE_TTL = 15_000; // 15秒
+
+function _deepClone(obj) {
+  // 结构化克隆，比 JSON.parse(JSON.stringify()) 快且支持更多类型
+  try { return structuredClone(obj); } catch { return JSON.parse(JSON.stringify(obj)); }
+}
+
+export function invalidateCache() {
+  _cache = null;
+  _cacheTime = 0;
+}
+
+// ===== 选择性加载（只返回指定表，其余为空数组）=====
+export async function loadTables(...tableNames) {
+  const full = await loadData();
+  const ALL_TABLES = ["jobs", "candidates", "interviews", "interviewSchedules", "resumeFiles", "events", "offers", "users", "headhunters", "sources", "tags"];
+  const wanted = new Set(tableNames);
+  const result = {};
+  for (const t of ALL_TABLES) {
+    result[t] = wanted.has(t) ? full[t] : [];
+  }
+  return result;
+}
+
 // ===== 对外 API：loadData / saveData =====
 export async function loadData() {
+  const now = Date.now();
+  if (_cache && (now - _cacheTime) < CACHE_TTL) {
+    return _deepClone(_cache);
+  }
+  const d = await _loadDataFresh();
+  _cache = d;
+  _cacheTime = now;
+  return _deepClone(d);
+}
+
+async function _loadDataFresh() {
   if (!supabaseEnabled) return loadDataLocal();
 
   try {
@@ -436,11 +476,12 @@ export async function loadData() {
         for (const lh of (local.headhunters || [])) {
           if (!hIds.has(lh.id)) d.headhunters.push(lh);
         }
-        // 合并本地 candidates 的 headhunterId
+        // 合并本地 candidates 的 headhunterId / careersAppId
         const localCandMap = new Map((local.candidates || []).map(c => [c.id, c]));
         for (const c of d.candidates) {
           const lc = localCandMap.get(c.id);
           if (lc && lc.headhunterId && !c.headhunterId) c.headhunterId = lc.headhunterId;
+          if (lc && lc.careersAppId && !c.careersAppId) c.careersAppId = lc.careersAppId;
         }
         // 合并本地 users 的 role
         const localUserMap = new Map((local.users || []).map(u => [u.id, u]));
@@ -499,13 +540,12 @@ export async function loadData() {
     // 猎头：合并 Supabase 和本地（如果 Supabase 没有 headhunters 表，d.headhunters 为空）
     merge(d.headhunters, local.headhunters);
 
-    // 合并本地 candidates 的 headhunterId 字段（Supabase 表没有此列）
+    // 合并本地 candidates 的 headhunterId / careersAppId 字段
     const localCandMap = new Map((local.candidates || []).map(c => [c.id, c]));
     for (const c of d.candidates) {
       const lc = localCandMap.get(c.id);
-      if (lc && lc.headhunterId && !c.headhunterId) {
-        c.headhunterId = lc.headhunterId;
-      }
+      if (lc && lc.headhunterId && !c.headhunterId) c.headhunterId = lc.headhunterId;
+      if (lc && lc.careersAppId && !c.careersAppId) c.careersAppId = lc.careersAppId;
     }
 
     // 合并本地 users 的 role 字段（Supabase 表可能没有 role 列）
@@ -580,6 +620,70 @@ export async function saveData(d) {
   } catch (e) {
     console.warn("[WARN] saveData to supabase failed:", String(e?.message || e));
   }
+
+  invalidateCache();
+}
+
+// ===== 表名映射（app字段名 → Supabase表名/转换函数）=====
+const TABLE_MAP = {
+  jobs:                { sb: "jobs",                 toRow: jobToRow,       minKeys: ["id", "title"] },
+  candidates:          { sb: "candidates",           toRow: candToRow,      minKeys: ["id", "name", "phone", "job_id", "job_title", "source"] },
+  interviews:          { sb: "interviews",           toRow: interviewToRow, minKeys: ["id", "candidate_id", "round", "status", "rating", "interviewer", "note", "created_at"] },
+  interviewSchedules:  { sb: "interview_schedules",  toRow: scheduleToRow,  minKeys: ["id", "candidate_id", "round", "scheduled_at", "interviewers", "link", "location", "created_at", "updated_at"] },
+  resumeFiles:         { sb: "resume_files",         toRow: resumeToRow,    minKeys: ["id", "candidate_id", "filename", "url", "original_name", "content_type", "size", "uploaded_at"] },
+  events:              { sb: "events",               toRow: eventToRow,     minKeys: ["id", "candidate_id", "type"] },
+  offers:              { sb: "offers",               toRow: offerToRow,     minKeys: ["id", "candidate_id"] },
+  users:               { sb: "users",                toRow: userToRow,      minKeys: ["id", "open_id", "name"] },
+  headhunters:         { sb: "headhunters",          toRow: hunterToRow,    minKeys: ["id", "name"] },
+};
+
+// ===== 增量保存：单表 =====
+export async function saveTable(tableName, rows) {
+  // 1. 更新本地 JSON
+  const local = loadDataLocal();
+  local[tableName] = rows;
+  saveDataLocal(local);
+
+  // 2. upsert 到 Supabase（如果启用）
+  if (supabaseEnabled) {
+    const info = TABLE_MAP[tableName];
+    if (info) {
+      try {
+        const admin = getSupabaseAdmin();
+        await upsertWithRetry(admin, info.sb, rows.map(info.toRow), info.minKeys);
+      } catch (e) {
+        console.warn("[WARN] saveTable(" + tableName + ") supabase failed:", String(e?.message || e));
+      }
+    }
+  }
+
+  invalidateCache();
+}
+
+// ===== 增量保存：单行 =====
+export async function upsertRow(tableName, item) {
+  // 1. 更新本地 JSON 中对应记录
+  const local = loadDataLocal();
+  const arr = local[tableName] || [];
+  const idx = arr.findIndex(x => x.id === item.id);
+  if (idx >= 0) arr[idx] = item; else arr.unshift(item);
+  local[tableName] = arr;
+  saveDataLocal(local);
+
+  // 2. upsert 单行到 Supabase
+  if (supabaseEnabled) {
+    const info = TABLE_MAP[tableName];
+    if (info) {
+      try {
+        const admin = getSupabaseAdmin();
+        await upsertWithRetry(admin, info.sb, [info.toRow(item)], info.minKeys);
+      } catch (e) {
+        console.warn("[WARN] upsertRow(" + tableName + ") supabase failed:", String(e?.message || e));
+      }
+    }
+  }
+
+  invalidateCache();
 }
 
 // ===== 删除辅助 =====
@@ -588,6 +692,7 @@ export async function deleteFromSupabase(table, id) {
   try {
     const admin = getSupabaseAdmin();
     await admin.from(table).delete().eq("id", id);
+    invalidateCache();
   } catch (e) {
     console.warn(`[WARN] deleteFromSupabase(${table}, ${id}) failed:`, String(e?.message || e));
   }
@@ -605,6 +710,7 @@ export async function deleteCandidateRelated(candidateId) {
       admin.from("candidates").delete().eq("id", candidateId),
     ]);
     try { await admin.from("offers").delete().eq("candidate_id", candidateId); } catch {}
+    invalidateCache();
   } catch (e) {
     console.warn("[WARN] deleteCandidateRelated failed:", String(e?.message || e));
   }

@@ -280,13 +280,13 @@ export async function createFeishuTask({ title, description = "", assigneeOpenId
   if (!feishuEnabled()) return null;
   try {
     const token = await getTenantAccessToken();
-    // dueTimestamp 统一为毫秒级时间戳；飞书 v2 API due.timestamp 为秒级字符串
-    const dueSec = dueTimestamp > 9999999999 ? Math.round(dueTimestamp / 1000) : dueTimestamp;
+    // dueTimestamp 统一为毫秒级时间戳；飞书 v2 API due.timestamp 为毫秒级字符串
+    const dueMs = dueTimestamp > 9999999999 ? dueTimestamp : dueTimestamp * 1000;
     // 使用飞书任务 v2 API
     const body = {
       summary: title,
       description: description || undefined,
-      due: dueSec ? { timestamp: String(dueSec), is_all_day: false } : undefined,
+      due: dueMs ? { timestamp: String(dueMs), is_all_day: false } : undefined,
       members: [
         // 负责人（面试官）
         { id: assigneeOpenId, type: "user", role: "assignee" },
