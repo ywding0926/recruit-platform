@@ -87,6 +87,40 @@ router.post("/api/candidates/:id/status", requireLogin, async (req, res) => {
   res.json({ ok: true });
 });
 
+// 更换候选人岗位
+router.post("/api/candidates/:id/job", requireLogin, async (req, res) => {
+  const d = await loadData();
+  const c = d.candidates.find((x) => x.id === req.params.id);
+  if (!c) return res.status(404).json({ error: "not_found" });
+
+  const newJobId = String(req.body.jobId || "").trim();
+  if (!newJobId) return res.status(400).json({ error: "请选择岗位" });
+
+  const newJob = d.jobs.find((j) => j.id === newJobId);
+  if (!newJob) return res.status(400).json({ error: "岗位不存在" });
+
+  const oldJobTitle = c.jobTitle || c.jobId || "未关联岗位";
+  const newJobTitle = newJob.title || newJobId;
+
+  if (c.jobId === newJobId) {
+    return res.json({ ok: true, message: "岗位未变化" });
+  }
+
+  c.jobId = newJobId;
+  c.jobTitle = newJobTitle;
+  c.updatedAt = nowIso();
+
+  pushEvent(d, {
+    candidateId: c.id,
+    type: "岗位变更",
+    message: "岗位：" + oldJobTitle + " -> " + newJobTitle,
+    actor: req.user?.name || "系统"
+  });
+
+  await saveData(d);
+  res.json({ ok: true, newJobTitle });
+});
+
 router.post("/api/candidates/:id/follow", requireLogin, async (req, res) => {
   const d = await loadData();
   const c = d.candidates.find((x) => x.id === req.params.id);

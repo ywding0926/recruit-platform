@@ -1,11 +1,11 @@
 import { Router } from "express";
-import { requireLogin } from "../auth.mjs";
+import { requireLogin, requireAdmin } from "../auth.mjs";
 import { loadTables, toBjTime } from "../db.mjs";
 import { renderPage, escapeHtml, offerStatusBadge } from "../ui.mjs";
 
 const router = Router();
 
-router.get("/offers", requireLogin, async (req, res) => {
+router.get("/offers", requireLogin, requireAdmin, async (req, res) => {
   const d = await loadTables("offers", "candidates");
   const offers = d.offers || [];
   const candMap = new Map(d.candidates.map((c) => [c.id, c]));

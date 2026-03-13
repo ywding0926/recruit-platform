@@ -3,18 +3,24 @@ import { requireLogin } from "../auth.mjs";
 import { loadTables, toBjTime } from "../db.mjs";
 import { renderPage, escapeHtml } from "../ui.mjs";
 import { STATUS_COLS, STATUS_SET, PIPELINE_STAGES } from "../constants.mjs";
+import { getVisibleJobIds, filterCandidatesByPermission } from "../helpers.mjs";
 
 const router = Router();
 
 router.get("/", requireLogin, async (req, res) => {
   const d = await loadTables("candidates", "jobs", "interviews", "interviewSchedules");
-  const total = d.candidates.length;
-  const totalJobs = d.jobs.length;
-  const openJobs = d.jobs.filter((j) => j.state === "open").length;
+  const isAdmin = req.user?.role === "admin";
+  const visibleJobIds = getVisibleJobIds(req.user, d.jobs);
+  const candidates = filterCandidatesByPermission(d.candidates, visibleJobIds);
+  const visibleJobs = visibleJobIds === null ? d.jobs : d.jobs.filter(j => visibleJobIds.has(j.id));
+
+  const total = candidates.length;
+  const totalJobs = visibleJobs.length;
+  const openJobs = visibleJobs.filter((j) => j.state === "open").length;
 
   const byStatus = {};
   for (const s of STATUS_COLS.map((x) => x.key)) byStatus[s] = 0;
-  for (const c of d.candidates) {
+  for (const c of candidates) {
     const s = STATUS_SET.has(c.status) ? c.status : "待筛选";
     byStatus[s] = (byStatus[s] || 0) + 1;
   }
@@ -26,7 +32,7 @@ router.get("/", requireLogin, async (req, res) => {
 
   // 来源分析
   const bySource = {};
-  for (const c of d.candidates) {
+  for (const c of candidates) {
     const src = c.source || "未知";
     bySource[src] = (bySource[src] || 0) + 1;
   }
@@ -37,9 +43,43 @@ router.get("/", requireLogin, async (req, res) => {
     return '<div style="margin-bottom:10px"><div class="row"><span>' + escapeHtml(name) + '</span><span class="spacer"></span><b>' + count + '</b></div><div class="bar"><div class="bar-fill bar-blue" style="width:' + pct + '%"></div></div></div>';
   }).join("");
 
+  // 构建 jobId → job Map，用于判断社招/实习
+  const jobMap = new Map(d.jobs.map(j => [j.id, j]));
+  function isIntern(c) {
+    const job = jobMap.get(c.jobId);
+    return job ? job.employmentType === "实习" : false;
+  }
+
+  // 生成来源柱状图 HTML 的通用函数
+  function sourceBarHtml(candidates, barClass) {
+    const map = {};
+    for (const c of candidates) {
+      const src = c.source || "未知";
+      map[src] = (map[src] || 0) + 1;
+    }
+    const items = Object.entries(map).sort((a, b) => b[1] - a[1]);
+    if (!items.length) return '<div class="muted">暂无数据</div>';
+    const max = items[0][1];
+    return items.map(([name, count]) => {
+      const pct = Math.round((count / max) * 100);
+      return '<div style="margin-bottom:10px"><div class="row"><span>' + escapeHtml(name) + '</span><span class="spacer"></span><b>' + count + '</b></div><div class="bar"><div class="bar-fill ' + barClass + '" style="width:' + pct + '%"></div></div></div>';
+    }).join("");
+  }
+
+  // 1. 社招入职来源统计（status=入职 且 职位名不含"实习"）
+  const hiredSocial = candidates.filter(c => c.status === "入职" && !isIntern(c));
+  const hiredSocialHtml = sourceBarHtml(hiredSocial, "bar-green");
+
+  // 2. 实习生入职来源统计（status=入职 且 职位名含"实习"）
+  const hiredIntern = candidates.filter(c => c.status === "入职" && isIntern(c));
+  const hiredInternHtml = sourceBarHtml(hiredIntern, "bar-blue");
+
+  // 3. 所有人才库来源统计（全部候选人）
+  const allSourceHtml = sourceBarHtml(candidates, "bar-blue");
+
   // 岗位招聘进度
-  const jobProgressHtml = d.jobs.slice(0, 8).map((j) => {
-    const cands = d.candidates.filter((c) => c.jobId === j.id);
+  const jobProgressHtml = visibleJobs.slice(0, 8).map((j) => {
+    const cands = candidates.filter((c) => c.jobId === j.id);
     const hired = cands.filter((c) => c.status === "入职").length;
     const hc = j.headcount || 0;
     const pct = hc > 0 ? Math.min(100, Math.round((hired / hc) * 100)) : 0;
@@ -52,29 +92,23 @@ router.get("/", requireLogin, async (req, res) => {
   const acceptedOffers = d.offers ? d.offers.filter((o) => o.offerStatus === "已接受").length : 0;
   const pendingOffers = d.offers ? d.offers.filter((o) => o.offerStatus === "待发放" || o.offerStatus === "已发放").length : 0;
 
-  // 面试安排统计
-  const allSchedules = d.interviewSchedules || [];
+  // 面试安排统计 — 按权限过滤
+  const candIdSet = new Set(candidates.map(c => c.id));
+  const allSchedulesRaw = d.interviewSchedules || [];
+  const allSchedules = visibleJobIds === null ? allSchedulesRaw : allSchedulesRaw.filter(s => candIdSet.has(s.candidateId));
   const todayStr = new Date().toISOString().slice(0, 10);
-  const thisWeekEnd = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
-  const todayInterviews = allSchedules.filter(s => (s.scheduledAt || "").slice(0, 10) === todayStr).length;
-  const weekInterviews = allSchedules.filter(s => {
-    const dt = (s.scheduledAt || "").slice(0, 10);
-    return dt >= todayStr && dt <= thisWeekEnd;
-  }).length;
   const totalInterviews = allSchedules.length;
 
-  // 转化率
-  const convOfferRate = total > 0 ? Math.round(((byStatus["Offer发放"] || 0) + hiredCount) / total * 100) : 0;
-  const convHireRate = total > 0 ? Math.round(hiredCount / total * 100) : 0;
-
-  // 最近动态
-  const recentEvents = (d.events || []).slice(0, 8);
+  // 最近动态 — 按权限过滤
+  const allEvents = d.events || [];
+  const visibleEvents = visibleJobIds === null ? allEvents : allEvents.filter(e => !e.candidateId || candIdSet.has(e.candidateId));
+  const recentEvents = visibleEvents.slice(0, 8);
   const recentHtml = recentEvents.length ? recentEvents.map((e) => {
     return '<div class="titem"><div class="tmeta"><b>' + escapeHtml(e.actor || "系统") + '</b><span class="badge status-gray" style="font-size:11px">' + escapeHtml(e.type || "-") + '</span><span class="muted">' + escapeHtml(toBjTime(e.createdAt || "").slice(0, 16)) + '</span></div><div class="tmsg" style="font-size:13px">' + escapeHtml(e.message || "").replaceAll("\n", "<br/>") + '</div></div>';
   }).join("") : '<div class="muted">暂无动态</div>';
 
   // 今日面试详情列表
-  const candMap = new Map(d.candidates.map(c => [c.id, c]));
+  const candMap = new Map(candidates.map(c => [c.id, c]));
   const todaySchedules = allSchedules.filter(s => (s.scheduledAt || "").slice(0, 10) === todayStr)
     .sort((a, b) => (a.scheduledAt || "").localeCompare(b.scheduledAt || ""));
   const todayDetailHtml = todaySchedules.length ? todaySchedules.map(s => {
@@ -131,12 +165,6 @@ router.get("/", requireLogin, async (req, res) => {
         '<div class="card stat-card"><div class="stat-number" style="color:var(--orange)">' + offerCount + '</div><div class="stat-label">Offer阶段</div></div>' +
         '<div class="card stat-card"><div class="stat-number" style="color:var(--green)">' + hiredCount + '</div><div class="stat-label">已入职</div></div>' +
         '</div><div style="height:14px"></div>' +
-        '<div class="grid4">' +
-        '<div class="card stat-card"><div class="stat-number" style="color:var(--primary)">' + todayInterviews + '</div><div class="stat-label">今日面试</div></div>' +
-        '<div class="card stat-card"><div class="stat-number" style="color:var(--primary)">' + weekInterviews + '</div><div class="stat-label">本周面试</div></div>' +
-        '<div class="card stat-card"><div class="stat-number" style="color:var(--primary)">' + convOfferRate + '%</div><div class="stat-label">Offer转化率</div></div>' +
-        '<div class="card stat-card"><div class="stat-number" style="color:var(--primary)">' + convHireRate + '%</div><div class="stat-label">入职转化率</div></div>' +
-        '</div><div style="height:14px"></div>' +
         // 面试提醒
         remindCardHtml +
         '<div style="height:14px"></div>' +
@@ -148,6 +176,7 @@ router.get("/", requireLogin, async (req, res) => {
         '<div class="card"><div style="font-weight:900;margin-bottom:14px;font-size:15px">📈 岗位招聘进度</div>' + (jobProgressHtml || '<div class="muted">暂无岗位</div>') + '</div>' +
         '</div>' +
         '<div>' +
+        (isAdmin ? (
         '<div class="card"><div style="font-weight:900;margin-bottom:14px;font-size:15px">📋 数据总览</div>' +
         '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">' +
         '<div class="pill"><span class="muted">总职位</span><b>' + totalJobs + '</b></div>' +
@@ -158,8 +187,13 @@ router.get("/", requireLogin, async (req, res) => {
         '<div class="pill"><span class="muted">淘汰</span><b>' + rejectedCount + '</b></div>' +
         '</div></div>' +
         '<div style="height:14px"></div>' +
-        '<div class="card"><div style="font-weight:900;margin-bottom:14px;font-size:15px">🔍 来源分析</div>' + (sourceHtml || '<div class="muted">暂无数据</div>') + '</div>' +
+        '<div class="card"><div style="font-weight:900;margin-bottom:14px;font-size:15px">🏢 社招入职来源统计 <span class="badge status-green" style="font-size:11px">' + hiredSocial.length + '人</span></div>' + hiredSocialHtml + '</div>' +
         '<div style="height:14px"></div>' +
+        '<div class="card"><div style="font-weight:900;margin-bottom:14px;font-size:15px">🎓 实习生入职来源统计 <span class="badge status-blue" style="font-size:11px">' + hiredIntern.length + '人</span></div>' + hiredInternHtml + '</div>' +
+        '<div style="height:14px"></div>' +
+        '<div class="card"><div style="font-weight:900;margin-bottom:14px;font-size:15px">📊 全部人才库来源统计 <span class="badge status-gray" style="font-size:11px">' + total + '人</span></div>' + allSourceHtml + '</div>' +
+        '<div style="height:14px"></div>'
+        ) : '') +
         '<div class="card"><div style="font-weight:900;margin-bottom:14px;font-size:15px">🕐 最近动态</div><div class="timeline">' + recentHtml + '</div></div>' +
         '</div></div>',
     })

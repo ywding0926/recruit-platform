@@ -12,6 +12,10 @@ router.get("/settings", requireLogin, requireAdmin, async (req, res) => {
     const esc = escapeHtml(s).replace(/'/g, "&#39;");
     return '<span class="pill" style="display:inline-flex;align-items:center;gap:4px">' + escapeHtml(s) + '<span onclick="delSource(\'' + esc + '\')" style="cursor:pointer;color:#999;font-size:14px;line-height:1;margin-left:2px" title="删除">&times;</span></span>';
   }).join(" ");
+  const categoriesHtml = (d.categories || []).map((c) => {
+    const esc = escapeHtml(c).replace(/'/g, "&#39;");
+    return '<span class="pill" style="display:inline-flex;align-items:center;gap:4px">' + escapeHtml(c) + '<span onclick="delCategory(\'' + esc + '\')" style="cursor:pointer;color:#999;font-size:14px;line-height:1;margin-left:2px" title="删除">&times;</span></span>';
+  }).join(" ");
   const tagColors = { "高潜": "status-green", "紧急": "status-red", "待定": "status-gray", "优秀": "status-purple", "内推优先": "status-blue", "已拒绝其他Offer": "status-red" };
   const tagsHtml = (d.tags || []).map((t) => {
     const esc = escapeHtml(t).replace(/'/g, "&#39;");
@@ -45,7 +49,8 @@ router.get("/settings", requireLogin, requireAdmin, async (req, res) => {
     '</div>' +
     '<script>function toggleRole(userId,newRole){if(!confirm(newRole==="admin"?"确认将该用户设为管理员？":"确认将该用户降为普通成员？"))return;fetch("/api/users/"+userId+"/role",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({role:newRole})}).then(r=>{if(r.ok)location.reload();else r.json().then(d=>alert(d.error||"操作失败")).catch(()=>alert("操作失败"))}).catch(()=>alert("网络错误"))}' +
     'function delSource(s){if(!confirm("确认删除来源「"+s+"」？"))return;fetch("/api/settings/sources",{method:"DELETE",headers:{"Content-Type":"application/json"},body:JSON.stringify({source:s})}).then(r=>{if(r.ok)location.reload();else r.json().then(d=>alert(d.error||"删除失败")).catch(()=>alert("删除失败"))}).catch(()=>alert("网络错误"))}' +
-    'function delTag(t){if(!confirm("确认删除标签「"+t+"」？"))return;fetch("/api/settings/tags",{method:"DELETE",headers:{"Content-Type":"application/json"},body:JSON.stringify({tag:t})}).then(r=>{if(r.ok)location.reload();else r.json().then(d=>alert(d.error||"删除失败")).catch(()=>alert("删除失败"))}).catch(()=>alert("网络错误"))}</script>';
+    'function delTag(t){if(!confirm("确认删除标签「"+t+"」？"))return;fetch("/api/settings/tags",{method:"DELETE",headers:{"Content-Type":"application/json"},body:JSON.stringify({tag:t})}).then(r=>{if(r.ok)location.reload();else r.json().then(d=>alert(d.error||"删除失败")).catch(()=>alert("删除失败"))}).catch(()=>alert("网络错误"))}' +
+    'function delCategory(c){if(!confirm("确认删除分类「"+c+"」？"))return;fetch("/api/settings/categories",{method:"DELETE",headers:{"Content-Type":"application/json"},body:JSON.stringify({category:c})}).then(r=>{if(r.ok)location.reload();else r.json().then(d=>alert(d.error||"删除失败")).catch(()=>alert("删除失败"))}).catch(()=>alert("网络错误"))}</script>';
 
   res.send(
     renderPage({
@@ -58,6 +63,9 @@ router.get("/settings", requireLogin, requireAdmin, async (req, res) => {
         '<div class="divider"></div>' +
         '<div class="field"><label>候选人标签</label><div class="row">' + (tagsHtml || '<span class="muted">暂无</span>') + '</div></div>' +
         '<form method="POST" action="/settings/tags" class="row"><input name="tag" placeholder="新增标签（例如：高潜/紧急/校招）" style="max-width:420px" /><button class="btn primary" type="submit">新增标签</button></form>' +
+        '<div class="divider"></div>' +
+        '<div class="field"><label>职位分类</label><div class="row">' + (categoriesHtml || '<span class="muted">暂无</span>') + '</div></div>' +
+        '<form method="POST" action="/settings/categories" class="row"><input name="category" placeholder="新增分类（例如：技术/产品/运营）" style="max-width:420px" /><button class="btn primary" type="submit">新增分类</button></form>' +
         '</div>' +
         userMgmtHtml +
         // 官网投递同步卡片
@@ -122,6 +130,23 @@ router.delete("/api/settings/sources", requireLogin, requireAdmin, async (req, r
   const s = String(req.body.source || "").trim();
   if (!s) return res.status(400).json({ error: "来源不能为空" });
   d.sources = (d.sources || []).filter((x) => x !== s);
+  await saveData(d);
+  res.json({ ok: true });
+});
+
+router.post("/settings/categories", requireLogin, requireAdmin, async (req, res) => {
+  const d = await loadData();
+  const c = String(req.body.category || "").trim();
+  if (c && !d.categories.includes(c)) d.categories.push(c);
+  await saveData(d);
+  res.redirect(303, "/settings");
+});
+
+router.delete("/api/settings/categories", requireLogin, requireAdmin, async (req, res) => {
+  const d = await loadData();
+  const c = String(req.body.category || "").trim();
+  if (!c) return res.status(400).json({ error: "分类不能为空" });
+  d.categories = (d.categories || []).filter((x) => x !== c);
   await saveData(d);
   res.json({ ok: true });
 });

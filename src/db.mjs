@@ -43,6 +43,7 @@ export function ensureDataShape(d) {
   if (!Array.isArray(d.events)) d.events = [];
   if (!Array.isArray(d.offers)) d.offers = [];
   if (!Array.isArray(d.tags)) d.tags = ["高潜", "紧急", "待定", "优秀", "内推优先", "已拒绝其他Offer"];
+  if (!Array.isArray(d.categories)) d.categories = ["技术", "产品", "设计", "运营", "市场", "销售", "人力", "财务", "行政", "其他"];
   if (!Array.isArray(d.users)) d.users = [];
   if (!Array.isArray(d.headhunters)) d.headhunters = [];
   return d;
@@ -91,6 +92,7 @@ function candToRow(c) {
     follow_at: follow.followAt ?? null,
     follow_note: follow.note ?? null,
     headhunter_id: c.headhunterId ?? null,
+    referrer_id: c.referrerId ?? null,
     careers_app_id: c.careersAppId ?? null,
     created_at: c.createdAt ?? null,
     updated_at: c.updatedAt ?? null,
@@ -116,6 +118,7 @@ function candFromRow(r) {
       note: r.follow_note ?? "",
     },
     headhunterId: r.headhunter_id ?? "",
+    referrerId: r.referrer_id ?? "",
     careersAppId: r.careers_app_id ?? "",
     createdAt: r.created_at ?? nowIso(),
     updatedAt: r.updated_at ?? r.created_at ?? nowIso(),
@@ -126,14 +129,17 @@ function jobToRow(j) {
   return {
     id: j.id,
     title: j.title ?? null,
+    title_en: j.titleEn ?? null,
     department: j.department ?? null,
     location: j.location ?? null,
     owner: j.owner ?? null,
     owner_open_id: j.ownerOpenId ?? null,
     headcount: j.headcount ?? null,
+    priority: j.priority ?? null,
     level: j.level ?? null,
     state: j.state ?? null,
     category: j.category ?? null,
+    employment_type: j.employmentType ?? "社招",
     jd: j.jd ?? null,
     created_at: j.createdAt ?? null,
     updated_at: j.updatedAt ?? null,
@@ -143,14 +149,17 @@ function jobFromRow(r) {
   return {
     id: r.id,
     title: r.title ?? "",
+    titleEn: r.title_en ?? "",
     department: r.department ?? "",
     location: r.location ?? "",
     owner: r.owner ?? "",
     ownerOpenId: r.owner_open_id ?? "",
     headcount: r.headcount ?? null,
+    priority: r.priority ?? "",
     level: r.level ?? "",
     state: r.state ?? "open",
     category: r.category ?? "",
+    employmentType: r.employment_type ?? "社招",
     jd: r.jd ?? "",
     createdAt: r.created_at ?? nowIso(),
     updatedAt: r.updated_at ?? r.created_at ?? nowIso(),
@@ -410,7 +419,7 @@ export function invalidateCache() {
 // ===== 选择性加载（只返回指定表，其余为空数组）=====
 export async function loadTables(...tableNames) {
   const full = await loadData();
-  const ALL_TABLES = ["jobs", "candidates", "interviews", "interviewSchedules", "resumeFiles", "events", "offers", "users", "headhunters", "sources", "tags"];
+  const ALL_TABLES = ["jobs", "candidates", "interviews", "interviewSchedules", "resumeFiles", "events", "offers", "users", "headhunters", "sources", "tags", "categories"];
   const wanted = new Set(tableNames);
   const result = {};
   for (const t of ALL_TABLES) {
@@ -453,6 +462,13 @@ async function _loadDataFresh() {
     let headhunters = [];
     try { headhunters = await sbSelectAll(admin, "headhunters"); } catch {}
 
+    // 读取 app_config 中的配置（categories / sources / tags）
+    let appConfig = {};
+    try {
+      const { data: cfgRows } = await admin.from("app_config").select("key,value");
+      if (cfgRows) for (const r of cfgRows) appConfig[r.key] = r.value;
+    } catch {}
+
     const d = ensureDataShape({
       jobs: jobs.map(jobFromRow),
       candidates: candidates.map(candFromRow),
@@ -464,6 +480,9 @@ async function _loadDataFresh() {
       users: users.map(userFromRow),
       headhunters: headhunters.map(hunterFromRow),
     });
+
+    // 使用 app_config 中持久化的 categories（优先级最高）
+    if (Array.isArray(appConfig.categories)) d.categories = appConfig.categories;
 
     if (isServerless) {
       d.sources = Array.from(new Set([...d.sources, ...d.candidates.map((c) => c.source).filter(Boolean)]));
@@ -616,6 +635,11 @@ export async function saveData(d) {
       if (shaped.headhunters.length) {
         await upsertWithRetry(admin, "headhunters", shaped.headhunters.map(hunterToRow), ["id", "name"]);
       }
+    } catch {}
+
+    // 持久化 categories 到 app_config
+    try {
+      await admin.from("app_config").upsert({ key: "categories", value: shaped.categories }, { onConflict: "key" });
     } catch {}
   } catch (e) {
     console.warn("[WARN] saveData to supabase failed:", String(e?.message || e));

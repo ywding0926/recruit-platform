@@ -6,7 +6,7 @@ import { renderPage, escapeHtml } from "../ui.mjs";
 
 const router = Router();
 
-router.get("/headhunters", requireLogin, async (req, res) => {
+router.get("/headhunters", requireLogin, requireAdmin, async (req, res) => {
   const d = await loadTables("headhunters");
   const hunters = d.headhunters || [];
   const isAdmin = req.user?.role === "admin";

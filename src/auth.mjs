@@ -146,6 +146,39 @@ body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Robot
     req.session = null;
     res.redirect("/login");
   });
+
+  // 开发模式快捷登录（仅用于测试）
+  app.get("/dev/login", async (req, res) => {
+    const name = String(req.query.name || "测试管理员").trim();
+    const d = await loadData();
+    let user = d.users.find(u => u.name === name);
+    if (!user) {
+      user = {
+        id: rid("usr"),
+        openId: "dev_" + Date.now(),
+        unionId: "",
+        name,
+        avatar: "",
+        department: "",
+        jobTitle: "",
+        provider: "dev",
+        role: "admin",
+        createdAt: nowIso(),
+      };
+      d.users.push(user);
+      await saveData(d);
+    }
+    req.session.user = {
+      id: user.id,
+      name: user.name,
+      avatar: user.avatar || "",
+      openId: user.openId || "",
+      unionId: user.unionId || "",
+      role: user.role || "admin",
+      provider: "dev",
+    };
+    res.redirect("/candidates");
+  });
 }
 
 export function requireLogin(req, res, next) {

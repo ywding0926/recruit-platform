@@ -1,0 +1,1113 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MachinePulse 招聘管理系统 — 使用手册</title>
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+  html { font-size: 16px; scroll-behavior: smooth; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans SC", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    background: #f5f3ff;
+    color: #1e1b4b;
+    line-height: 1.7;
+    min-height: 100vh;
+  }
+  .site-header {
+    background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 50%, #5b21b6 100%);
+    color: #fff;
+    padding: 2.5rem 1rem 1.5rem;
+    text-align: center;
+    box-shadow: 0 4px 24px rgba(124, 58, 237, 0.25);
+    position: relative;
+    overflow: hidden;
+  }
+  .site-header::before {
+    content: '';
+    position: absolute;
+    top: -50%; left: -10%; width: 120%; height: 200%;
+    background: radial-gradient(circle at 30% 40%, rgba(255,255,255,0.08) 0%, transparent 60%);
+    pointer-events: none;
+  }
+  .site-header h1 { font-size: 1.75rem; font-weight: 700; letter-spacing: 0.02em; position: relative; }
+  .site-header p  { margin-top: 0.4rem; font-size: 0.95rem; opacity: 0.85; position: relative; }
+
+  .tab-bar {
+    display: flex; justify-content: center; gap: 0;
+    background: #ede9fe; border-bottom: 2px solid #ddd6fe;
+    position: sticky; top: 0; z-index: 100;
+  }
+  .tab-btn {
+    flex: 0 1 280px; padding: 0.9rem 1.5rem; font-size: 0.95rem; font-weight: 600;
+    cursor: pointer; border: none; background: transparent; color: #6d28d9;
+    transition: all 0.2s ease; position: relative; letter-spacing: 0.01em;
+  }
+  .tab-btn:hover { background: #ddd6fe; }
+  .tab-btn.active { color: #fff; background: #7c3aed; }
+  .tab-btn.active::after {
+    content: ''; position: absolute; bottom: -2px; left: 0; right: 0;
+    height: 3px; background: #7c3aed;
+  }
+
+  .content-wrapper { max-width: 900px; margin: 2rem auto; padding: 0 1.25rem 4rem; }
+  .tab-panel {
+    display: none; background: #fff; border-radius: 12px;
+    box-shadow: 0 1px 4px rgba(124,58,237,0.06), 0 8px 32px rgba(124,58,237,0.07);
+    padding: 2.5rem 2.5rem 3rem; animation: fadeIn 0.3s ease;
+  }
+  .tab-panel.active { display: block; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+  .md-body h1 {
+    font-size: 1.75rem; font-weight: 700; color: #5b21b6;
+    margin: 2rem 0 1rem; padding-bottom: 0.5rem; border-bottom: 2px solid #ede9fe;
+  }
+  .md-body h1:first-child { margin-top: 0; }
+  .md-body h2 {
+    font-size: 1.4rem; font-weight: 700; color: #6d28d9;
+    margin: 2rem 0 0.75rem; padding-bottom: 0.35rem; border-bottom: 1px solid #ede9fe;
+  }
+  .md-body h3 { font-size: 1.15rem; font-weight: 600; color: #7c3aed; margin: 1.5rem 0 0.5rem; }
+  .md-body h4 { font-size: 1.05rem; font-weight: 600; color: #1e1b4b; margin: 1.2rem 0 0.4rem; }
+  .md-body p  { margin: 0.6rem 0; }
+  .md-body a  { color: #7c3aed; text-decoration: underline; text-underline-offset: 2px; }
+  .md-body a:hover { color: #5b21b6; }
+  .md-body strong { font-weight: 600; color: #1e1b4b; }
+
+  .md-body ul, .md-body ol { margin: 0.5rem 0 0.5rem 1.5rem; }
+  .md-body li { margin: 0.25rem 0; }
+  .md-body li > ul, .md-body li > ol { margin: 0.15rem 0 0.15rem 1.2rem; }
+
+  .md-body blockquote {
+    margin: 1rem 0; padding: 0.75rem 1.25rem;
+    border-left: 4px solid #7c3aed; background: #f5f3ff;
+    border-radius: 0 8px 8px 0; color: #4c1d95;
+  }
+  .md-body blockquote p { margin: 0.3rem 0; }
+
+  .md-body table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.92rem; }
+  .md-body th, .md-body td { padding: 0.6rem 0.9rem; border: 1px solid #ddd6fe; text-align: left; vertical-align: top; }
+  .md-body th { background: #7c3aed; color: #fff; font-weight: 600; white-space: nowrap; }
+  .md-body tr:nth-child(even) td { background: #faf5ff; }
+  .md-body tr:hover td { background: #ede9fe; }
+
+  .md-body code {
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    font-size: 0.88em; background: #ede9fe; color: #5b21b6; padding: 0.15em 0.4em; border-radius: 4px;
+  }
+  .md-body pre {
+    margin: 1rem 0; background: #1e1b4b; color: #e9d5ff;
+    padding: 1.2rem 1.4rem; border-radius: 8px; overflow-x: auto; line-height: 1.5;
+  }
+  .md-body pre code { background: none; color: inherit; padding: 0; font-size: 0.88rem; }
+
+  .md-body hr { border: none; border-top: 2px solid #ede9fe; margin: 2rem 0; }
+  .md-body img { max-width: 100%; height: auto; border-radius: 8px; margin: 1rem 0; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
+
+  @media (max-width: 640px) {
+    .site-header h1 { font-size: 1.3rem; }
+    .tab-btn { font-size: 0.82rem; padding: 0.7rem 0.8rem; flex: 1; }
+    .tab-panel { padding: 1.5rem 1rem 2rem; }
+    .content-wrapper { padding: 0 0.5rem 3rem; margin-top: 1rem; }
+    .md-body h1 { font-size: 1.4rem; }
+    .md-body h2 { font-size: 1.2rem; }
+    .md-body table { font-size: 0.82rem; }
+    .md-body th, .md-body td { padding: 0.4rem 0.6rem; }
+  }
+
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: #f5f3ff; }
+  ::-webkit-scrollbar-thumb { background: #c4b5fd; border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: #7c3aed; }
+
+  @media print {
+    .site-header { background: #7c3aed !important; -webkit-print-color-adjust: exact; }
+    .tab-bar { display: none; }
+    .tab-panel { display: block !important; box-shadow: none; break-inside: avoid; }
+    .tab-panel + .tab-panel { margin-top: 2rem; }
+  }
+</style>
+</head>
+<body>
+<header class="site-header">
+  <h1>MachinePulse 招聘管理系统 &mdash; 使用手册</h1>
+  <p>Recruitment Management Platform &middot; User Guide</p>
+</header>
+<nav class="tab-bar">
+  <button class="tab-btn active" data-tab="hr" onclick="switchTab('hr')">HR / 管理员使用手册</button>
+  <button class="tab-btn" data-tab="interviewer" onclick="switchTab('interviewer')">面试官 / 成员使用手册</button>
+</nav>
+<main class="content-wrapper">
+  <div id="panel-hr" class="tab-panel active">
+    <div class="md-body">
+<h1>MachinePulse 招聘管理系统 — HR / 管理员使用手册</h1>
+<hr>
+<h2>一、系统概述</h2>
+<p>MachinePulse 招聘管理系统是一套面向中小团队的一站式招聘协作平台，涵盖候选人管理、面试安排、Offer 管理、猎头协作、官网职位同步等完整招聘流程。系统通过飞书（Lark）实现单点登录、消息通知、日历同步与任务协同。</p>
+<p><strong>管理员（admin）</strong> 拥有系统全部权限，可管理所有候选人、职位、团队成员、系统设置等。</p>
+<hr>
+<h2>二、登录与认证</h2>
+<h3>2.1 飞书扫码登录</h3>
+<ul>
+<li>访问系统首页，点击 <strong>&quot;飞书登录&quot;</strong> 按钮</li>
+<li>跳转至飞书授权页面，使用飞书 App 扫码确认</li>
+<li>授权完成后自动跳转回系统首页</li>
+<li>系统会自动匹配飞书账号与系统用户，如果是首次登录且用户列表中有对应名称的用户，会自动关联</li>
+</ul>
+<h3>2.2 账号密码登录</h3>
+<ul>
+<li>管理员也可通过用户名+密码方式登录</li>
+<li>用户名和密码由管理员在「设置」页面创建用户时指定</li>
+</ul>
+<hr>
+<h2>三、首页仪表盘</h2>
+<p>登录后进入首页仪表盘，包含以下信息：</p>
+<h3>3.1 统计卡片</h3>
+<ul>
+<li><strong>候选人总数</strong>：系统中所有候选人的数量</li>
+<li><strong>进行中</strong>：当前处于流程中（非&quot;入职&quot;/&quot;淘汰&quot;）的候选人数量</li>
+<li><strong>本月新增</strong>：本月新录入的候选人数量</li>
+<li><strong>在招职位数</strong>：当前状态为&quot;招聘中&quot;的职位数量</li>
+</ul>
+<h3>3.2 待办提醒</h3>
+<ul>
+<li><strong>今日面试</strong>：显示今天有面试安排的候选人列表，包含面试轮次、时间和面试官信息，点击可跳转至候选人详情</li>
+<li><strong>待面评</strong>：显示已面试但面试官尚未提交评价的候选人，包含轮次和面试官，点击可跳转</li>
+</ul>
+<hr>
+<h2>四、候选人管理</h2>
+<h3>4.1 候选人列表</h3>
+<p>路径：顶部导航 → <strong>候选人</strong></p>
+<p>列表展示所有候选人的基本信息，支持以下操作：</p>
+<h4>搜索与筛选</h4>
+<ul>
+<li><strong>搜索框</strong>：输入姓名、手机号或备注关键词，支持实时搜索（输入即搜，400ms 防抖）</li>
+<li><strong>岗位筛选</strong>：下拉选择特定岗位，切换后立即筛选</li>
+<li><strong>来源筛选</strong>：下拉选择候选人来源，切换后立即筛选</li>
+</ul>
+<h4>列表字段</h4>
+<table>
+<thead>
+<tr>
+<th>字段</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>姓名</td>
+<td>候选人姓名，点击进入详情页</td>
+</tr>
+<tr>
+<td>应聘岗位</td>
+<td>关联的职位名称</td>
+</tr>
+<tr>
+<td>状态</td>
+<td>当前所处的招聘阶段（彩色标签）</td>
+</tr>
+<tr>
+<td>来源</td>
+<td>候选人来源渠道</td>
+</tr>
+<tr>
+<td>标签</td>
+<td>自定义标签（如&quot;高潜&quot;、&quot;紧急&quot;等）</td>
+</tr>
+<tr>
+<td>创建时间</td>
+<td>录入系统的时间</td>
+</tr>
+</tbody></table>
+<h4>操作按钮（管理员可见）</h4>
+<ul>
+<li><strong>+ 新增候选人</strong>：手动创建候选人</li>
+<li><strong>导入 Excel</strong>：批量导入候选人（支持 .xlsx 文件）</li>
+<li><strong>导出 Excel</strong>：将当前筛选结果导出为 Excel 文件</li>
+</ul>
+<h3>4.2 新增候选人</h3>
+<p>点击 <strong>&quot;+ 新增候选人&quot;</strong> 按钮，弹出表单：</p>
+<table>
+<thead>
+<tr>
+<th>字段</th>
+<th>是否必填</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>姓名</td>
+<td>是</td>
+<td>候选人姓名</td>
+</tr>
+<tr>
+<td>手机</td>
+<td>否</td>
+<td>联系电话</td>
+</tr>
+<tr>
+<td>邮箱</td>
+<td>否</td>
+<td>电子邮箱</td>
+</tr>
+<tr>
+<td>应聘岗位</td>
+<td>否</td>
+<td>下拉选择已有职位</td>
+</tr>
+<tr>
+<td>来源</td>
+<td>否</td>
+<td>下拉选择来源渠道</td>
+</tr>
+<tr>
+<td>简历附件</td>
+<td>否</td>
+<td>上传简历文件（PDF/Word 等，最大 20MB）</td>
+</tr>
+<tr>
+<td>备注</td>
+<td>否</td>
+<td>自由文本备注</td>
+</tr>
+</tbody></table>
+<p>提交后系统自动将候选人状态设为 <strong>&quot;待筛选&quot;</strong>，并记录创建事件到时间线。</p>
+<h3>4.3 批量导入</h3>
+<p>点击 <strong>&quot;导入 Excel&quot;</strong> 按钮，上传包含候选人信息的 .xlsx 文件。</p>
+<p>Excel 文件要求：</p>
+<ul>
+<li>表头行必须包含字段名（姓名、手机、邮箱、应聘岗位、来源、备注等）</li>
+<li>系统会自动匹配列名</li>
+<li>导入后每位候选人初始状态为&quot;待筛选&quot;</li>
+<li>如果 Excel 中的&quot;应聘岗位&quot;在系统中不存在，系统会自动创建该职位</li>
+</ul>
+<h3>4.4 候选人详情页</h3>
+<p>点击候选人姓名进入详情页，包含以下区域：</p>
+<h4>基本信息区</h4>
+<ul>
+<li>姓名、手机、邮箱、应聘岗位、来源、标签</li>
+<li>当前状态（可通过下拉框修改）</li>
+<li>操作按钮：编辑信息、删除候选人</li>
+</ul>
+<h4>简历区</h4>
+<ul>
+<li>查看已上传简历（支持在线预览）</li>
+<li>上传/替换简历文件</li>
+<li>简历存储支持 Supabase 云存储 或 本地存储</li>
+</ul>
+<h4>面试安排区</h4>
+<ul>
+<li>显示所有已安排的面试轮次</li>
+<li>每轮面试信息：轮次编号、面试官、面试时间、面试地点/链接、飞书日历同步状态</li>
+<li><strong>+ 安排面试</strong>：新增面试轮次</li>
+</ul>
+<h4>面试评价区</h4>
+<ul>
+<li>显示每轮面试的评价结果</li>
+<li>评分等级：S / A / B+ / B / B- / C</li>
+<li>评价内容、优势、不足、面试官签名</li>
+<li>系统会根据面评自动推进候选人状态（如通过→进入下一轮面试）</li>
+</ul>
+<h4>时间线</h4>
+<ul>
+<li>记录候选人的所有状态变更、操作事件</li>
+<li>包含：创建、状态变更、面试安排、面试评价、备注添加等</li>
+<li>每条记录包含时间戳和操作人</li>
+</ul>
+<h4>备注区</h4>
+<ul>
+<li>添加自由文本备注</li>
+<li>历史备注按时间倒序展示</li>
+</ul>
+<h3>4.5 安排面试</h3>
+<p>在候选人详情页点击 <strong>&quot;+ 安排面试&quot;</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>字段</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>面试轮次</td>
+<td>第 1/2/3/4/5 轮</td>
+</tr>
+<tr>
+<td>面试官</td>
+<td>下拉选择系统成员</td>
+</tr>
+<tr>
+<td>面试时间</td>
+<td>日期 + 时间选择器</td>
+</tr>
+<tr>
+<td>面试时长</td>
+<td>默认 60 分钟</td>
+</tr>
+<tr>
+<td>面试地点/链接</td>
+<td>文本输入（如会议室名称或视频链接）</td>
+</tr>
+<tr>
+<td>同步飞书日历</td>
+<td>勾选后自动在飞书创建日历事件</td>
+</tr>
+</tbody></table>
+<p>安排成功后：</p>
+<ul>
+<li>面试信息显示在候选人详情页</li>
+<li>如勾选飞书日历同步，会自动在面试官和候选人的飞书日历中创建事件</li>
+<li>系统向面试官发送飞书通知</li>
+<li>面试安排记录到候选人时间线</li>
+</ul>
+<h3>4.6 修改候选人状态</h3>
+<p>两种方式修改状态：</p>
+<ol>
+<li><strong>详情页下拉框</strong>：在候选人详情页的状态下拉框中选择新状态</li>
+<li><strong>看板拖拽</strong>：在看板视图中将卡片拖拽到目标列</li>
+<li><strong>快捷按钮</strong>：在看板卡片上hover显示&quot;推进 →&quot;和&quot;淘汰&quot;按钮</li>
+</ol>
+<p>状态流转路径（16 个阶段）：</p>
+<pre><code>待筛选 → 简历初筛 → 待一面 → 一面通过 → 待二面 → 二面通过 →
+待三面 → 三面通过 → 待四面 → 四面通过 → 待五面 → 五面通过 →
+待发offer → Offer发放 → 入职
+                                         ↘ 淘汰（任意阶段可淘汰）
+</code></pre>
+<hr>
+<h2>五、看板视图</h2>
+<p>路径：顶部导航 → <strong>看板</strong></p>
+<p>看板提供候选人状态的可视化管理，支持两种视图模式：</p>
+<h3>5.1 流水线视图（默认）</h3>
+<p>将 16 个状态聚合为 6 个阶段列：</p>
+<table>
+<thead>
+<tr>
+<th>阶段</th>
+<th>包含的状态</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>简历筛选</td>
+<td>待筛选、简历初筛</td>
+</tr>
+<tr>
+<td>面试中</td>
+<td>待一面、一面通过、待二面、二面通过、...、五面通过</td>
+</tr>
+<tr>
+<td>待发Offer</td>
+<td>待发offer</td>
+</tr>
+<tr>
+<td>Offer已发</td>
+<td>Offer发放</td>
+</tr>
+<tr>
+<td>已入职</td>
+<td>入职</td>
+</tr>
+<tr>
+<td>淘汰</td>
+<td>淘汰</td>
+</tr>
+</tbody></table>
+<h3>5.2 状态视图</h3>
+<p>每个状态一列，共 16 列，可横向滚动。适合需要精细查看每个状态的场景。</p>
+<h3>5.3 看板操作</h3>
+<ul>
+<li><strong>点击卡片</strong>：跳转到候选人详情页</li>
+<li><strong>快捷按钮</strong>：鼠标悬停在卡片上，显示&quot;推进 →&quot;（推进到下一状态）和&quot;淘汰&quot;按钮</li>
+<li><strong>岗位筛选</strong>：顶部下拉框可按岗位过滤看板内容</li>
+<li><strong>视图切换</strong>：点击&quot;流水线视图&quot;/&quot;状态视图&quot;按钮切换</li>
+</ul>
+<hr>
+<h2>六、职位管理</h2>
+<p>路径：顶部导航 → <strong>职位</strong></p>
+<h3>6.1 职位列表</h3>
+<p>展示所有职位信息：</p>
+<ul>
+<li>职位名称、部门/类别、状态（招聘中/已暂停/已关闭）</li>
+<li>关联的候选人数量</li>
+<li>创建时间</li>
+</ul>
+<h3>6.2 新增职位</h3>
+<table>
+<thead>
+<tr>
+<th>字段</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>职位名称</td>
+<td>必填</td>
+</tr>
+<tr>
+<td>部门/类别</td>
+<td>下拉选择（技术/产品/设计/运营/市场/销售/人力/财务/行政/其他）</td>
+</tr>
+<tr>
+<td>职位描述</td>
+<td>富文本描述</td>
+</tr>
+<tr>
+<td>职位要求</td>
+<td>任职要求描述</td>
+</tr>
+<tr>
+<td>工作地点</td>
+<td>文本输入</td>
+</tr>
+<tr>
+<td>薪资范围</td>
+<td>文本输入</td>
+</tr>
+<tr>
+<td>职位状态</td>
+<td>招聘中 / 已暂停 / 已关闭</td>
+</tr>
+</tbody></table>
+<h3>6.3 官网职位同步（Careers Sync）</h3>
+<p>系统支持将职位自动同步到公司官网的 Careers 页面：</p>
+<ul>
+<li><strong>自动同步</strong>：每 15 分钟自动执行一次</li>
+<li><strong>Webhook 触发</strong>：外部系统可通过 Webhook 触发同步</li>
+<li><strong>手动触发</strong>：在设置页面点击&quot;立即同步&quot;按钮</li>
+</ul>
+<p>同步范围：状态为&quot;招聘中&quot;的职位会自动发布到 Careers 页面。</p>
+<hr>
+<h2>七、面试日程</h2>
+<p>路径：顶部导航 → <strong>日程</strong></p>
+<p>日程页面以日历/列表形式展示所有面试安排：</p>
+<ul>
+<li>按日期分组显示</li>
+<li>每条记录包含：候选人姓名、面试轮次、面试官、时间、地点</li>
+<li>点击可跳转到对应候选人详情页</li>
+<li>支持按日期范围筛选</li>
+</ul>
+<hr>
+<h2>八、Offer 管理</h2>
+<p>路径：顶部导航 → <strong>Offer</strong></p>
+<h3>8.1 Offer 列表</h3>
+<p>展示所有 Offer 记录：</p>
+<ul>
+<li>候选人姓名、应聘岗位、Offer 状态、薪资信息、发放时间</li>
+</ul>
+<h3>8.2 创建 Offer</h3>
+<p>在候选人详情页或 Offer 管理页创建：</p>
+<table>
+<thead>
+<tr>
+<th>字段</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>候选人</td>
+<td>自动关联</td>
+</tr>
+<tr>
+<td>岗位</td>
+<td>自动关联</td>
+</tr>
+<tr>
+<td>薪资</td>
+<td>文本输入</td>
+</tr>
+<tr>
+<td>入职时间</td>
+<td>日期选择</td>
+</tr>
+<tr>
+<td>备注</td>
+<td>其他 Offer 条件说明</td>
+</tr>
+</tbody></table>
+<h3>8.3 Offer 状态流转</h3>
+<pre><code>待发放 → 已发放 → 已接受 / 已拒绝
+                 ↘ 已撤回
+</code></pre>
+<hr>
+<h2>九、猎头管理</h2>
+<p>路径：顶部导航 → <strong>猎头</strong></p>
+<h3>9.1 猎头列表</h3>
+<p>管理合作猎头信息：</p>
+<ul>
+<li>猎头名称、联系方式、所属公司</li>
+<li>API Key（用于猎头门户登录）</li>
+<li>推荐候选人数量统计</li>
+</ul>
+<h3>9.2 新增猎头</h3>
+<p>创建猎头账号并生成 API Key，猎头可通过专属门户提交候选人。</p>
+<h3>9.3 猎头门户</h3>
+<p>猎头通过 API Key 登录独立门户页面：</p>
+<ul>
+<li>查看可推荐的在招职位</li>
+<li>提交候选人信息（姓名、联系方式、简历等）</li>
+<li>查看已推荐候选人的状态进展</li>
+</ul>
+<p>管理员可在猎头管理页查看各猎头的推荐记录和转化情况。</p>
+<hr>
+<h2>十、系统设置</h2>
+<p>路径：顶部导航 → <strong>设置</strong>（仅管理员可见）</p>
+<h3>10.1 来源管理</h3>
+<ul>
+<li>管理候选人来源渠道列表（如：Boss直聘、拉勾、猎头推荐、内推等）</li>
+<li>点击来源标签旁的 <strong>×</strong> 可删除该来源</li>
+<li>输入框中输入新来源后点击&quot;添加&quot;</li>
+</ul>
+<h3>10.2 标签管理</h3>
+<ul>
+<li>管理候选人自定义标签（如：高潜、紧急、待定、优秀、内推优先等）</li>
+<li>点击标签旁的 <strong>×</strong> 可删除该标签</li>
+<li>输入框中输入新标签后点击&quot;添加&quot;</li>
+</ul>
+<h3>10.3 用户管理</h3>
+<ul>
+<li>查看系统所有用户</li>
+<li><strong>新增用户</strong>：设置用户名、密码、角色（admin / member）</li>
+<li><strong>编辑用户</strong>：修改用户信息和角色</li>
+<li><strong>删除用户</strong>：移除用户</li>
+<li>飞书登录的用户会自动创建/关联</li>
+</ul>
+<h3>10.4 SMTP 邮件配置</h3>
+<ul>
+<li>配置邮件服务器信息（用于发送面试邀请邮件等）</li>
+<li>配置项：SMTP 主机、端口、用户名、密码、发件人地址</li>
+</ul>
+<h3>10.5 Careers 同步配置</h3>
+<ul>
+<li>配置官网 Careers 页面同步相关参数</li>
+<li>手动触发同步按钮</li>
+</ul>
+<hr>
+<h2>十一、飞书集成功能</h2>
+<p>系统与飞书深度集成，提供以下能力：</p>
+<h3>11.1 单点登录（SSO）</h3>
+<ul>
+<li>通过飞书 OAuth 实现扫码登录</li>
+<li>自动关联飞书用户与系统用户</li>
+</ul>
+<h3>11.2 消息通知</h3>
+<p>以下事件会自动发送飞书通知：</p>
+<ul>
+<li>面试安排通知（通知面试官）</li>
+<li>面试评价提交通知（通知 HR）</li>
+<li>候选人状态变更通知</li>
+<li>审批流程通知</li>
+</ul>
+<h3>11.3 日历同步</h3>
+<ul>
+<li>安排面试时可同步创建飞书日历事件</li>
+<li>面试官在飞书日历中可直接查看面试安排</li>
+</ul>
+<h3>11.4 任务同步</h3>
+<ul>
+<li>系统可自动在飞书中创建待办任务</li>
+<li>支持设置任务到期时间</li>
+</ul>
+<h3>11.5 用户目录同步</h3>
+<ul>
+<li>可从飞书组织架构同步员工信息</li>
+<li>用于面试官选择和用户匹配</li>
+</ul>
+<hr>
+<h2>十二、数据导入导出</h2>
+<h3>12.1 Excel 导入</h3>
+<ul>
+<li>支持 .xlsx 格式文件</li>
+<li>自动匹配列名映射</li>
+<li>不存在的职位会自动创建</li>
+</ul>
+<h3>12.2 Excel 导出</h3>
+<ul>
+<li>将当前筛选条件下的候选人导出为 Excel 文件</li>
+<li>导出字段包含：姓名、手机、邮箱、岗位、状态、来源、标签、创建时间等</li>
+</ul>
+<hr>
+<h2>十三、常见操作流程</h2>
+<h3>13.1 完整招聘流程</h3>
+<pre><code>1. 创建职位（职位管理 → 新增）
+2. 录入候选人（手动新增 / Excel 导入 / 猎头推荐）
+3. 筛选简历（看板：待筛选 → 简历初筛）
+4. 安排面试（候选人详情 → 安排面试 → 选择面试官和时间）
+5. 面试官评价（面试官收到通知 → 提交面评）
+6. 推进/淘汰（根据面评结果推进到下一轮或淘汰）
+7. 重复 4-6 直到面试流程完成
+8. 发放 Offer（候选人详情 → 创建 Offer）
+9. 跟踪 Offer 状态（已发放 → 已接受）
+10. 标记入职
+</code></pre>
+<h3>13.2 批量招聘场景</h3>
+<pre><code>1. 准备 Excel 候选人名单
+2. 候选人列表 → 导入 Excel
+3. 在看板中批量筛选（使用快捷按钮推进/淘汰）
+4. 为通过筛选的候选人逐一安排面试
+</code></pre>
+<h3>13.3 猎头协作流程</h3>
+<pre><code>1. 设置 → 猎头管理 → 新增猎头（生成 API Key）
+2. 将 API Key 和门户地址发送给猎头
+3. 猎头通过门户提交候选人
+4. HR 在候选人列表中查看猎头推荐的候选人（来源：猎头推荐）
+5. 正常进入招聘流程
+</code></pre>
+<hr>
+<h2>十四、权限说明</h2>
+<table>
+<thead>
+<tr>
+<th>功能</th>
+<th align="center">管理员(admin)</th>
+<th align="center">普通成员(member)</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>查看首页仪表盘</td>
+<td align="center">✅</td>
+<td align="center">✅</td>
+</tr>
+<tr>
+<td>查看所有候选人</td>
+<td align="center">✅</td>
+<td align="center">仅分配岗位</td>
+</tr>
+<tr>
+<td>新增/编辑/删除候选人</td>
+<td align="center">✅</td>
+<td align="center">❌</td>
+</tr>
+<tr>
+<td>导入/导出 Excel</td>
+<td align="center">✅</td>
+<td align="center">❌</td>
+</tr>
+<tr>
+<td>修改候选人状态</td>
+<td align="center">✅</td>
+<td align="center">❌</td>
+</tr>
+<tr>
+<td>查看看板</td>
+<td align="center">✅</td>
+<td align="center">✅（仅可见分配岗位）</td>
+</tr>
+<tr>
+<td>管理职位</td>
+<td align="center">✅</td>
+<td align="center">❌</td>
+</tr>
+<tr>
+<td>查看面试日程</td>
+<td align="center">✅</td>
+<td align="center">✅（仅自己的）</td>
+</tr>
+<tr>
+<td>安排面试</td>
+<td align="center">✅</td>
+<td align="center">❌</td>
+</tr>
+<tr>
+<td>提交面试评价</td>
+<td align="center">✅</td>
+<td align="center">✅</td>
+</tr>
+<tr>
+<td>管理 Offer</td>
+<td align="center">✅</td>
+<td align="center">❌</td>
+</tr>
+<tr>
+<td>猎头管理</td>
+<td align="center">✅</td>
+<td align="center">❌</td>
+</tr>
+<tr>
+<td>系统设置</td>
+<td align="center">✅</td>
+<td align="center">❌</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>十五、注意事项</h2>
+<ol>
+<li><strong>数据安全</strong>：定期备份 data.json 文件，该文件存储了所有业务数据</li>
+<li><strong>简历存储</strong>：推荐配置 Supabase 云存储，确保简历文件不会丢失</li>
+<li><strong>飞书配置</strong>：需要在飞书开放平台创建应用并配置相关权限，才能使用飞书集成功能</li>
+<li><strong>时区</strong>：系统默认使用北京时间（Asia/Shanghai）</li>
+<li><strong>浏览器兼容</strong>：推荐使用 Chrome / Edge 等现代浏览器访问</li>
+</ol>
+
+    </div>
+  </div>
+  <div id="panel-interviewer" class="tab-panel">
+    <div class="md-body">
+<h1>MachinePulse 招聘管理系统 — 面试官 / 成员使用手册</h1>
+<hr>
+<h2>一、系统简介</h2>
+<p>MachinePulse 招聘管理系统是公司内部的招聘协作平台。作为面试官（成员角色），您的主要职责是：</p>
+<ul>
+<li>查看分配给您的候选人信息</li>
+<li>按时参加面试</li>
+<li>提交面试评价</li>
+</ul>
+<p>本手册将指导您完成上述操作。</p>
+<hr>
+<h2>二、登录系统</h2>
+<h3>2.1 飞书扫码登录（推荐）</h3>
+<ol>
+<li>打开系统地址（由 HR 提供）</li>
+<li>点击页面上的 <strong>&quot;飞书登录&quot;</strong> 按钮</li>
+<li>使用飞书 App 扫描二维码</li>
+<li>在手机上确认授权</li>
+<li>自动跳转至系统首页</li>
+</ol>
+<blockquote>
+<p>首次登录时，系统会自动将您的飞书账号与系统中的成员信息关联。</p>
+</blockquote>
+<h3>2.2 账号密码登录</h3>
+<p>如果 HR 为您创建了账号密码，也可以通过用户名+密码方式登录。</p>
+<hr>
+<h2>三、首页仪表盘</h2>
+<p>登录后首先看到仪表盘页面，包含：</p>
+<h3>3.1 概览数据</h3>
+<ul>
+<li>候选人总数、进行中数量、本月新增、在招职位数等统计卡片</li>
+</ul>
+<h3>3.2 待办提醒（重点关注）</h3>
+<h4>今日面试</h4>
+<ul>
+<li>显示您今天需要参加的面试列表</li>
+<li>信息包含：候选人姓名、面试轮次、面试时间</li>
+<li><strong>点击候选人姓名</strong> 可进入详情页查看候选人资料</li>
+</ul>
+<h4>待面评</h4>
+<ul>
+<li>显示您已完成面试但 <strong>尚未提交评价</strong> 的候选人</li>
+<li>请及时提交面评，以免影响招聘流程推进</li>
+<li>点击可直接进入评价页面</li>
+</ul>
+<hr>
+<h2>四、查看候选人</h2>
+<h3>4.1 候选人列表</h3>
+<p>路径：顶部导航 → <strong>候选人</strong></p>
+<ul>
+<li>成员角色只能看到与自己 <strong>分配岗位相关</strong> 的候选人</li>
+<li>支持按姓名、手机号、备注关键词搜索（输入即搜，无需点击按钮）</li>
+<li>支持按岗位和来源筛选</li>
+</ul>
+<h3>4.2 候选人详情页</h3>
+<p>点击候选人姓名进入详情页，可查看：</p>
+<table>
+<thead>
+<tr>
+<th>区域</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>基本信息</td>
+<td>姓名、手机、邮箱、应聘岗位、来源、标签、当前状态</td>
+</tr>
+<tr>
+<td>简历</td>
+<td>查看/下载候选人简历附件</td>
+</tr>
+<tr>
+<td>面试安排</td>
+<td>所有面试轮次的时间、面试官、地点等信息</td>
+</tr>
+<tr>
+<td>面试评价</td>
+<td>各轮面试的评分和评语</td>
+</tr>
+<tr>
+<td>时间线</td>
+<td>候选人的状态变更历史</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p><strong>提示</strong>：面试前请提前查看候选人简历和基本信息，做好面试准备。</p>
+</blockquote>
+<hr>
+<h2>五、查看面试日程</h2>
+<p>路径：顶部导航 → <strong>日程</strong></p>
+<p>日程页面展示您即将进行的面试安排：</p>
+<ul>
+<li>按日期分组显示</li>
+<li>每条记录包含：候选人姓名、面试轮次、时间、地点/会议链接</li>
+<li>点击候选人姓名可跳转至详情页</li>
+</ul>
+<h3>飞书日历同步</h3>
+<p>如果 HR 在安排面试时启用了飞书日历同步，您也可以在 <strong>飞书日历</strong> 中直接查看面试安排。</p>
+<hr>
+<h2>六、提交面试评价</h2>
+<p>面试评价是面试官最核心的操作。有两种方式提交：</p>
+<h3>6.1 方式一：系统内提交</h3>
+<ol>
+<li>登录系统</li>
+<li>进入候选人详情页</li>
+<li>找到对应的面试轮次</li>
+<li>点击 <strong>&quot;提交评价&quot;</strong> 按钮</li>
+<li>填写评价表单</li>
+</ol>
+<h3>6.2 方式二：通过评价链接提交（无需登录）</h3>
+<p>HR 安排面试后，系统会通过飞书消息发送 <strong>面试评价链接</strong> 给您。</p>
+<ol>
+<li>点击飞书消息中的评价链接</li>
+<li>直接打开评价页面（无需登录系统）</li>
+<li>填写评价表单并提交</li>
+</ol>
+<blockquote>
+<p>这种方式特别方便，即使您不常使用招聘系统也能快速完成面评。</p>
+</blockquote>
+<h3>6.3 评价表单字段</h3>
+<table>
+<thead>
+<tr>
+<th>字段</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>评分等级</td>
+<td>从以下选项中选择一个：<strong>S</strong>（优秀）/ <strong>A</strong>（良好）/ <strong>B+</strong>（较好）/ <strong>B</strong>（一般）/ <strong>B-</strong>（较差）/ <strong>C</strong>（不合格）</td>
+</tr>
+<tr>
+<td>评价内容</td>
+<td>对候选人的综合评价，包括面试表现、能力评估等</td>
+</tr>
+<tr>
+<td>优势</td>
+<td>候选人的突出优点</td>
+</tr>
+<tr>
+<td>不足</td>
+<td>候选人需要改进的地方</td>
+</tr>
+<tr>
+<td>是否推荐</td>
+<td>是否建议进入下一轮</td>
+</tr>
+</tbody></table>
+<h3>6.4 评分标准参考</h3>
+<table>
+<thead>
+<tr>
+<th>等级</th>
+<th>含义</th>
+<th>建议操作</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>S</td>
+<td>能力远超岗位要求，强烈推荐</td>
+<td>推进到下一轮</td>
+</tr>
+<tr>
+<td>A</td>
+<td>能力超出岗位要求，推荐</td>
+<td>推进到下一轮</td>
+</tr>
+<tr>
+<td>B+</td>
+<td>能力达标，可以考虑</td>
+<td>视情况推进</td>
+</tr>
+<tr>
+<td>B</td>
+<td>能力基本达标，有所顾虑</td>
+<td>需要讨论</td>
+</tr>
+<tr>
+<td>B-</td>
+<td>能力略有不足</td>
+<td>一般不推荐</td>
+</tr>
+<tr>
+<td>C</td>
+<td>明显不符合要求</td>
+<td>建议淘汰</td>
+</tr>
+</tbody></table>
+<h3>6.5 评价提交后的流程</h3>
+<ul>
+<li>评价结果会记录在候选人的时间线中</li>
+<li>HR 会收到飞书通知，得知面评已提交</li>
+<li>HR 根据评价结果决定候选人是否进入下一轮</li>
+</ul>
+<hr>
+<h2>七、看板视图</h2>
+<p>路径：顶部导航 → <strong>看板</strong></p>
+<p>看板以可视化卡片的形式展示候选人的招聘进展：</p>
+<h3>7.1 两种视图</h3>
+<ul>
+<li><strong>流水线视图</strong>：将流程聚合为 6 大阶段（简历筛选、面试中、待发Offer、Offer已发、已入职、淘汰）</li>
+<li><strong>状态视图</strong>：展示全部 16 个细分状态</li>
+</ul>
+<h3>7.2 查看方式</h3>
+<ul>
+<li>每张卡片代表一位候选人，显示姓名、岗位等信息</li>
+<li>点击卡片可进入候选人详情页</li>
+<li>可通过顶部下拉框按岗位筛选</li>
+</ul>
+<blockquote>
+<p><strong>注意</strong>：成员角色只能查看与自己相关的岗位候选人，无法拖拽操作卡片。</p>
+</blockquote>
+<hr>
+<h2>八、飞书通知说明</h2>
+<p>系统会通过飞书自动发送以下通知：</p>
+<table>
+<thead>
+<tr>
+<th>通知类型</th>
+<th>触发时机</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>面试安排</td>
+<td>HR 为您安排面试时</td>
+<td>包含候选人信息、面试时间、地点、评价链接</td>
+</tr>
+<tr>
+<td>面试提醒</td>
+<td>面试即将开始前</td>
+<td>通过飞书日历提醒</td>
+</tr>
+<tr>
+<td>评价催促</td>
+<td>面试结束后未提交面评</td>
+<td>提醒您及时提交评价</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p><strong>重要</strong>：收到面试安排通知后，请及时查看候选人资料做好准备；面试结束后请尽快提交评价。</p>
+</blockquote>
+<hr>
+<h2>九、常见操作流程</h2>
+<h3>9.1 标准面试流程</h3>
+<pre><code>收到飞书面试通知
+    ↓
+查看候选人资料（点击通知链接或登录系统）
+    ↓
+查看候选人简历
+    ↓
+按时参加面试
+    ↓
+面试结束后提交评价（系统内或通过评价链接）
+    ↓
+完成 ✅
+</code></pre>
+<h3>9.2 快速面评流程（推荐）</h3>
+<pre><code>1. 点击飞书消息中的面试评价链接
+2. 直接进入评价页面
+3. 选择评分等级（S/A/B+/B/B-/C）
+4. 填写评价内容、优势和不足
+5. 点击提交
+6. 完成 ✅
+</code></pre>
+<hr>
+<h2>十、常见问题</h2>
+<h3>Q1：我看不到某些候选人？</h3>
+<p><strong>A</strong>：成员角色只能查看与自己分配岗位相关的候选人。如需查看其他岗位候选人，请联系 HR 管理员调整权限或分配。</p>
+<h3>Q2：面试评价链接打不开？</h3>
+<p><strong>A</strong>：评价链接包含一次性 Token，请确保：</p>
+<ul>
+<li>使用链接中的完整 URL</li>
+<li>链接未过期</li>
+<li>如仍有问题，可登录系统在候选人详情页中提交评价</li>
+</ul>
+<h3>Q3：我可以修改已提交的面试评价吗？</h3>
+<p><strong>A</strong>：提交后的评价会记录在时间线中。如需修改，请联系 HR 管理员处理。</p>
+<h3>Q4：如何查看我今天有哪些面试？</h3>
+<p><strong>A</strong>：两种方式：</p>
+<ol>
+<li>登录系统首页，查看&quot;今日面试&quot;板块</li>
+<li>查看飞书日历中的面试日程</li>
+</ol>
+<h3>Q5：面试时间有冲突怎么办？</h3>
+<p><strong>A</strong>：请及时联系安排面试的 HR，协商调整面试时间。</p>
+<h3>Q6：我可以自己安排面试吗？</h3>
+<p><strong>A</strong>：不可以。面试安排由 HR/管理员负责。如果您认为某位候选人需要加面，请与 HR 沟通。</p>
+<hr>
+<h2>十一、功能权限总览</h2>
+<p>作为面试官/成员，您可以使用的功能：</p>
+<table>
+<thead>
+<tr>
+<th>功能</th>
+<th align="center">可用</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>查看首页仪表盘</td>
+<td align="center">✅</td>
+<td>包含今日面试和待面评提醒</td>
+</tr>
+<tr>
+<td>查看候选人列表</td>
+<td align="center">✅</td>
+<td>仅限分配岗位的候选人</td>
+</tr>
+<tr>
+<td>查看候选人详情</td>
+<td align="center">✅</td>
+<td>包含简历、面试记录、时间线</td>
+</tr>
+<tr>
+<td>提交面试评价</td>
+<td align="center">✅</td>
+<td>核心操作，支持系统内和链接两种方式</td>
+</tr>
+<tr>
+<td>查看看板</td>
+<td align="center">✅</td>
+<td>仅可见分配岗位，只读</td>
+</tr>
+<tr>
+<td>查看面试日程</td>
+<td align="center">✅</td>
+<td>仅显示自己的面试安排</td>
+</tr>
+<tr>
+<td>新增/编辑/删除候选人</td>
+<td align="center">❌</td>
+<td>需管理员操作</td>
+</tr>
+<tr>
+<td>管理职位</td>
+<td align="center">❌</td>
+<td>需管理员操作</td>
+</tr>
+<tr>
+<td>管理 Offer</td>
+<td align="center">❌</td>
+<td>需管理员操作</td>
+</tr>
+<tr>
+<td>系统设置</td>
+<td align="center">❌</td>
+<td>需管理员操作</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>十二、联系支持</h2>
+<p>如在使用过程中遇到问题，请联系公司 HR 团队或系统管理员获取帮助。</p>
+
+    </div>
+  </div>
+</main>
+<script>
+function switchTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach(function(btn) {
+    btn.classList.toggle('active', btn.getAttribute('data-tab') === tab);
+  });
+  document.querySelectorAll('.tab-panel').forEach(function(panel) {
+    panel.classList.toggle('active', panel.id === 'panel-' + tab);
+  });
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+</script>
+</body>
+</html>

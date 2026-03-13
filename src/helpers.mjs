@@ -209,8 +209,10 @@ export function toolbarHtml({ jobs, sources, q = "", jobId = "", source = "", mo
 
   const targetPath = mode === "board" ? "/candidates/board" : "/candidates";
 
-  const adminBtns = '<a class="btn" href="/candidates/new">新建候选人</a>' +
-      '<a class="btn" href="/candidates/import">批量导入</a>';
+  const adminBtns = isAdmin
+    ? '<a class="btn" href="/candidates/new">新建候选人</a>' +
+      '<a class="btn" href="/candidates/import">批量导入</a>'
+    : '';
 
   return '<div class="toolbar">' +
     '<div class="ctl"><label>搜索</label><input id="q" value="' + escapeHtml(q) + '" placeholder="姓名 / 手机 / 备注关键词" /></div>' +

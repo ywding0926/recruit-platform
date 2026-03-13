@@ -12,7 +12,21 @@ const CAREERS_PASSWORD = process.env.CAREERS_PASSWORD || "tudoump2026";
 
 function matchLocalJob(jobs, careersTitle) {
   if (!careersTitle) return null;
-  const t = careersTitle.toLowerCase();
+  const t = careersTitle.toLowerCase().trim();
+
+  // 1. 优先用 titleEn（英文岗位名称）精确匹配
+  const byTitleEn = jobs.find(j => j.titleEn && j.titleEn.toLowerCase().trim() === t);
+  if (byTitleEn) return byTitleEn;
+
+  // 2. 用 titleEn 包含匹配（官网标题包含系统英文名，或系统英文名包含官网标题）
+  const byTitleEnPartial = jobs.find(j => {
+    if (!j.titleEn) return false;
+    const en = j.titleEn.toLowerCase().trim();
+    return t.includes(en) || en.includes(t);
+  });
+  if (byTitleEnPartial) return byTitleEnPartial;
+
+  // 3. 兜底：硬编码关键词映射（向后兼容）
   const map = [
     [["ai product manager"], "AI产品经理"],
     [["growth product manager", "plg pm"], "用户增长产品经理"],

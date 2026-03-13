@@ -70,7 +70,7 @@ function kanbanStatusHtml({ grouped, countsByCol, resumeMap }) {
     'function renderSchedules(list){var box=document.getElementById("scheduleList");if(!list||!list.length){box.innerHTML=\'<div class="muted">暂无</div>\';return}box.innerHTML=list.map(function(x){return \'<div class="card compact" style="padding:12px;border-radius:14px;margin-bottom:10px"><div class="row"><b>第\'+x.round+\'轮</b><span class="pill"><span class="muted">时间</span><b>\'+esc(x.scheduledAt||"-")+\'</b></span><span class="spacer"></span><span class="muted">\'+esc(x.updatedAt||x.createdAt||"")+\'</span></div><div class="divider"></div><div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><span class="muted">面试官：</span>\'+renderIvLine(x.interviewers)+\'</div><div class="muted">地点：\'+esc(x.location||"-")+\'</div></div>\'}).join("")}' +
     'function renderReviews(list){var box=document.getElementById("reviewList");if(!list||!list.length){box.innerHTML=\'<div class="muted">暂无面评</div>\';return}box.innerHTML=list.map(function(x){return \'<div class="card compact" style="padding:12px;border-radius:14px;margin-bottom:10px"><div class="row"><b>第\'+x.round+\'轮</b><span class="pill"><span class="muted">进度</span><b>\'+esc(x.status||"-")+\'</b></span><span class="pill"><span class="muted">评级</span><b>\'+esc(x.rating||"-")+\'</b></span></div><div class="divider"></div><div style="margin-bottom:6px"><b>Pros</b><div class="muted">\'+nl2br(x.pros||"-")+\'</div></div><div style="margin-bottom:6px"><b>Cons</b><div class="muted">\'+nl2br(x.cons||"-")+\'</div></div><div><b>下一轮考察</b><div class="muted">\'+nl2br(x.focusNext||"-")+\'</div></div></div>\'}).join("")}' +
     'function renderActivity(list){var box=document.getElementById("activityList");if(!list||!list.length){box.innerHTML=\'<div class="muted">暂无</div>\';return}box.innerHTML=\'<div class="timeline">\'+list.map(function(e){return \'<div class="titem"><div class="tmeta"><b>\'+esc(e.actor||"系统")+\'</b><span class="badge status-gray" style="font-size:11px">\'+esc(e.type||"-")+\'</span><span class="muted">\'+esc(e.createdAt||"")+\'</span></div><div class="tmsg">\'+nl2br(e.message||"")+\'</div></div>\'}).join("")+\'</div>\'}' +
-    'async function loadCandidate(id){var res=await fetch("/api/candidates/"+encodeURIComponent(id));if(!res.ok){document.getElementById("drawerTitle").textContent="候选人不存在";return}var data=await res.json();document.getElementById("drawerTitle").textContent=data.name||"未命名";document.getElementById("drawerSub").textContent="ID: "+(data.id||"");document.getElementById("cStatus").textContent=data.status||"-";document.getElementById("cJob").textContent=data.jobTitle||data.jobId||"-";document.getElementById("cSource").textContent=data.source||"-";document.getElementById("fullOpenBtn").href="/candidates/"+encodeURIComponent(data.id);fillStatusSelect(data.status||"待筛选");document.getElementById("editName").value=data.name||"";document.getElementById("editPhone").value=data.phone||"";document.getElementById("editEmail").value=data.email||"";document.getElementById("editSource").value=data.source||"";document.getElementById("editNote").value=data.note||"";renderSchedules(data.schedules||[]);renderResumeInline(data.resume||null);renderReviews(data.reviews||[]);renderActivity(data.events||[]);var f=document.getElementById("resumeUploadForm");f.onsubmit=async function(e){e.preventDefault();if(!CURRENT_ID)return;var fd=new FormData(f);var r=await fetch("/api/candidates/"+encodeURIComponent(CURRENT_ID)+"/resume",{method:"POST",body:fd});if(r.ok){await loadCandidate(CURRENT_ID);switchTab("resume")}else{alert("上传失败："+await r.text())}}}' +
+    'async function loadCandidate(id){var res=await fetch("/api/candidates/"+encodeURIComponent(id));if(!res.ok){document.getElementById("drawerTitle").textContent="候选人不存在";return}var data=await res.json();document.getElementById("drawerTitle").textContent=data.name||"未命名";document.getElementById("drawerSub").textContent="ID: "+(data.id||"");document.getElementById("cStatus").textContent=data.status||"-";document.getElementById("cJob").textContent=data.jobTitle||data.jobId||"-";document.getElementById("cSource").textContent=data.source||"-";var fromParam=new URLSearchParams(location.search).get("jobId");document.getElementById("fullOpenBtn").href="/candidates/"+encodeURIComponent(data.id)+(fromParam?"?from=job:"+encodeURIComponent(fromParam):"?from=board");fillStatusSelect(data.status||"待筛选");document.getElementById("editName").value=data.name||"";document.getElementById("editPhone").value=data.phone||"";document.getElementById("editEmail").value=data.email||"";document.getElementById("editSource").value=data.source||"";document.getElementById("editNote").value=data.note||"";renderSchedules(data.schedules||[]);renderResumeInline(data.resume||null);renderReviews(data.reviews||[]);renderActivity(data.events||[]);var f=document.getElementById("resumeUploadForm");f.onsubmit=async function(e){e.preventDefault();if(!CURRENT_ID)return;var fd=new FormData(f);var r=await fetch("/api/candidates/"+encodeURIComponent(CURRENT_ID)+"/resume",{method:"POST",body:fd});if(r.ok){await loadCandidate(CURRENT_ID);switchTab("resume")}else{alert("上传失败："+await r.text())}}}' +
     'async function updateStatus(){if(!CURRENT_ID)return;var v=document.getElementById("statusSelect").value;var res=await fetch("/api/candidates/"+encodeURIComponent(CURRENT_ID)+"/status",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({status:v})});if(res.ok)location.reload();else alert("更新失败")}' +
     'async function saveCandidate(){if(!CURRENT_ID)return;var payload={name:document.getElementById("editName").value,phone:document.getElementById("editPhone").value,email:document.getElementById("editEmail").value,source:document.getElementById("editSource").value,note:document.getElementById("editNote").value};var res=await fetch("/api/candidates/"+encodeURIComponent(CURRENT_ID),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});if(res.ok){await loadCandidate(CURRENT_ID);location.reload()}else alert("保存失败")}' +
     'async function saveSchedule(){if(!CURRENT_ID)return;var payload={round:Number(document.getElementById("scRound").value),scheduledAt:document.getElementById("scAt").value,interviewers:document.getElementById("scInterviewers").value,link:document.getElementById("scLink").value,location:document.getElementById("scLocation").value,syncStatus:document.getElementById("scSyncStatus").value};var res=await fetch("/api/candidates/"+encodeURIComponent(CURRENT_ID)+"/schedule",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});if(res.ok){await loadCandidate(CURRENT_ID);switchTab("schedule");location.reload()}else alert("保存失败")}' +
@@ -149,7 +149,7 @@ function kanbanHtml({ grouped, countsByCol, resumeMap }) {
     'function renderSchedules(list){var box=document.getElementById("scheduleList");if(!list||!list.length){box.innerHTML=\'<div class="muted">暂无</div>\';return}box.innerHTML=list.map(function(x){return \'<div class="card compact" style="padding:12px;border-radius:14px;margin-bottom:10px"><div class="row"><b>第\'+x.round+\'轮</b><span class="pill"><span class="muted">时间</span><b>\'+esc(x.scheduledAt||"-")+\'</b></span><span class="spacer"></span><span class="muted">\'+esc(x.updatedAt||x.createdAt||"")+\'</span></div><div class="divider"></div><div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><span class="muted">面试官：</span>\'+renderIvLine(x.interviewers)+\'</div><div class="muted">地点：\'+esc(x.location||"-")+\'</div></div>\'}).join("")}' +
     'function renderReviews(list){var box=document.getElementById("reviewList");if(!list||!list.length){box.innerHTML=\'<div class="muted">暂无面评</div>\';return}box.innerHTML=list.map(function(x){return \'<div class="card compact" style="padding:12px;border-radius:14px;margin-bottom:10px"><div class="row"><b>第\'+x.round+\'轮</b><span class="pill"><span class="muted">进度</span><b>\'+esc(x.status||"-")+\'</b></span><span class="pill"><span class="muted">评级</span><b>\'+esc(x.rating||"-")+\'</b></span></div><div class="divider"></div><div style="margin-bottom:6px"><b>Pros</b><div class="muted">\'+nl2br(x.pros||"-")+\'</div></div><div style="margin-bottom:6px"><b>Cons</b><div class="muted">\'+nl2br(x.cons||"-")+\'</div></div><div><b>下一轮考察</b><div class="muted">\'+nl2br(x.focusNext||"-")+\'</div></div></div>\'}).join("")}' +
     'function renderActivity(list){var box=document.getElementById("activityList");if(!list||!list.length){box.innerHTML=\'<div class="muted">暂无</div>\';return}box.innerHTML=\'<div class="timeline">\'+list.map(function(e){return \'<div class="titem"><div class="tmeta"><b>\'+esc(e.actor||"系统")+\'</b><span class="badge status-gray" style="font-size:11px">\'+esc(e.type||"-")+\'</span><span class="muted">\'+esc(e.createdAt||"")+\'</span></div><div class="tmsg">\'+nl2br(e.message||"")+\'</div></div>\'}).join("")+\'</div>\'}' +
-    'async function loadCandidate(id){var res=await fetch("/api/candidates/"+encodeURIComponent(id));if(!res.ok){document.getElementById("drawerTitle").textContent="候选人不存在";return}var data=await res.json();document.getElementById("drawerTitle").textContent=data.name||"未命名";document.getElementById("drawerSub").textContent="ID: "+(data.id||"");document.getElementById("cStatus").textContent=data.status||"-";document.getElementById("cJob").textContent=data.jobTitle||data.jobId||"-";document.getElementById("cSource").textContent=data.source||"-";document.getElementById("fullOpenBtn").href="/candidates/"+encodeURIComponent(data.id);fillStatusSelect(data.status||"待筛选");document.getElementById("editName").value=data.name||"";document.getElementById("editPhone").value=data.phone||"";document.getElementById("editEmail").value=data.email||"";document.getElementById("editSource").value=data.source||"";document.getElementById("editNote").value=data.note||"";renderSchedules(data.schedules||[]);renderResumeInline(data.resume||null);renderReviews(data.reviews||[]);renderActivity(data.events||[]);var f=document.getElementById("resumeUploadForm");f.onsubmit=async function(e){e.preventDefault();if(!CURRENT_ID)return;var fd=new FormData(f);var r=await fetch("/api/candidates/"+encodeURIComponent(CURRENT_ID)+"/resume",{method:"POST",body:fd});if(r.ok){await loadCandidate(CURRENT_ID);switchTab("resume")}else{alert("上传失败："+await r.text())}}}' +
+    'async function loadCandidate(id){var res=await fetch("/api/candidates/"+encodeURIComponent(id));if(!res.ok){document.getElementById("drawerTitle").textContent="候选人不存在";return}var data=await res.json();document.getElementById("drawerTitle").textContent=data.name||"未命名";document.getElementById("drawerSub").textContent="ID: "+(data.id||"");document.getElementById("cStatus").textContent=data.status||"-";document.getElementById("cJob").textContent=data.jobTitle||data.jobId||"-";document.getElementById("cSource").textContent=data.source||"-";var fromParam=new URLSearchParams(location.search).get("jobId");document.getElementById("fullOpenBtn").href="/candidates/"+encodeURIComponent(data.id)+(fromParam?"?from=job:"+encodeURIComponent(fromParam):"?from=board");fillStatusSelect(data.status||"待筛选");document.getElementById("editName").value=data.name||"";document.getElementById("editPhone").value=data.phone||"";document.getElementById("editEmail").value=data.email||"";document.getElementById("editSource").value=data.source||"";document.getElementById("editNote").value=data.note||"";renderSchedules(data.schedules||[]);renderResumeInline(data.resume||null);renderReviews(data.reviews||[]);renderActivity(data.events||[]);var f=document.getElementById("resumeUploadForm");f.onsubmit=async function(e){e.preventDefault();if(!CURRENT_ID)return;var fd=new FormData(f);var r=await fetch("/api/candidates/"+encodeURIComponent(CURRENT_ID)+"/resume",{method:"POST",body:fd});if(r.ok){await loadCandidate(CURRENT_ID);switchTab("resume")}else{alert("上传失败："+await r.text())}}}' +
     'async function updateStatus(){if(!CURRENT_ID)return;var v=document.getElementById("statusSelect").value;var res=await fetch("/api/candidates/"+encodeURIComponent(CURRENT_ID)+"/status",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({status:v})});if(res.ok)location.reload();else alert("更新失败")}' +
     'async function saveCandidate(){if(!CURRENT_ID)return;var payload={name:document.getElementById("editName").value,phone:document.getElementById("editPhone").value,email:document.getElementById("editEmail").value,source:document.getElementById("editSource").value,note:document.getElementById("editNote").value};var res=await fetch("/api/candidates/"+encodeURIComponent(CURRENT_ID),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});if(res.ok){await loadCandidate(CURRENT_ID);location.reload()}else alert("保存失败")}' +
     'async function saveSchedule(){if(!CURRENT_ID)return;var payload={round:Number(document.getElementById("scRound").value),scheduledAt:document.getElementById("scAt").value,interviewers:document.getElementById("scInterviewers").value,link:document.getElementById("scLink").value,location:document.getElementById("scLocation").value,syncStatus:document.getElementById("scSyncStatus").value};var res=await fetch("/api/candidates/"+encodeURIComponent(CURRENT_ID)+"/schedule",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});if(res.ok){await loadCandidate(CURRENT_ID);switchTab("schedule");location.reload()}else alert("保存失败")}' +
@@ -167,7 +167,7 @@ function resumeEmbedHtml(resume) {
   return '<div class="muted">不支持内嵌预览</div>';
 }
 
-router.get("/candidates/new", requireLogin, async (req, res) => {
+router.get("/candidates/new", requireLogin, requireAdmin, async (req, res) => {
   const d = await loadData();
   const jobOpts = d.jobs.map((j) => '<option value="' + escapeHtml(j.id) + '">' + escapeHtml(j.title || j.id) + '</option>').join("");
   const srcOpts = (d.sources || []).map((s) => '<option value="' + escapeHtml(s) + '">' + escapeHtml(s) + '</option>').join("");
@@ -207,7 +207,7 @@ router.get("/candidates/new", requireLogin, async (req, res) => {
 });
 
 // API：JSON 创建候选人（前端 JS 调用，不含文件）
-router.post("/api/candidates/create", requireLogin, async (req, res) => {
+router.post("/api/candidates/create", requireLogin, requireAdmin, async (req, res) => {
   try {
     const d = await loadData();
     const name = String(req.body.name || "").trim();
@@ -250,7 +250,7 @@ router.post("/api/candidates/create", requireLogin, async (req, res) => {
 });
 
 // 兼容旧版：form POST 创建候选人（含文件上传，本地开发用）
-router.post("/candidates/new", requireLogin, upload.single("resume"), async (req, res) => {
+router.post("/candidates/new", requireLogin, requireAdmin, upload.single("resume"), async (req, res) => {
   const d = await loadData();
   const name = String(req.body.name || "").trim();
   const phone = String(req.body.phone || "").trim();
@@ -314,96 +314,239 @@ router.post("/candidates/new", requireLogin, upload.single("resume"), async (req
   res.redirect(303, "/candidates/" + c.id);
 });
 
-// ====== CSV 批量导入 ======
-router.get("/candidates/import", requireLogin, async (req, res) => {
+// ====== 批量导入简历 ======
+router.get("/candidates/import", requireLogin, requireAdmin, async (req, res) => {
+  const d = await loadData();
+  // 只显示开放状态的岗位
+  const openJobs = d.jobs.filter(j => j.state === "open");
+  const jobOptions = openJobs.map(j => {
+    const label = escapeHtml(j.title) + (j.employmentType ? " (" + escapeHtml(j.employmentType) + ")" : "");
+    return '<option value="' + escapeHtml(j.id) + '">' + label + '</option>';
+  }).join("");
+
+  const scriptCode = `
+let selectedFiles = [];
+let isUploading = false;
+
+function handleFileSelect(files) {
+  if (isUploading) return;
+  selectedFiles = Array.from(files).map(f => ({ file: f, status: 'pending', progress: 0, error: '' }));
+  renderFileList();
+}
+
+function removeFile(idx) {
+  if (isUploading) return;
+  selectedFiles.splice(idx, 1);
+  renderFileList();
+}
+
+function renderFileList() {
+  const list = document.getElementById('fileList');
+  const btn = document.getElementById('importBtn');
+  if (!selectedFiles.length) {
+    list.innerHTML = '';
+    btn.disabled = true;
+    return;
+  }
+  btn.disabled = isUploading;
+
+  let html = '<div style="font-weight:700;margin-bottom:12px">已选择 ' + selectedFiles.length + ' 个文件</div>';
+  selectedFiles.forEach((item, i) => {
+    const f = item.file;
+    const sizeStr = (f.size / 1024).toFixed(1) + ' KB';
+    let statusHtml = '';
+    let progressHtml = '';
+
+    if (item.status === 'pending') {
+      statusHtml = '<span onclick="removeFile(' + i + ')" style="cursor:pointer;color:#999" title="移除">&times;</span>';
+    } else if (item.status === 'uploading') {
+      progressHtml = '<div style="height:4px;background:#e5e7eb;border-radius:2px;margin-top:6px;overflow:hidden"><div style="height:100%;background:#7c5cfc;width:' + item.progress + '%;transition:width 0.3s"></div></div>';
+      statusHtml = '<span style="color:#7c5cfc;font-size:12px">' + item.progress + '%</span>';
+    } else if (item.status === 'success') {
+      statusHtml = '<span style="color:#16a34a">✓</span>';
+    } else if (item.status === 'error') {
+      statusHtml = '<span style="color:#dc2626" title="' + (item.error || '失败') + '">✗</span>';
+      progressHtml = '<div style="color:#dc2626;font-size:12px;margin-top:4px">' + (item.error || '上传失败') + '</div>';
+    }
+
+    html += '<div style="padding:8px 0;border-bottom:1px solid #f0f0f0">' +
+      '<div class="row"><span style="flex:1;word-break:break-all">' + f.name + '</span>' +
+      '<span class="muted" style="margin:0 12px;white-space:nowrap">' + sizeStr + '</span>' +
+      statusHtml + '</div>' + progressHtml + '</div>';
+  });
+  list.innerHTML = html;
+}
+
+const dropZone = document.getElementById('dropZone');
+dropZone.addEventListener('dragover', e => { e.preventDefault(); if (!isUploading) { dropZone.style.borderColor = '#7c5cfc'; dropZone.style.background = '#f5f3ff'; } });
+dropZone.addEventListener('dragleave', e => { e.preventDefault(); dropZone.style.borderColor = '#d1d5db'; dropZone.style.background = '#f9fafb'; });
+dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.style.borderColor = '#d1d5db'; dropZone.style.background = '#f9fafb'; if (!isUploading && e.dataTransfer.files.length) handleFileSelect(e.dataTransfer.files); });
+
+async function uploadSingleFile(item, jobId) {
+  return new Promise((resolve) => {
+    const xhr = new XMLHttpRequest();
+    const formData = new FormData();
+    formData.append('jobId', jobId);
+    formData.append('resume', item.file);
+
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) {
+        item.progress = Math.round((e.loaded / e.total) * 100);
+        renderFileList();
+      }
+    };
+
+    xhr.onload = () => {
+      try {
+        const data = JSON.parse(xhr.responseText);
+        if (xhr.status === 200 && data.ok) {
+          item.status = 'success';
+          item.progress = 100;
+        } else {
+          item.status = 'error';
+          item.error = data.error || '上传失败';
+        }
+      } catch (e) {
+        item.status = 'error';
+        item.error = '响应解析失败';
+      }
+      renderFileList();
+      resolve();
+    };
+
+    xhr.onerror = () => {
+      item.status = 'error';
+      item.error = '网络错误';
+      renderFileList();
+      resolve();
+    };
+
+    item.status = 'uploading';
+    item.progress = 0;
+    renderFileList();
+
+    xhr.open('POST', '/candidates/import-single-resume');
+    xhr.send(formData);
+  });
+}
+
+async function startImport() {
+  const jobId = document.getElementById('importJobId').value;
+  if (!jobId) { alert('请选择目标职位'); return; }
+  if (!selectedFiles.length) { alert('请选择简历文件'); return; }
+
+  isUploading = true;
+  const btn = document.getElementById('importBtn');
+  const result = document.getElementById('importResult');
+  btn.disabled = true;
+  btn.textContent = '导入中...';
+  result.innerHTML = '';
+
+  // 逐个上传
+  for (const item of selectedFiles) {
+    await uploadSingleFile(item, jobId);
+  }
+
+  isUploading = false;
+  btn.disabled = false;
+  btn.textContent = '开始导入';
+
+  const success = selectedFiles.filter(f => f.status === 'success').length;
+  const failed = selectedFiles.filter(f => f.status === 'error').length;
+
+  result.innerHTML = '<div class="card compact" style="background:#f0fdf4;border:1px solid #86efac;margin-top:16px">' +
+    '<div style="font-weight:700;color:#16a34a">导入完成</div>' +
+    '<div class="row" style="margin-top:8px"><span class="pill"><span class="muted">成功</span><b>' + success + '</b></span>' +
+    (failed > 0 ? '<span class="pill"><span class="muted">失败</span><b style="color:var(--red)">' + failed + '</b></span>' : '') +
+    '</div></div>' +
+    '<div style="margin-top:12px"><a class="btn primary" href="/candidates">查看人才库</a><button class="btn" style="margin-left:8px" onclick="selectedFiles=[];renderFileList();document.getElementById(\\'importResult\\').innerHTML=\\'\\'">继续导入</button></div>';
+}
+`;
+
   res.send(
     renderPage({
-      title: "批量导入候选人",
+      title: "批量导入简历",
       user: req.user,
       active: "candidates",
-      contentHtml: '<div class="card" style="max-width:820px;margin:0 auto;"><div style="font-weight:900;font-size:18px">批量导入候选人（CSV）</div><div class="divider"></div>' +
-        '<div class="muted" style="margin-bottom:12px">CSV 文件格式要求：第一行为表头，支持字段：<b>姓名, 手机, 邮箱, 岗位ID, 来源, 备注, 标签</b>（标签用分号分隔）</div>' +
-        '<div class="card compact" style="margin-bottom:12px"><div style="font-weight:700;margin-bottom:8px">CSV 模板示例</div><pre style="background:#f8fafc;padding:12px;border-radius:12px;overflow:auto;font-size:13px">姓名,手机,邮箱,岗位ID,来源,备注,标签\n张三,13800138000,zhangsan@test.com,job_xxx,Boss直聘,3年经验,高潜;紧急\n李四,13900139000,lisi@test.com,job_xxx,内推,5年经验,优秀</pre></div>' +
-        '<form method="POST" action="/candidates/import" enctype="multipart/form-data"><div class="field"><label>选择 CSV 文件</label><input type="file" name="csv" accept=".csv,.txt" required /></div><div class="row"><button class="btn primary" type="submit">开始导入</button><a class="btn" href="/candidates">返回</a></div></form></div>',
+      contentHtml: '<div class="card" style="max-width:820px;margin:0 auto;">' +
+        '<div style="font-weight:900;font-size:18px">批量导入简历</div>' +
+        '<div class="divider"></div>' +
+        '<div class="muted" style="margin-bottom:16px">选择目标职位后，上传多份简历文件。系统会自动为每份简历创建候选人记录。</div>' +
+        '<div class="field"><label>目标职位 <span style="color:var(--red)">*</span></label>' +
+        '<select id="importJobId" style="max-width:400px" required><option value="">-- 请选择职位 --</option>' + jobOptions + '</select></div>' +
+        '<div class="field"><label>上传简历文件</label>' +
+        '<div style="border:2px dashed #d1d5db;border-radius:12px;padding:32px;text-align:center;background:#f9fafb;cursor:pointer" id="dropZone" onclick="document.getElementById(\'resumeFiles\').click()">' +
+        '<div style="font-size:32px;margin-bottom:8px">📄</div>' +
+        '<div style="font-weight:700;margin-bottom:4px">点击选择文件或拖拽到此处</div>' +
+        '<div class="muted">支持 PDF、Word、图片等格式，可同时选择多个文件</div>' +
+        '<input type="file" id="resumeFiles" multiple accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" style="display:none" onchange="handleFileSelect(this.files)" />' +
+        '</div></div>' +
+        '<div id="fileList" style="margin-top:12px"></div>' +
+        '<div class="divider"></div>' +
+        '<div class="row"><button class="btn primary" id="importBtn" onclick="startImport()" disabled>开始导入</button><a class="btn" href="/candidates">返回</a></div>' +
+        '<div id="importResult"></div></div>' +
+        '<script>' + scriptCode + '</script>',
     })
   );
 });
 
-router.post("/candidates/import", requireLogin, upload.single("csv"), async (req, res) => {
-  const d = await loadData();
-  const file = req.file;
-  if (!file || !file.buffer || !file.buffer.length) {
-    return res.send(renderPage({ title: "导入失败", user: req.user, active: "candidates", contentHtml: '<div class="card"><div style="font-weight:900;color:var(--red)">未选择文件</div><div class="divider"></div><a class="btn" href="/candidates/import">返回重试</a></div>' }));
-  }
+// 单文件简历导入接口（支持进度显示）
+router.post("/candidates/import-single-resume", requireLogin, requireAdmin, upload.single("resume"), async (req, res) => {
+  try {
+    const d = await loadData();
+    const file = req.file;
+    const jobId = String(req.body.jobId || "").trim();
 
-  const text = file.buffer.toString("utf-8");
-  const lines = text.split(/\r?\n/).filter((l) => l.trim());
-  if (lines.length < 2) {
-    return res.send(renderPage({ title: "导入失败", user: req.user, active: "candidates", contentHtml: '<div class="card"><div style="font-weight:900;color:var(--red)">CSV文件至少需要表头+1行数据</div><div class="divider"></div><a class="btn" href="/candidates/import">返回重试</a></div>' }));
-  }
+    if (!jobId) {
+      return res.status(400).json({ ok: false, error: "请选择目标职位" });
+    }
+    const job = d.jobs.find(j => j.id === jobId);
+    if (!job) {
+      return res.status(400).json({ ok: false, error: "职位不存在" });
+    }
+    if (!file) {
+      return res.status(400).json({ ok: false, error: "请选择简历文件" });
+    }
 
-  const headers = lines[0].split(",").map((h) => h.trim());
-  let imported = 0;
-  let errors = [];
+    // 从文件名提取候选人姓名（去掉扩展名和常见后缀）
+    let rawName = file.originalname || "未命名";
+    rawName = rawName.replace(/\.(pdf|doc|docx|png|jpg|jpeg)$/i, "");
+    rawName = rawName.replace(/[-_]?(简历|resume|cv|个人简历)$/i, "").trim();
+    rawName = rawName.replace(/^(简历|resume|cv)[-_]?/i, "").trim();
+    const name = rawName || "未命名候选人";
 
-  for (let i = 1; i < lines.length; i++) {
-    const cols = lines[i].split(",").map((c) => c.trim());
-    const row = {};
-    headers.forEach((h, idx) => { row[h] = cols[idx] || ""; });
-
-    const name = row["姓名"] || row["name"] || "";
-    if (!name) { errors.push("第" + (i + 1) + "行：缺少姓名"); continue; }
-
-    const csvPhone = row["手机"] || row["phone"] || "";
-    const dup = findDuplicate(d.candidates, name, csvPhone);
-    if (dup) { errors.push("第" + (i + 1) + "行：候选人「" + name + "」疑似重复（已有同名同手机号候选人）"); continue; }
-
-    const jobId = row["岗位ID"] || row["jobId"] || "";
-    const job = jobId ? d.jobs.find((x) => x.id === jobId) : null;
-    const tagStr = row["标签"] || row["tags"] || "";
-    const tags = tagStr ? tagStr.split(/[;；]/).map((t) => t.trim()).filter(Boolean) : [];
-
+    // 创建候选人
     const c = {
       id: rid("c"),
       name,
-      phone: row["手机"] || row["phone"] || "",
-      email: row["邮箱"] || row["email"] || "",
+      phone: "",
+      email: "",
       jobId: jobId,
-      jobTitle: job ? job.title : jobId,
-      source: row["来源"] || row["source"] || "",
-      note: row["备注"] || row["note"] || "",
-      tags,
+      jobTitle: job.title,
+      source: "批量导入",
+      note: "从文件「" + (file.originalname || "") + "」导入",
+      tags: [],
       status: "待筛选",
       follow: { nextAction: "待联系", followAt: "", note: "" },
       createdAt: nowIso(),
       updatedAt: nowIso(),
     };
+
+    // 保存简历文件（正确的参数顺序：d, candidateId, file, actorName）
+    await saveResumeSupabaseOrLocal(d, c.id, file, req.user?.name || "批量导入");
+
     d.candidates.unshift(c);
-    if (c.source && !d.sources.includes(c.source)) d.sources.push(c.source);
-    imported++;
-  }
-
-  if (imported > 0) {
-    pushEvent(d, { candidateId: "", type: "批量导入", message: "批量导入 " + imported + " 名候选人", actor: req.user?.name || "系统" });
+    pushEvent(d, { candidateId: c.id, type: "新建", message: "批量导入简历创建候选人", actor: req.user?.name || "系统" });
     await saveData(d);
-    // 批量导入：逐个通知HR
-    const importedCandidates = d.candidates.slice(0, imported);
-    for (const ic of importedCandidates) {
-      const icJob = ic.jobId ? d.jobs.find(j => j.id === ic.jobId) : null;
-      await notifyHrNewCandidate(d, ic, icJob).catch(e => console.warn("[Notify] err:", e.message));
-    }
+
+    // 通知HR
+    await notifyHrNewCandidate(d, c, job).catch(e => console.warn("[Notify] err:", e.message));
+
+    res.json({ ok: true, candidateId: c.id, name: c.name });
+  } catch (e) {
+    console.error("[Import] 单文件导入失败:", e);
+    res.status(500).json({ ok: false, error: e.message });
   }
-
-  const errorHtml = errors.length ? '<div class="divider"></div><div style="color:var(--red);font-weight:700">导入警告（' + errors.length + '条）</div>' + errors.map((e) => '<div class="muted">' + escapeHtml(e) + '</div>').join("") : "";
-
-  res.send(
-    renderPage({
-      title: "导入完成",
-      user: req.user,
-      active: "candidates",
-      contentHtml: '<div class="card" style="max-width:820px;margin:0 auto;"><div style="font-weight:900;font-size:18px;color:var(--green)">导入完成</div><div class="divider"></div><div class="row"><span class="pill"><span class="muted">成功导入</span><b>' + imported + '</b></span><span class="pill"><span class="muted">失败</span><b>' + errors.length + '</b></span></div>' + errorHtml + '<div class="divider"></div><div class="row"><a class="btn primary" href="/candidates">查看人才库</a><a class="btn" href="/candidates/import">继续导入</a></div></div>',
-    })
-  );
 });
 
 // ====== 人才库（列表）======
@@ -437,6 +580,9 @@ router.get("/candidates", requireLogin, async (req, res) => {
 
   // 按入库时间倒序排列（最新在前）
   filtered.sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
+
+  // 候选人详情页的来源参数（用于返回时回到正确页面）
+  const detailFromParam = jobId ? "?from=job:" + encodeURIComponent(jobId) : "";
 
   const seg = STATUS_COLS.map((s) => {
     const u = new URL("http://x/candidates");
@@ -482,7 +628,7 @@ router.get("/candidates", requireLogin, async (req, res) => {
         : '<span class="muted">-</span>';
       return '<tr>' +
         '<td style="width:36px"><input type="checkbox" class="batch-check" data-id="' + escapeHtml(c.id) + '" style="width:auto" /></td>' +
-        '<td><a class="btn sm" href="/candidates/' + escapeHtml(c.id) + '">' + escapeHtml(c.name || "未命名") + '</a></td>' +
+        '<td><a class="btn sm" href="/candidates/' + escapeHtml(c.id) + detailFromParam + '">' + escapeHtml(c.name || "未命名") + '</a></td>' +
         '<td>' + escapeHtml(c.phone || "-") + '</td>' +
         '<td class="ov">' + escapeHtml(c.email || "-") + '</td>' +
         '<td class="ov">' + escapeHtml(c.jobTitle || c.jobId || "-") + '</td>' +
@@ -491,7 +637,7 @@ router.get("/candidates", requireLogin, async (req, res) => {
         '<td class="ov" style="max-width:130px">' + resumeCol + '</td>' +
         '<td class="ov" style="max-width:70px">' + tagsHtml + '</td>' +
         '<td class="muted" style="white-space:nowrap;font-size:12px">' + escapeHtml(toBjTime(c.updatedAt || c.createdAt || "").slice(0, 10)) + '</td>' +
-        '<td><a class="btn sm" href="/candidates/' + escapeHtml(c.id) + '">编辑</a></td>' +
+        '<td><a class="btn sm" href="/candidates/' + escapeHtml(c.id) + detailFromParam + '">编辑</a></td>' +
         '</tr>';
     })
     .join("");
@@ -506,9 +652,9 @@ router.get("/candidates", requireLogin, async (req, res) => {
         '<div style="height:12px"></div>' +
         '<div class="seg"><a class="' + (status ? "" : "active") + '" href="' + allHref + '">全部状态</a>' + seg + '</div>' +
         '<div style="height:12px"></div>' +
-        '<div id="batchBar" class="batch-bar" style="display:none"><span id="batchCount">已选 0 人</span><button class="btn sm primary" onclick="batchUpdateStatus()">批量更新状态</button><button class="btn sm" onclick="batchAddTag()">批量添加标签</button>' + (isAdmin ? '<button class="btn sm danger" onclick="batchDelete()">批量删除</button>' : '') + '<button class="btn sm ghost" onclick="clearBatch()">取消选择</button></div>' +
+        '<div id="batchBar" class="batch-bar" style="display:none"><span id="batchCount">已选 0 人</span><button class="btn sm primary" onclick="batchUpdateStatus()">批量更新状态</button><button class="btn sm" onclick="batchChangeJob()">批量更换岗位</button><button class="btn sm" onclick="batchAddTag()">批量添加标签</button>' + (isAdmin ? '<button class="btn sm danger" onclick="batchDelete()">批量删除</button>' : '') + '<button class="btn sm ghost" onclick="clearBatch()">取消选择</button></div>' +
         '<div class="card" style="overflow-x:auto"><table><thead><tr><th style="width:36px"><input type="checkbox" id="selectAll" style="width:auto" /></th><th>姓名</th><th>手机</th><th>邮箱</th><th>岗位</th><th>来源</th><th>状态 / 跟进</th><th>简历</th><th>标签</th><th>更新时间</th><th>操作</th></tr></thead><tbody>' + (rows || "") + '</tbody></table>' + (rows ? "" : '<div class="muted">暂无候选人</div>') + '</div>' +
-        '<script>var sa=document.getElementById("selectAll");if(sa){sa.onchange=function(){document.querySelectorAll(".batch-check").forEach(function(cb){cb.checked=sa.checked});updateBatchBar()}}document.querySelectorAll(".batch-check").forEach(function(cb){cb.onchange=updateBatchBar});function getSelected(){return Array.from(document.querySelectorAll(".batch-check:checked")).map(function(cb){return cb.dataset.id})}function updateBatchBar(){var ids=getSelected();var bar=document.getElementById("batchBar");var cnt=document.getElementById("batchCount");if(ids.length){bar.style.display="flex";cnt.textContent="已选 "+ids.length+" 人"}else{bar.style.display="none"}}function clearBatch(){document.querySelectorAll(".batch-check").forEach(function(cb){cb.checked=false});if(sa)sa.checked=false;updateBatchBar()}async function batchUpdateStatus(){var ids=getSelected();if(!ids.length)return;var st=prompt("请输入新状态（如：待一面、淘汰等）：");if(!st)return;for(var i=0;i<ids.length;i++){await fetch("/api/candidates/"+encodeURIComponent(ids[i])+"/status",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({status:st})})}location.reload()}async function batchAddTag(){var ids=getSelected();if(!ids.length)return;var tag=prompt("请输入标签名称：");if(!tag)return;for(var i=0;i<ids.length;i++){var r=await fetch("/api/candidates/"+encodeURIComponent(ids[i]));if(r.ok){var data=await r.json();var tags=data.tags||[];if(tags.indexOf(tag)===-1)tags.push(tag);await fetch("/api/candidates/"+encodeURIComponent(ids[i]),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({tags:tags})})}}location.reload()}async function batchDelete(){var ids=getSelected();if(!ids.length)return;if(!confirm("确定删除选中的 "+ids.length+" 名候选人？此操作不可撤销！"))return;for(var i=0;i<ids.length;i++){await fetch("/candidates/"+encodeURIComponent(ids[i])+"/delete",{method:"POST"})}location.reload()}</script>',
+        '<script>var sa=document.getElementById("selectAll");if(sa){sa.onchange=function(){document.querySelectorAll(".batch-check").forEach(function(cb){cb.checked=sa.checked});updateBatchBar()}}document.querySelectorAll(".batch-check").forEach(function(cb){cb.onchange=updateBatchBar});function getSelected(){return Array.from(document.querySelectorAll(".batch-check:checked")).map(function(cb){return cb.dataset.id})}function updateBatchBar(){var ids=getSelected();var bar=document.getElementById("batchBar");var cnt=document.getElementById("batchCount");if(ids.length){bar.style.display="flex";cnt.textContent="已选 "+ids.length+" 人"}else{bar.style.display="none"}}function clearBatch(){document.querySelectorAll(".batch-check").forEach(function(cb){cb.checked=false});if(sa)sa.checked=false;updateBatchBar()}async function batchUpdateStatus(){var ids=getSelected();if(!ids.length)return;var st=prompt("请输入新状态（如：待一面、淘汰等）：");if(!st)return;for(var i=0;i<ids.length;i++){await fetch("/api/candidates/"+encodeURIComponent(ids[i])+"/status",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({status:st})})}location.reload()}async function batchAddTag(){var ids=getSelected();if(!ids.length)return;var tag=prompt("请输入标签名称：");if(!tag)return;for(var i=0;i<ids.length;i++){var r=await fetch("/api/candidates/"+encodeURIComponent(ids[i]));if(r.ok){var data=await r.json();var tags=data.tags||[];if(tags.indexOf(tag)===-1)tags.push(tag);await fetch("/api/candidates/"+encodeURIComponent(ids[i]),{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({tags:tags})})}}location.reload()}async function batchDelete(){var ids=getSelected();if(!ids.length)return;if(!confirm("确定删除选中的 "+ids.length+" 名候选人？此操作不可撤销！"))return;for(var i=0;i<ids.length;i++){await fetch("/candidates/"+encodeURIComponent(ids[i])+"/delete",{method:"POST"})}location.reload()}var _batchJobs=' + JSON.stringify(d.jobs.filter(j => j.state !== "closed").map(j => ({ id: j.id, title: j.title, state: j.state }))) + ';function batchChangeJob(){var ids=getSelected();if(!ids.length)return;var opts=_batchJobs.map(function(j){return j.title+(j.state==="paused"?" (暂停)":"")}).join("\\n");var selected=prompt("请输入要更换到的岗位名称：\\n\\n可选岗位：\\n"+opts);if(!selected)return;var target=_batchJobs.find(function(j){return j.title===selected||j.title===selected.replace(/ \\(暂停\\)$/,"")});if(!target){alert("未找到匹配的岗位："+selected);return}if(!confirm("确定将选中的 "+ids.length+" 名候选人更换到「"+target.title+"」岗位？"))return;(async function(){for(var i=0;i<ids.length;i++){await fetch("/api/candidates/"+encodeURIComponent(ids[i])+"/job",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({jobId:target.id})})}location.reload()})()}</script>',
     })
   );
 });
@@ -582,13 +728,30 @@ router.get("/candidates/board", requireLogin, async (req, res) => {
 router.get("/candidates/:id", requireLogin, async (req, res) => {
   const d = await loadData();
   const c = d.candidates.find((x) => x.id === req.params.id);
+
+  // 解析来源参数，用于返回按钮
+  const fromParam = req.query.from || "";
+  let backUrl = "/candidates";
+  let backLabel = "返回列表";
+  if (fromParam.startsWith("job:")) {
+    const jobId = fromParam.slice(4);
+    const job = d.jobs.find((j) => j.id === jobId);
+    if (job) {
+      backUrl = "/candidates?jobId=" + encodeURIComponent(jobId);
+      backLabel = "返回「" + (job.title || "岗位").slice(0, 8) + "」";
+    }
+  } else if (fromParam === "board") {
+    backUrl = "/candidates/board";
+    backLabel = "返回看板";
+  }
+
   if (!c) {
-    return res.send(renderPage({ title: "候选人不存在", user: req.user, active: "candidates", contentHtml: '<div class="card"><div style="font-weight:900">候选人不存在</div><div class="divider"></div><a class="btn" href="/candidates">返回</a></div>' }));
+    return res.send(renderPage({ title: "候选人不存在", user: req.user, active: "candidates", contentHtml: '<div class="card"><div style="font-weight:900">候选人不存在</div><div class="divider"></div><a class="btn" href="' + backUrl + '">返回</a></div>' }));
   }
   // 权限检查：member 只能查看自己负责岗位下的候选人
   const visibleJobIds = getVisibleJobIds(req.user, d.jobs);
   if (visibleJobIds !== null && !visibleJobIds.has(c.jobId)) {
-    return res.send(renderPage({ title: "无权限", user: req.user, active: "candidates", contentHtml: '<div class="card"><div style="font-weight:900">无权限查看该候选人</div><div class="muted">该候选人所属岗位不在您的负责范围内</div><div class="divider"></div><a class="btn" href="/candidates">返回</a></div>' }));
+    return res.send(renderPage({ title: "无权限", user: req.user, active: "candidates", contentHtml: '<div class="card"><div style="font-weight:900">无权限查看该候选人</div><div class="muted">该候选人所属岗位不在您的负责范围内</div><div class="divider"></div><a class="btn" href="' + backUrl + '">返回</a></div>' }));
   }
   if (!STATUS_SET.has(c.status)) c.status = "待筛选";
   if (!c.follow) c.follow = { nextAction: "待联系", followAt: "", note: "" };
@@ -610,6 +773,12 @@ router.get("/candidates/:id", requireLogin, async (req, res) => {
   const syncOpts = '<option value="（不同步）">（不同步）</option>' + INTERVIEW_STATUS.map((x) => '<option value="' + escapeHtml(x) + '">' + escapeHtml(x) + '</option>').join("");
   const offerStOpts = OFFER_STATUSES.map((x) => '<option value="' + escapeHtml(x) + '" ' + ((offer && offer.offerStatus === x) ? "selected" : "") + '>' + escapeHtml(x) + '</option>').join("");
   const interviewerDatalist = d.users.map(u => '<option value="' + escapeHtml(u.name) + '">' + escapeHtml(u.name) + '</option>').join("");
+  // 岗位下拉选项（开放状态的岗位优先）
+  const jobOptions = d.jobs
+    .filter(j => j.state !== "closed")
+    .sort((a, b) => (a.state === "open" ? 0 : 1) - (b.state === "open" ? 0 : 1))
+    .map(j => '<option value="' + escapeHtml(j.id) + '" ' + (c.jobId === j.id ? "selected" : "") + '>' + escapeHtml(j.title) + (j.state === "paused" ? " (暂停)" : "") + '</option>')
+    .join("");
 
   // 面试官头像 map：name -> { avatar, department }
   const uAvatarMap = {};
@@ -671,11 +840,11 @@ router.get("/candidates/:id", requireLogin, async (req, res) => {
 
   // 顶部操作栏
   const topActions = (feishuEnabled() ? '<button class="btn sm" onclick="sendNotify()" id="notifyBtn" style="background:rgba(59,130,246,.08);color:#1d4ed8">发送飞书通知</button>' : '') +
-    '<a class="btn" href="/candidates">返回列表</a><a class="btn" href="/candidates/board">去看板</a>' +
+    '<a class="btn" href="/candidates/board">去看板</a>' +
     (isAdmin ? '<form method="POST" action="/candidates/' + cid + '/delete" style="display:inline" onsubmit="return confirm(\'确定删除此候选人及所有关联数据？\')"><button class="btn danger sm" type="submit">删除</button></form>' : '');
 
   // "信息"tab — 所有登录用户可编辑
-  const infoPanel = '<div class="tabpanel active" id="panel-info"><div class="divider"></div><div class="grid"><div class="card compact"><div style="font-weight:900;margin-bottom:8px">编辑信息</div><div class="field"><label>姓名</label><input id="editName" value="' + escapeHtml(c.name || "") + '" /></div><div class="field"><label>手机</label><input id="editPhone" value="' + escapeHtml(c.phone || "") + '" /></div><div class="field"><label>邮箱</label><input id="editEmail" value="' + escapeHtml(c.email || "") + '" /></div><div class="field"><label>来源</label><input id="editSource" value="' + escapeHtml(c.source || "") + '" /></div><div class="field"><label>备注</label><textarea id="editNote" rows="4">' + escapeHtml(c.note || "") + '</textarea></div><button class="btn primary" onclick="saveCandidate()">保存</button></div><div class="card compact"><div style="font-weight:900;margin-bottom:8px">状态流转</div><div class="field"><label>候选人状态</label><select id="statusSelect">' + statusOptions + '</select></div><button class="btn primary" onclick="updateStatus()">更新状态</button></div></div></div>';
+  const infoPanel = '<div class="tabpanel active" id="panel-info"><div class="divider"></div><div class="grid"><div class="card compact"><div style="font-weight:900;margin-bottom:8px">编辑信息</div><div class="field"><label>姓名</label><input id="editName" value="' + escapeHtml(c.name || "") + '" /></div><div class="field"><label>手机</label><input id="editPhone" value="' + escapeHtml(c.phone || "") + '" /></div><div class="field"><label>邮箱</label><input id="editEmail" value="' + escapeHtml(c.email || "") + '" /></div><div class="field"><label>来源</label><input id="editSource" value="' + escapeHtml(c.source || "") + '" /></div><div class="field"><label>备注</label><textarea id="editNote" rows="4">' + escapeHtml(c.note || "") + '</textarea></div><button class="btn primary" onclick="saveCandidate()">保存</button></div><div class="card compact"><div style="font-weight:900;margin-bottom:8px">状态流转</div><div class="field"><label>候选人状态</label><select id="statusSelect">' + statusOptions + '</select></div><button class="btn primary" onclick="updateStatus()">更新状态</button><div class="divider" style="margin:16px 0"></div><div style="font-weight:900;margin-bottom:8px">更换岗位</div><div class="field"><label>应聘岗位</label><select id="jobSelect">' + jobOptions + '</select></div><button class="btn primary" onclick="updateJob()">更换岗位</button></div></div></div>';
 
   // "面试安排"tab — member 只显示已有安排（无新增表单和快捷按钮）
   const scheduleViewHtml = schedules.length ? schedules.map((x) => {
@@ -727,6 +896,7 @@ router.get("/candidates/:id", requireLogin, async (req, res) => {
   // 所有登录用户可用的 JS 函数
   const adminScripts = 'async function saveCandidate(){var payload={name:document.getElementById("editName").value,phone:document.getElementById("editPhone").value,email:document.getElementById("editEmail").value,source:document.getElementById("editSource").value,note:document.getElementById("editNote").value};var res=await fetch("/api/candidates/' + cid + '",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});if(res.ok)location.reload();else{var d=await res.json().catch(function(){return{}});alert(d.error||"保存失败")}}' +
       'async function updateStatus(){var v=document.getElementById("statusSelect").value;var res=await fetch("/api/candidates/' + cid + '/status",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({status:v})});if(res.ok)location.reload();else{var d=await res.json().catch(function(){return{}});alert(d.error||"更新失败")}}' +
+      'async function updateJob(){var v=document.getElementById("jobSelect").value;var res=await fetch("/api/candidates/' + cid + '/job",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({jobId:v})});if(res.ok)location.reload();else{var d=await res.json().catch(function(){return{}});alert(d.error||"更换失败")}}' +
       'var _selectedInterviewers=[];' +
       'async function loadInterviewers(){try{var r=await fetch("/api/interviewers");if(r.ok){window._allInterviewers=await r.json()}else{window._allInterviewers=[]}}catch(e){window._allInterviewers=[]}}' +
       'function ivAvatar(iv,sz){sz=sz||24;if(iv.avatar)return \'<img src="\'+iv.avatar+\'" style="width:\'+sz+\'px;height:\'+sz+\'px;border-radius:50%;object-fit:cover;flex-shrink:0">\';var colors=["#7c5cfc","#3370ff","#f5222d","#fa8c16","#52c41a","#4e7bf6"];var ci=iv.name.charCodeAt(0)%colors.length;return \'<span style="width:\'+sz+\'px;height:\'+sz+\'px;border-radius:50%;background:\'+colors[ci]+\';color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:\'+(sz*0.45)+\'px;font-weight:700;flex-shrink:0">\'+iv.name.slice(0,1)+\'</span>\'}' +
@@ -852,7 +1022,7 @@ router.get("/candidates/:id", requireLogin, async (req, res) => {
       active: "candidates",
       contentHtml:
         // 顶部操作栏
-        '<div class="row" style="margin-bottom:16px"><a class="btn" href="/candidates">← 返回列表</a><span class="spacer"></span>' + topActions + '</div>' +
+        '<div class="row" style="margin-bottom:16px"><a class="btn" href="' + escapeHtml(backUrl) + '">← ' + escapeHtml(backLabel) + '</a><span class="spacer"></span>' + topActions + '</div>' +
         // 资料卡片 — Machinepulse招聘系统风格
         '<div class="card profile-card"><div class="profile-header">' +
         '<div class="profile-avatar" style="background:linear-gradient(135deg,#3370ff,#597ef7)">' + avatarLetter + '</div>' +

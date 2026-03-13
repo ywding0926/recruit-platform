@@ -1,0 +1,6 @@
+uploads/
+data.json
+.env
+.git
+.DS_Store
+scripts/

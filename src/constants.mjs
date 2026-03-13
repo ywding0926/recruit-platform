@@ -25,6 +25,7 @@ export const INTERVIEW_STATUS = STATUS_COLS.map((x) => x.key);
 export const NEXT_ACTIONS = ["待联系", "约一面", "等面试反馈", "安排下一轮面试", "约二面", "约三面", "谈薪", "准备Offer", "发Offer", "等入职", "已结束", "其他"];
 export const JOB_CATEGORIES = ["技术", "产品", "设计", "运营", "市场", "销售", "人力", "财务", "行政", "其他"];
 export const OFFER_STATUSES = ["待发放", "已发放", "已接受", "已拒绝", "已撤回"];
+export const EMPLOYMENT_TYPES = ["社招", "实习"];
 // ====== 看板流水线阶段（精简版） ======
 export const PIPELINE_STAGES = [
   { key: "screening", name: "简历筛选", icon: "📋", color: "#8f959e", statuses: ["待筛选", "简历初筛"] },

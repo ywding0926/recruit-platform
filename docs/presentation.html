@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>MachinePulse 招聘系统 — 功能介绍</title>
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html{font-size:16px;scroll-behavior:smooth}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;background:#0f0a1a;color:#e2e0f0;overflow-x:hidden}
+
+/* ===== Slide Layout ===== */
+.slide{min-height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:60px 40px;position:relative;overflow:hidden}
+.slide:nth-child(odd){background:linear-gradient(160deg,#0f0a1a 0%,#1a1035 100%)}
+.slide:nth-child(even){background:linear-gradient(160deg,#1a1035 0%,#0f0a1a 100%)}
+.slide-inner{max-width:1100px;width:100%;z-index:1}
+
+/* ===== Cover Slide ===== */
+.cover{text-align:center;background:linear-gradient(160deg,#1a0536 0%,#0f0a1a 40%,#0d1b2a 100%)}
+.cover h1{font-size:3rem;font-weight:800;background:linear-gradient(135deg,#c084fc,#818cf8,#60a5fa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:16px;letter-spacing:2px}
+.cover .subtitle{font-size:1.3rem;color:#a78bfa;font-weight:500;margin-bottom:8px}
+.cover .meta{font-size:0.95rem;color:#6b7280;margin-top:24px}
+.cover .divider{width:80px;height:4px;background:linear-gradient(90deg,#7c3aed,#60a5fa);border-radius:2px;margin:24px auto}
+
+/* ===== Section Title ===== */
+.section-tag{display:inline-block;background:rgba(124,58,237,0.2);color:#a78bfa;font-size:0.8rem;font-weight:700;letter-spacing:3px;text-transform:uppercase;padding:6px 16px;border-radius:20px;border:1px solid rgba(124,58,237,0.3);margin-bottom:20px}
+.slide h2{font-size:2.2rem;font-weight:700;color:#f5f3ff;margin-bottom:12px;line-height:1.3}
+.slide h2 span{background:linear-gradient(135deg,#c084fc,#818cf8);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.slide h3{font-size:1.4rem;font-weight:600;color:#c4b5fd;margin:28px 0 12px}
+.slide p.desc{font-size:1.05rem;color:#a5a3b8;line-height:1.8;max-width:800px;margin-bottom:24px}
+
+/* ===== Cards Grid ===== */
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;margin-top:24px}
+.card{background:rgba(255,255,255,0.04);border:1px solid rgba(124,58,237,0.15);border-radius:16px;padding:28px 24px;transition:all .3s;position:relative;overflow:hidden}
+.card:hover{border-color:rgba(124,58,237,0.4);background:rgba(124,58,237,0.06);transform:translateY(-2px)}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#7c3aed,#60a5fa);opacity:0;transition:opacity .3s}
+.card:hover::before{opacity:1}
+.card .icon{font-size:2rem;margin-bottom:12px}
+.card h4{font-size:1.1rem;font-weight:600;color:#e9d5ff;margin-bottom:8px}
+.card p{font-size:0.9rem;color:#8b89a3;line-height:1.6}
+
+/* ===== Architecture Diagram ===== */
+.arch-diagram{background:rgba(255,255,255,0.03);border:1px solid rgba(124,58,237,0.2);border-radius:20px;padding:40px;margin:28px 0;overflow-x:auto}
+.arch-row{display:flex;justify-content:center;align-items:center;gap:24px;margin:16px 0;flex-wrap:wrap}
+.arch-box{background:rgba(124,58,237,0.12);border:1px solid rgba(124,58,237,0.3);border-radius:14px;padding:20px 28px;text-align:center;min-width:200px;position:relative;transition:all .3s}
+.arch-box:hover{background:rgba(124,58,237,0.2);border-color:#7c3aed}
+.arch-box.primary{background:linear-gradient(135deg,rgba(124,58,237,0.25),rgba(99,102,241,0.2));border-color:#7c3aed}
+.arch-box.green{background:rgba(52,199,36,0.1);border-color:rgba(52,199,36,0.3)}
+.arch-box.green:hover{background:rgba(52,199,36,0.15);border-color:#34c724}
+.arch-box.blue{background:rgba(96,165,250,0.1);border-color:rgba(96,165,250,0.3)}
+.arch-box.blue:hover{background:rgba(96,165,250,0.15);border-color:#60a5fa}
+.arch-box.orange{background:rgba(255,125,0,0.1);border-color:rgba(255,125,0,0.3)}
+.arch-box.orange:hover{background:rgba(255,125,0,0.15);border-color:#ff7d00}
+.arch-box .box-icon{font-size:1.8rem;margin-bottom:6px}
+.arch-box .box-title{font-size:1rem;font-weight:700;color:#f5f3ff}
+.arch-box .box-sub{font-size:0.78rem;color:#8b89a3;margin-top:4px}
+.arch-arrow{font-size:1.6rem;color:#7c3aed;font-weight:bold;flex-shrink:0}
+.arch-arrow.down{transform:rotate(90deg)}
+.arch-label{background:rgba(124,58,237,0.15);color:#c4b5fd;font-size:0.75rem;font-weight:600;padding:4px 12px;border-radius:12px;white-space:nowrap}
+
+/* ===== Flow Steps ===== */
+.flow{display:flex;flex-direction:column;gap:0;margin:24px 0}
+.flow-step{display:flex;align-items:flex-start;gap:20px;padding:20px 0;position:relative}
+.flow-step:not(:last-child)::after{content:'';position:absolute;left:23px;top:56px;bottom:0;width:2px;background:linear-gradient(to bottom,#7c3aed,rgba(124,58,237,0.1))}
+.flow-num{width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#6d28d9);display:flex;align-items:center;justify-content:center;font-size:1.1rem;font-weight:700;color:#fff;flex-shrink:0;box-shadow:0 0 20px rgba(124,58,237,0.3);z-index:1}
+.flow-content h4{font-size:1.05rem;font-weight:600;color:#e9d5ff;margin-bottom:4px}
+.flow-content p{font-size:0.9rem;color:#8b89a3;line-height:1.6}
+.flow-content code{background:rgba(124,58,237,0.15);color:#c4b5fd;padding:2px 8px;border-radius:4px;font-size:0.82rem;font-family:"SF Mono",Menlo,monospace}
+
+/* ===== Feature List ===== */
+.features{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:20px 0}
+.feat{display:flex;align-items:center;gap:10px;padding:10px 16px;background:rgba(255,255,255,0.03);border-radius:10px;border:1px solid rgba(255,255,255,0.05)}
+.feat .check{color:#34c724;font-size:1.1rem;flex-shrink:0}
+.feat span{font-size:0.9rem;color:#c4b5fd}
+
+/* ===== Data Flow Box ===== */
+.data-flow{background:rgba(255,255,255,0.03);border:1px solid rgba(124,58,237,0.15);border-radius:16px;padding:28px;margin:20px 0}
+.data-flow h4{font-size:1rem;font-weight:600;color:#a78bfa;margin-bottom:12px}
+.data-flow .pipe{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:8px 0}
+.data-flow .pipe-node{background:rgba(124,58,237,0.15);border:1px solid rgba(124,58,237,0.25);padding:8px 16px;border-radius:10px;font-size:0.85rem;color:#e9d5ff;font-weight:500;white-space:nowrap}
+.data-flow .pipe-node.highlight{background:linear-gradient(135deg,rgba(124,58,237,0.3),rgba(99,102,241,0.2));border-color:#7c3aed;color:#fff}
+.data-flow .pipe-arrow{color:#6d28d9;font-weight:bold;font-size:1.2rem}
+
+/* ===== Two Column ===== */
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:32px;margin:20px 0}
+.col-box{background:rgba(255,255,255,0.03);border:1px solid rgba(124,58,237,0.15);border-radius:16px;padding:28px}
+.col-box h4{font-size:1.1rem;font-weight:600;color:#c4b5fd;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.col-box ul{list-style:none;padding:0}
+.col-box li{padding:6px 0;font-size:0.9rem;color:#a5a3b8;display:flex;align-items:center;gap:8px}
+.col-box li::before{content:'›';color:#7c3aed;font-weight:bold;font-size:1.1rem}
+
+/* ===== Highlight Box ===== */
+.highlight-box{background:linear-gradient(135deg,rgba(124,58,237,0.15),rgba(96,165,250,0.08));border:1px solid rgba(124,58,237,0.25);border-radius:16px;padding:28px 32px;margin:20px 0}
+.highlight-box h4{color:#c4b5fd;font-size:1.05rem;font-weight:600;margin-bottom:10px}
+.highlight-box p{color:#a5a3b8;font-size:0.92rem;line-height:1.7}
+
+/* ===== Table ===== */
+.slide table{width:100%;border-collapse:separate;border-spacing:0;margin:20px 0;font-size:0.9rem;border-radius:12px;overflow:hidden;border:1px solid rgba(124,58,237,0.2)}
+.slide th{background:rgba(124,58,237,0.2);color:#c4b5fd;font-weight:600;padding:12px 16px;text-align:left}
+.slide td{padding:10px 16px;border-top:1px solid rgba(255,255,255,0.04);color:#a5a3b8}
+.slide tr:hover td{background:rgba(124,58,237,0.05)}
+
+/* ===== Nav Dots ===== */
+.nav-dots{position:fixed;right:20px;top:50%;transform:translateY(-50%);z-index:999;display:flex;flex-direction:column;gap:8px}
+.nav-dot{width:10px;height:10px;border-radius:50%;background:rgba(124,58,237,0.3);border:none;cursor:pointer;transition:all .3s;padding:0}
+.nav-dot.active{background:#7c3aed;box-shadow:0 0 10px rgba(124,58,237,0.5);transform:scale(1.3)}
+.nav-dot:hover{background:#7c3aed}
+
+/* ===== Slide Number ===== */
+.slide-num{position:absolute;bottom:24px;right:32px;font-size:0.8rem;color:rgba(124,58,237,0.4);font-weight:600}
+
+/* ===== Responsive ===== */
+@media(max-width:768px){
+  .slide{padding:40px 20px}
+  .cover h1{font-size:2rem}
+  .slide h2{font-size:1.6rem}
+  .two-col,.features{grid-template-columns:1fr}
+  .arch-row{flex-direction:column}
+  .arch-arrow{transform:rotate(90deg)!important}
+  .nav-dots{display:none}
+}
+</style>
+</head>
+<body>
+
+<!-- Nav Dots -->
+<div class="nav-dots" id="navDots"></div>
+
+<!-- ==================== SLIDE 1: COVER ==================== -->
+<div class="slide cover" id="s1">
+  <div class="slide-inner">
+    <div class="section-tag">MachinePulse</div>
+    <h1>招聘管理系统</h1>
+    <div class="divider"></div>
+    <p class="subtitle">一站式招聘协作平台 — 功能介绍与技术架构</p>
+    <p class="meta">系统版本 v1.0 &nbsp;·&nbsp; 2026年3月</p>
+  </div>
+  <div class="slide-num">1</div>
+</div>
+
+<!-- ==================== SLIDE 2: OVERVIEW ==================== -->
+<div class="slide" id="s2">
+  <div class="slide-inner">
+    <div class="section-tag">Overview</div>
+    <h2>系统<span>全景概览</span></h2>
+    <p class="desc">覆盖从候选人录入到入职的完整招聘生命周期，深度集成飞书生态。</p>
+    <div class="cards">
+      <div class="card">
+        <div class="icon">👥</div>
+        <h4>候选人管理</h4>
+        <p>16阶段状态流水线，支持列表、看板双视图，实时搜索与筛选，Excel 批量导入/导出</p>
+      </div>
+      <div class="card">
+        <div class="icon">📋</div>
+        <h4>面试管理</h4>
+        <p>最多5轮面试安排，面试官在线评分（S/A/B+/B/B-/C），评价自动推进状态</p>
+      </div>
+      <div class="card">
+        <div class="icon">📝</div>
+        <h4>Offer 管理</h4>
+        <p>Offer 全生命周期管理：待发放 → 已发放 → 已接受/已拒绝/已撤回</p>
+      </div>
+      <div class="card">
+        <div class="icon">🌐</div>
+        <h4>官网打通</h4>
+        <p>与 Careers 官网双向集成，15分钟自动同步 + Webhook 实时推送，候选人自动入库</p>
+      </div>
+      <div class="card">
+        <div class="icon">🤝</div>
+        <h4>猎头协作</h4>
+        <p>猎头专属门户，API Key 认证，独立投递与进度追踪</p>
+      </div>
+      <div class="card">
+        <div class="icon">💬</div>
+        <h4>飞书集成</h4>
+        <p>SSO 扫码登录、面试通知、日历同步、任务创建、评价提醒</p>
+      </div>
+    </div>
+  </div>
+  <div class="slide-num">2</div>
+</div>
+
+<!-- ==================== SLIDE 3: ARCHITECTURE ==================== -->
+<div class="slide" id="s3">
+  <div class="slide-inner">
+    <div class="section-tag">Architecture</div>
+    <h2>系统<span>技术架构</span></h2>
+    <p class="desc">招聘系统作为核心中枢，连接官网、飞书、云存储三大外部系统。</p>
+    <div class="arch-diagram">
+      <!-- Row 1: External Systems -->
+      <div class="arch-row">
+        <div class="arch-box green">
+          <div class="box-icon">🌐</div>
+          <div class="box-title">Careers 招聘官网</div>
+          <div class="box-sub">machinepulse-careers.vercel.app</div>
+          <div class="box-sub">公开职位展示 · 候选人投递入口</div>
+        </div>
+        <div class="arch-box blue">
+          <div class="box-icon">📊</div>
+          <div class="box-title">Careers 管理后台</div>
+          <div class="box-sub">careers-management.vercel.app</div>
+          <div class="box-sub">投递数据管理 · 简历存储</div>
+        </div>
+        <div class="arch-box orange">
+          <div class="box-icon">💬</div>
+          <div class="box-title">飞书 / Lark</div>
+          <div class="box-sub">SSO · 通知 · 日历 · 任务</div>
+        </div>
+      </div>
+
+      <!-- Arrows -->
+      <div class="arch-row" style="gap:60px">
+        <div style="text-align:center">
+          <div class="arch-arrow down">⬇</div>
+          <div class="arch-label">Webhook 实时推送</div>
+        </div>
+        <div style="text-align:center">
+          <div class="arch-arrow down">⬇</div>
+          <div class="arch-label">定时拉取（15分钟）</div>
+        </div>
+        <div style="text-align:center">
+          <div class="arch-arrow down">⬆⬇</div>
+          <div class="arch-label">API 双向通信</div>
+        </div>
+      </div>
+
+      <!-- Row 2: Core System -->
+      <div class="arch-row">
+        <div class="arch-box primary" style="min-width:500px;padding:28px 40px">
+          <div class="box-icon">🏢</div>
+          <div class="box-title" style="font-size:1.2rem">MachinePulse 招聘管理系统</div>
+          <div class="box-sub" style="font-size:0.85rem;margin-top:8px">
+            候选人管理 · 面试调度 · Offer管理 · 看板 · 猎头门户 · 设置
+          </div>
+        </div>
+      </div>
+
+      <!-- Row 3: Storage -->
+      <div class="arch-row">
+        <div class="arch-arrow down">⬇</div>
+      </div>
+      <div class="arch-row">
+        <div class="arch-box">
+          <div class="box-icon">🗄️</div>
+          <div class="box-title">Supabase</div>
+          <div class="box-sub">PostgreSQL 数据库 + 简历文件存储</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="slide-num">3</div>
+</div>
+
+<!-- ==================== SLIDE 4: CAREERS SYNC - KEY SLIDE ==================== -->
+<div class="slide" id="s4">
+  <div class="slide-inner">
+    <div class="section-tag">Core Feature</div>
+    <h2>官网 × 招聘系统<span>打通机制</span></h2>
+    <p class="desc">双通道设计：定时同步 + 实时 Webhook，确保候选人零遗漏、零延迟地进入招聘流水线。</p>
+
+    <div class="two-col">
+      <div class="col-box">
+        <h4>⏱️ 通道一：定时同步（Pull 模式）</h4>
+        <ul>
+          <li>每 <strong style="color:#a78bfa">15 分钟</strong> 自动执行一次</li>
+          <li>从 Careers 管理后台拉取全量投递数据</li>
+          <li>三重去重：careersAppId → 姓名+手机 → 姓名+邮箱</li>
+          <li>自动匹配本地职位（关键词映射表）</li>
+          <li>未匹配的职位自动创建</li>
+          <li>下载简历并存储到 Supabase</li>
+          <li>通过飞书通知 HR 有新候选人</li>
+          <li>管理员可在设置页手动触发</li>
+        </ul>
+      </div>
+      <div class="col-box">
+        <h4>⚡ 通道二：Webhook（Push 模式）</h4>
+        <ul>
+          <li>候选人投递后 <strong style="color:#a78bfa">实时</strong> 推送到系统</li>
+          <li>Careers 官网提交表单后自动触发</li>
+          <li>通过 X-Webhook-Secret 密钥验证安全性</li>
+          <li>同样执行三重去重逻辑</li>
+          <li>同样自动匹配/创建职位</li>
+          <li>异步下载简历（不阻塞响应）</li>
+          <li>飞书实时通知 HR</li>
+          <li>适合 Vercel 无服务器环境</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="highlight-box">
+      <h4>💡 为什么用双通道？</h4>
+      <p><strong>Webhook</strong> 保证实时性——候选人投递后几秒内 HR 就能看到。<strong>定时同步</strong> 作为兜底——即使 Webhook 偶尔失败（网络问题/服务重启），15分钟后也会自动补齐，确保不会遗漏任何候选人。两者配合，实现 <strong>零丢失</strong> 的数据同步。</p>
+    </div>
+  </div>
+  <div class="slide-num">4</div>
+</div>
+
+<!-- ==================== SLIDE 5: SYNC FLOW DETAIL ==================== -->
+<div class="slide" id="s5">
+  <div class="slide-inner">
+    <div class="section-tag">Deep Dive</div>
+    <h2>定时同步<span>技术流程</span></h2>
+    <p class="desc">从登录认证到候选人入库，完整的 7 步同步流水线。</p>
+
+    <div class="flow">
+      <div class="flow-step">
+        <div class="flow-num">1</div>
+        <div class="flow-content">
+          <h4>认证登录 Careers 管理后台</h4>
+          <p>系统自动使用预设的账号密码，通过 <code>POST /api/login</code> 获取 Session Cookie，建立安全连接。</p>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">2</div>
+        <div class="flow-content">
+          <h4>拉取官网职位列表</h4>
+          <p>调用 <code>GET /api/jobs</code> 获取 Careers 官网所有在招职位，提取部门、地点等信息用于后续匹配。</p>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">3</div>
+        <div class="flow-content">
+          <h4>拉取全量投递数据</h4>
+          <p>调用 <code>GET /api/admin/applications</code> 获取所有候选人投递记录，包含姓名、联系方式、应聘岗位等。</p>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">4</div>
+        <div class="flow-content">
+          <h4>三重去重检查</h4>
+          <p>依次检查：① <code>careersAppId</code> 是否已存在 → ② 姓名+手机是否匹配 → ③ 姓名+邮箱是否匹配。已存在则跳过，避免重复导入。</p>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">5</div>
+        <div class="flow-content">
+          <h4>智能职位映射</h4>
+          <p>通过关键词映射表将官网职位名称匹配到系统内部职位。例如 "AI product manager" → "AI产品经理"。无法匹配时自动创建新职位。</p>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">6</div>
+        <div class="flow-content">
+          <h4>创建候选人 + 下载简历</h4>
+          <p>在系统中创建候选人记录（状态：<code>待筛选</code>，来源：<code>官网投递</code>），同时从管理后台下载简历 PDF 存入 Supabase 云存储。</p>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">7</div>
+        <div class="flow-content">
+          <h4>飞书通知 HR</h4>
+          <p>通过飞书 API 向对应岗位负责人（或全体管理员）发送消息，包含候选人信息和系统链接，HR 可立即开始处理。</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="slide-num">5</div>
+</div>
+
+<!-- ==================== SLIDE 6: DATA FLOW ==================== -->
+<div class="slide" id="s6">
+  <div class="slide-inner">
+    <div class="section-tag">Data Flow</div>
+    <h2>候选人<span>全链路数据流</span></h2>
+    <p class="desc">从候选人在官网投递，到 HR 收到通知开始处理，全流程可视化。</p>
+
+    <div class="data-flow">
+      <h4>场景 A：实时链路（Webhook）—— 秒级响应</h4>
+      <div class="pipe">
+        <div class="pipe-node">🧑 候选人</div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-node">🌐 官网填写表单</div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-node">📤 Webhook POST</div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-node highlight">🏢 招聘系统处理</div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-node">💬 飞书通知 HR</div>
+      </div>
+    </div>
+
+    <div class="data-flow">
+      <h4>场景 B：定时同步链路 —— 15分钟兜底</h4>
+      <div class="pipe">
+        <div class="pipe-node">🧑 候选人投递</div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-node">📊 管理后台存储</div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-node">⏱️ 15分钟定时器</div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-node highlight">🏢 Pull 拉取+去重</div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-node">💬 飞书通知 HR</div>
+      </div>
+    </div>
+
+    <div class="data-flow">
+      <h4>场景 C：HR 手动同步</h4>
+      <div class="pipe">
+        <div class="pipe-node">👩‍💼 HR 点击"立即同步"</div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-node highlight">🏢 全量拉取+处理</div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-node">📊 显示同步结果</div>
+      </div>
+    </div>
+
+    <div class="highlight-box" style="margin-top:28px">
+      <h4>🔗 数据关联</h4>
+      <p>每位从官网同步来的候选人都会带有 <code style="background:rgba(124,58,237,0.2);color:#c4b5fd;padding:2px 8px;border-radius:4px">careersAppId</code> 字段，作为与官网数据的唯一关联标识。同时来源字段会标记为 <strong>"官网投递"</strong>，如有推荐码则显示为"官网投递(推荐码:xxx)"。</p>
+    </div>
+  </div>
+  <div class="slide-num">6</div>
+</div>
+
+<!-- ==================== SLIDE 7: PIPELINE ==================== -->
+<div class="slide" id="s7">
+  <div class="slide-inner">
+    <div class="section-tag">Pipeline</div>
+    <h2>16阶段<span>招聘流水线</span></h2>
+    <p class="desc">官网候选人进入系统后，按照标准化流水线推进，每一步都可追溯。</p>
+
+    <div class="data-flow">
+      <h4>完整状态流转</h4>
+      <div class="pipe" style="justify-content:center">
+        <div class="pipe-node highlight">待筛选</div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-node">简历初筛</div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-node">待一面</div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-node">一面通过</div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-node">...</div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-node">待发Offer</div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-node">Offer发放</div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-node" style="background:rgba(52,199,36,0.15);border-color:rgba(52,199,36,0.3)">入职 ✅</div>
+      </div>
+      <div style="text-align:center;margin-top:12px">
+        <span style="color:#f54a45;font-size:0.85rem">↘ 任意阶段均可 → <strong>淘汰</strong></span>
+      </div>
+    </div>
+
+    <div class="two-col" style="margin-top:28px">
+      <div class="col-box">
+        <h4>📋 流水线视图（6列聚合）</h4>
+        <ul>
+          <li>简历筛选（待筛选 + 简历初筛）</li>
+          <li>面试中（待一面 ~ 五面通过）</li>
+          <li>待发Offer</li>
+          <li>Offer已发</li>
+          <li>已入职</li>
+          <li>淘汰</li>
+        </ul>
+      </div>
+      <div class="col-box">
+        <h4>🔍 状态视图（16列详细）</h4>
+        <ul>
+          <li>每个状态独立一列</li>
+          <li>支持横向滚动查看</li>
+          <li>卡片快捷按钮：推进/淘汰</li>
+          <li>鼠标悬浮显示操作按钮</li>
+          <li>点击卡片进入详情页</li>
+          <li>按岗位筛选</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="slide-num">7</div>
+</div>
+
+<!-- ==================== SLIDE 8: FEISHU INTEGRATION ==================== -->
+<div class="slide" id="s8">
+  <div class="slide-inner">
+    <div class="section-tag">Integration</div>
+    <h2>飞书<span>深度集成</span></h2>
+    <p class="desc">系统与飞书全面打通，让招聘协作在飞书中无缝流转。</p>
+
+    <div class="cards">
+      <div class="card">
+        <div class="icon">🔐</div>
+        <h4>SSO 扫码登录</h4>
+        <p>飞书 OAuth 授权，扫码即登录，自动关联飞书用户与系统账号，无需额外注册</p>
+      </div>
+      <div class="card">
+        <div class="icon">🔔</div>
+        <h4>实时消息通知</h4>
+        <p>面试安排、面评提交、官网新投递等关键事件自动推送飞书消息给相关人员</p>
+      </div>
+      <div class="card">
+        <div class="icon">📅</div>
+        <h4>日历同步</h4>
+        <p>安排面试时自动在面试官飞书日历创建事件，包含候选人信息和会议链接</p>
+      </div>
+      <div class="card">
+        <div class="icon">✅</div>
+        <h4>任务协同</h4>
+        <p>自动在飞书创建待办任务，支持设置到期时间，确保面试评价不遗漏</p>
+      </div>
+      <div class="card">
+        <div class="icon">📨</div>
+        <h4>面评链接</h4>
+        <p>面试官收到飞书通知后点击链接，无需登录系统即可直接提交面试评价</p>
+      </div>
+      <div class="card">
+        <div class="icon">👥</div>
+        <h4>通讯录同步</h4>
+        <p>从飞书组织架构同步员工信息，面试官选择和用户管理自动对齐</p>
+      </div>
+    </div>
+  </div>
+  <div class="slide-num">8</div>
+</div>
+
+<!-- ==================== SLIDE 9: ROLE PERMISSIONS ==================== -->
+<div class="slide" id="s9">
+  <div class="slide-inner">
+    <div class="section-tag">Roles</div>
+    <h2>角色与<span>权限设计</span></h2>
+    <p class="desc">三种角色，各司其职。</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>功能模块</th>
+          <th>管理员 (Admin)</th>
+          <th>成员 / 面试官</th>
+          <th>猎头 (Portal)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>首页仪表盘</td><td>✅ 全量数据</td><td>✅ 受限数据</td><td>❌</td></tr>
+        <tr><td>候选人管理</td><td>✅ 全部 CRUD</td><td>👁️ 仅查看分配岗位</td><td>❌</td></tr>
+        <tr><td>看板视图</td><td>✅ 全部操作</td><td>👁️ 只读</td><td>❌</td></tr>
+        <tr><td>面试安排</td><td>✅ 创建/修改</td><td>👁️ 查看自己的</td><td>❌</td></tr>
+        <tr><td>提交面评</td><td>✅</td><td>✅ 核心操作</td><td>❌</td></tr>
+        <tr><td>职位管理</td><td>✅</td><td>❌</td><td>👁️ 查看在招</td></tr>
+        <tr><td>Offer 管理</td><td>✅</td><td>❌</td><td>❌</td></tr>
+        <tr><td>推荐候选人</td><td>✅</td><td>❌</td><td>✅ 核心操作</td></tr>
+        <tr><td>系统设置</td><td>✅</td><td>❌</td><td>❌</td></tr>
+        <tr><td>官网同步</td><td>✅ 手动触发</td><td>❌</td><td>❌</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="slide-num">9</div>
+</div>
+
+<!-- ==================== SLIDE 10: SUMMARY ==================== -->
+<div class="slide cover" id="s10">
+  <div class="slide-inner" style="max-width:700px">
+    <div class="section-tag">Summary</div>
+    <h2 style="font-size:2rem;margin-bottom:24px">核心<span>技术亮点</span></h2>
+    <div class="features" style="grid-template-columns:1fr;max-width:600px;margin:0 auto">
+      <div class="feat"><span class="check">✦</span><span><strong>官网双通道同步</strong> — Webhook 实时推送 + 15分钟定时拉取，零丢失</span></div>
+      <div class="feat"><span class="check">✦</span><span><strong>智能去重</strong> — 三级去重机制（ID / 姓名+手机 / 姓名+邮箱）</span></div>
+      <div class="feat"><span class="check">✦</span><span><strong>职位自动映射</strong> — 关键词表匹配 + 不存在自动创建</span></div>
+      <div class="feat"><span class="check">✦</span><span><strong>飞书全生态打通</strong> — SSO / 通知 / 日历 / 任务 / 面评链接</span></div>
+      <div class="feat"><span class="check">✦</span><span><strong>16阶段流水线</strong> — 标准化招聘流程，看板可视化管理</span></div>
+      <div class="feat"><span class="check">✦</span><span><strong>猎头门户</strong> — 独立入口，API Key 认证，自助投递与进度追踪</span></div>
+      <div class="feat"><span class="check">✦</span><span><strong>简历云存储</strong> — Supabase 持久化存储，签名 URL 安全访问</span></div>
+    </div>
+    <div class="divider" style="margin-top:36px"></div>
+    <p class="meta" style="margin-top:16px">MachinePulse Recruitment Platform &nbsp;·&nbsp; Built with Node.js + Supabase + Feishu</p>
+  </div>
+  <div class="slide-num">10</div>
+</div>
+
+<script>
+// Navigation dots
+const slides = document.querySelectorAll('.slide');
+const dotsContainer = document.getElementById('navDots');
+slides.forEach((s, i) => {
+  const dot = document.createElement('button');
+  dot.className = 'nav-dot' + (i === 0 ? ' active' : '');
+  dot.onclick = () => s.scrollIntoView({ behavior: 'smooth' });
+  dotsContainer.appendChild(dot);
+});
+
+// Update active dot on scroll
+const observer = new IntersectionObserver(entries => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      const idx = Array.from(slides).indexOf(entry.target);
+      document.querySelectorAll('.nav-dot').forEach((d, i) => d.classList.toggle('active', i === idx));
+    }
+  });
+}, { threshold: 0.5 });
+slides.forEach(s => observer.observe(s));
+</script>
+</body>
+</html>

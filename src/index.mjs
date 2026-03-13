@@ -24,6 +24,7 @@ import resumeApiRouter from "./routes/resumeApi.mjs";
 import openApiRouter from "./routes/openApi.mjs";
 import headhuntersRouter from "./routes/headhunters.mjs";
 import portalRouter from "./routes/portal.mjs";
+import referralRouter from "./routes/referral.mjs";
 import { registerErrorHandler } from "./routes/errorHandler.mjs";
 
 // ====== 定时任务 ======
@@ -80,6 +81,7 @@ app.use(resumeApiRouter);
 app.use(openApiRouter);
 app.use(headhuntersRouter);
 app.use(portalRouter);
+app.use(referralRouter);
 app.use(careersSyncRouter);
 
 // ====== 全局错误处理 ======
