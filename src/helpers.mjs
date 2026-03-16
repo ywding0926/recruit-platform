@@ -183,7 +183,9 @@ export async function saveResumeSupabaseOrLocal(d, candidateId, file, actorName)
 
 export async function refreshResumeUrlIfNeeded(resumeMeta) {
   if (!resumeMeta) return null;
-  if (resumeMeta.storage !== "supabase") return resumeMeta;
+  // 兼容 storage 字段可能是 "local" 但实际 URL 指向 supabase 的历史数据
+  const isSupabase = resumeMeta.storage === "supabase" || (resumeMeta.url && resumeMeta.url.includes("supabase.co"));
+  if (!isSupabase) return resumeMeta;
   try {
     const supabase = getSupabaseAdmin();
     const bucket = resumeMeta.bucket || getBucketName();

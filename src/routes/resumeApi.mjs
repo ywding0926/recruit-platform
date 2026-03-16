@@ -102,6 +102,42 @@ router.post("/api/candidates/:id/resume-meta", requireLogin, async (req, res) =>
   }
 });
 
+// 实时获取简历的新 signed URL（解决过期问题）
+router.get("/api/candidates/:id/resume-url", requireLogin, async (req, res) => {
+  try {
+    const d = await loadData();
+    const c = d.candidates.find((x) => x.id === req.params.id);
+    if (!c) return res.status(404).json({ error: "candidate_not_found" });
+
+    var resume = d.resumeFiles
+      .filter((r) => r.candidateId === c.id && r.url)
+      .sort((a, b) => (b.uploadedAt || "").localeCompare(a.uploadedAt || ""))[0];
+
+    if (!resume) return res.json({ ok: true, resume: null });
+
+    // 如果文件在 supabase 存储中，实时生成新的 signed URL
+    // 兼容 storage 字段可能是 "local" 但实际 URL 指向 supabase 的历史数据
+    const isSupabaseResume = resume.filename && (resume.storage === "supabase" || (resume.url && resume.url.includes("supabase.co")));
+    if (isSupabaseResume) {
+      const supabase = getSupabaseAdmin();
+      const bucket = resume.bucket || getBucketName();
+      if (supabase && bucket) {
+        const { data: signed, error: signErr } = await supabase.storage
+          .from(bucket)
+          .createSignedUrl(resume.filename, getSignedUrlExpiresIn());
+        if (!signErr && signed?.signedUrl) {
+          resume = { ...resume, url: signed.signedUrl };
+        }
+      }
+    }
+
+    res.json({ ok: true, resume });
+  } catch (e) {
+    console.error("[Resume] resume-url error:", e.message);
+    res.status(500).json({ error: String(e?.message || "unknown") });
+  }
+});
+
 // 兼容旧版：通过服务端中转上传（本地开发用）
 router.post("/api/candidates/:id/resume", requireLogin, upload.single("resume"), async (req, res) => {
   const d = await loadData();

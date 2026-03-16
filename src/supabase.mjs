@@ -12,8 +12,8 @@ export function getBucketName() {
 }
 
 export function getSignedUrlExpiresIn() {
-  const n = Number(process.env.SUPABASE_SIGNED_URL_EXPIRES || 3600);
-  return Number.isFinite(n) && n > 0 ? n : 3600;
+  const n = Number(process.env.SUPABASE_SIGNED_URL_EXPIRES || 604800);
+  return Number.isFinite(n) && n > 0 ? n : 604800; // 默认 7 天
 }
 
 // 缓存实例，避免重复创建

@@ -578,8 +578,28 @@ router.get("/candidates", requireLogin, async (req, res) => {
     return true;
   });
 
-  // 按入库时间倒序排列（最新在前）
-  filtered.sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
+  // 按状态流程排序：流程越靠后越靠前，淘汰/暂不推进排最后
+  const STATUS_PRIORITY = {
+    "已入职": 0, "入职": 0,
+    "已发Offer": 1, "Offer发放": 1, "待发offer": 2,
+    "谈薪中": 3,
+    "五面通过": 4, "待五面": 5,
+    "四面通过": 6, "待四面": 7,
+    "三面通过": 8, "待三面": 9,
+    "二面通过": 10, "待二面": 11,
+    "一面通过": 12, "待一面": 13,
+    "面试中": 14,
+    "待跟进": 15,
+    "简历初筛": 16, "待筛选": 17,
+    "已淘汰": 90, "淘汰": 90, "暂不推进": 91,
+    "已录用": 0,
+  };
+  filtered.sort((a, b) => {
+    const pa = STATUS_PRIORITY[a.status] ?? 50;
+    const pb = STATUS_PRIORITY[b.status] ?? 50;
+    if (pa !== pb) return pa - pb;
+    return (b.createdAt || "").localeCompare(a.createdAt || "");
+  });
 
   // 候选人详情页的来源参数（用于返回时回到正确页面）
   const detailFromParam = jobId ? "?from=job:" + encodeURIComponent(jobId) : "";
@@ -877,8 +897,8 @@ router.get("/candidates/:id", requireLogin, async (req, res) => {
       (feishuEnabled() ? '<div class="field" style="margin-bottom:12px"><label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="checkbox" id="scSyncCalendar" style="width:auto" checked /> 同步到飞书日历（面试官个人日历）</label></div>' : '') +
       '<button class="btn primary" onclick="saveSchedule()" style="width:100%">保存面试安排</button></div><div style="height:12px"></div>' + scheduleHtml + '</div>';
 
-  // "简历"tab — 所有登录用户可上传
-  const resumePanel = '<div class="tabpanel" id="panel-resume"><div class="divider"></div><div class="row"><div style="font-weight:900">上传简历</div><span class="spacer"></span>' + (resume?.url ? '<a class="btn" href="' + escapeHtml(resume.url) + '" target="_blank" rel="noreferrer">新窗口打开</a>' : '') + '</div><div class="divider"></div><form id="resumeUploadForm" enctype="multipart/form-data"><div class="row"><input type="file" name="resume" accept=".pdf,.png,.jpg,.jpeg,.webp" /><button class="btn primary" type="submit">上传</button></div></form><div class="divider"></div>' + resumeEmbedHtml(resume) + '</div>';
+  // "简历"tab — 所有登录用户可上传（简历预览区域由前端动态加载新 URL，避免 signed URL 过期）
+  const resumePanel = '<div class="tabpanel" id="panel-resume"><div class="divider"></div><div class="row"><div style="font-weight:900">上传简历</div><span class="spacer"></span><a class="btn" id="resumeNewWindowBtn" href="#" target="_blank" rel="noreferrer" style="display:none">新窗口打开</a></div><div class="divider"></div><form id="resumeUploadForm" enctype="multipart/form-data"><div class="row"><input type="file" name="resume" accept=".pdf,.png,.jpg,.jpeg,.webp" /><button class="btn primary" type="submit">上传</button></div></form><div class="divider"></div><div id="resumePreviewArea"><div class="muted" style="text-align:center;padding:32px 0">加载简历中...</div></div></div>';
 
   // "面评"tab — 所有角色都可提交面评
   const reviewHtmlEnhanced = reviews.length ? reviews.map((x) => {
@@ -891,6 +911,33 @@ router.get("/candidates/:id", requireLogin, async (req, res) => {
 
   // "Offer"tab — 所有登录用户可编辑
   const offerPanel = '<div class="tabpanel" id="panel-offer"><div class="divider"></div>' + offerHtml + '</div>';
+
+  // "备注"tab — 消息式备注，支持公开/私密 + @提及
+  const notesPanel = '<div class="tabpanel" id="panel-notes"><div class="divider"></div>' +
+    '<div id="notesList" style="min-height:120px;max-height:480px;overflow-y:auto;padding:8px 0">' +
+    '<div class="muted" style="text-align:center;padding:32px 0" id="notesEmpty">加载中...</div>' +
+    '</div>' +
+    '<div style="border-top:1px solid #f0f0f0;padding:12px 0 0">' +
+    '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">' +
+    '<div style="display:flex;align-items:center;gap:4px;background:#f5f5f5;border-radius:8px;padding:2px">' +
+    '<button id="noteVisPublic" class="btn sm" onclick="setNoteVis(\'public\')" style="background:#3370ff;color:#fff;border-radius:6px;font-size:12px;padding:4px 10px">所有人可见</button>' +
+    '<button id="noteVisPrivate" class="btn sm" onclick="setNoteVis(\'private\')" style="background:transparent;color:#666;border-radius:6px;font-size:12px;padding:4px 10px">仅自己可见</button>' +
+    '</div>' +
+    '<button class="btn sm" onclick="toggleMentionPicker()" style="font-size:12px;padding:4px 10px;background:rgba(51,112,255,.08);color:#3370ff">@ 提及</button>' +
+    '</div>' +
+    '<div id="mentionPickerWrap" style="display:none;margin-bottom:8px">' +
+    '<div style="position:relative">' +
+    '<input id="mentionSearch" placeholder="搜索HR姓名..." style="width:100%;padding:8px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px" />' +
+    '<div id="mentionDropdown" style="display:none;position:absolute;left:0;right:0;top:100%;background:#fff;border:1px solid #e5e7eb;border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,.1);max-height:200px;overflow-y:auto;z-index:100"></div>' +
+    '</div>' +
+    '<div id="mentionedList" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px"></div>' +
+    '</div>' +
+    '<div style="display:flex;gap:8px;align-items:flex-end">' +
+    '<textarea id="noteContent" rows="2" placeholder="输入备注内容..." style="flex:1;padding:10px 12px;border:1px solid #e5e7eb;border-radius:10px;font-size:14px;resize:none;font-family:inherit"></textarea>' +
+    '<button class="btn primary" onclick="sendNote()" style="height:42px;padding:0 20px;border-radius:10px;white-space:nowrap">发送</button>' +
+    '</div>' +
+    '</div>' +
+    '</div>';
 
   // admin 专用 JS 函数
   // 所有登录用户可用的 JS 函数
@@ -996,10 +1043,29 @@ router.get("/candidates/:id", requireLogin, async (req, res) => {
       '(function(){var s=document.createElement("style");s.textContent="@keyframes tpSlideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}";document.head.appendChild(s)})();' +
       'var _scheduleSaving=false;async function saveSchedule(){syncScAt();if(_scheduleSaving)return;var atVal=document.getElementById("scAt").value;if(!atVal){alert("请选择面试日期和时间");return}_scheduleSaving=true;var btn=document.querySelector("#panel-schedule .btn.primary");if(btn){btn.textContent="保存中...";btn.disabled=true}var sc=document.getElementById("scSyncCalendar");var names=_selectedInterviewers.map(function(x){return x.name}).join(" / ");var openIds=_selectedInterviewers.map(function(x){return x.openId});var payload={round:Number(document.getElementById("scRound").value),scheduledAt:document.getElementById("scAt").value,interviewers:names,interviewerOpenIds:openIds,link:document.getElementById("scLink").value,location:document.getElementById("scLocation").value,syncStatus:document.getElementById("scSyncStatus").value,syncCalendar:sc&&sc.checked?"on":"off"};try{var res=await fetch("/api/candidates/' + cid + '/schedule",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});if(res.ok){showToast("✓ 面试安排已保存",res.json().then(function(d){return d.calendarSynced?"，已同步飞书日程":""}).catch(function(){return""}));setTimeout(function(){location.reload()},1500)}else{var d=await res.json().catch(function(){return{}});alert(d.error||"保存失败");if(btn){btn.textContent="保存面试安排";btn.disabled=false}_scheduleSaving=false}}catch(e){alert("网络错误");if(btn){btn.textContent="保存面试安排";btn.disabled=false}_scheduleSaving=false}}' +
       'function showToast(msg,extraPromise){var t=document.createElement("div");t.style.cssText="position:fixed;top:24px;left:50%;transform:translateX(-50%);background:#16a34a;color:#fff;padding:12px 28px;border-radius:12px;font-size:15px;font-weight:600;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,.15);transition:opacity .3s";t.textContent=msg;document.body.appendChild(t);if(extraPromise){extraPromise.then(function(s){if(s)t.textContent=msg+s})}setTimeout(function(){t.style.opacity="0";setTimeout(function(){t.remove()},300)},2000)}' +
-      'var f=document.getElementById("resumeUploadForm");if(f){f.onsubmit=async function(e){e.preventDefault();var fileInput=f.querySelector("input[type=file]");var file=fileInput&&fileInput.files[0];if(!file){alert("请选择文件");return}var btn=f.querySelector("button[type=submit]");if(btn){btn.textContent="上传中...";btn.disabled=true}try{var signRes=await fetch("/api/resume/upload-url",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({candidateId:"' + cid + '",fileName:file.name,contentType:file.type||"application/octet-stream"})});var signData=await signRes.json();if(!signRes.ok||!signData.signedUrl){throw new Error(signData.error||"获取上传地址失败")}var upRes=await fetch(signData.signedUrl,{method:"PUT",headers:{"Content-Type":file.type||"application/octet-stream"},body:file});if(!upRes.ok){throw new Error("文件上传失败("+upRes.status+")")}var metaRes=await fetch("/api/candidates/' + cid + '/resume-meta",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({objectName:signData.objectName,originalName:file.name,contentType:file.type||"",size:file.size,bucket:signData.bucket})});if(!metaRes.ok){var md=await metaRes.json().catch(function(){return{}});throw new Error(md.error||"保存元数据失败")}location.reload()}catch(err){alert("上传失败："+err.message);if(btn){btn.textContent="上传";btn.disabled=false}}}}' +
+      'var f=document.getElementById("resumeUploadForm");if(f){f.onsubmit=async function(e){e.preventDefault();var fileInput=f.querySelector("input[type=file]");var file=fileInput&&fileInput.files[0];if(!file){alert("请选择文件");return}var btn=f.querySelector("button[type=submit]");if(btn){btn.textContent="上传中...";btn.disabled=true}try{var signRes=await fetch("/api/resume/upload-url",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({candidateId:"' + cid + '",fileName:file.name,contentType:file.type||"application/octet-stream"})});var signData=await signRes.json();if(!signRes.ok||!signData.signedUrl){throw new Error(signData.error||"获取上传地址失败")}var upRes=await fetch(signData.signedUrl,{method:"PUT",headers:{"Content-Type":file.type||"application/octet-stream"},body:file});if(!upRes.ok){throw new Error("文件上传失败("+upRes.status+")")}var metaRes=await fetch("/api/candidates/' + cid + '/resume-meta",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({objectName:signData.objectName,originalName:file.name,contentType:file.type||"",size:file.size,bucket:signData.bucket})});if(!metaRes.ok){var md=await metaRes.json().catch(function(){return{}});throw new Error(md.error||"保存元数据失败")}_resumeLoaded=false;await loadResumePreview();if(btn){btn.textContent="上传";btn.disabled=false}fileInput.value=""}catch(err){alert("上传失败："+err.message);if(btn){btn.textContent="上传";btn.disabled=false}}}}' +
       'async function quickStatus(st){if(!confirm("确认将状态更新为【"+st+"】？"))return;var r=await fetch("/api/candidates/' + cid + '/status",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({status:st})});if(r.ok)location.reload();else alert("更新失败")}' +
       'function prefillNextRound(n){switchTab("schedule");document.getElementById("scRound").value=n;document.getElementById("scDate").focus()}' +
       'async function sendNotify(){var btn=document.getElementById("notifyBtn");if(!btn)return;var msg=prompt("飞书通知内容（发给相关面试官）：","请关注候选人 ' + escapeHtml(c.name || "") + ' 的面试安排");if(!msg)return;btn.textContent="发送中...";btn.disabled=true;try{var r=await fetch("/api/candidates/' + cid + '/notify",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({message:msg})});if(r.ok){btn.textContent="已发送";setTimeout(function(){btn.textContent="发送飞书通知";btn.disabled=false},2000)}else{alert("发送失败");btn.textContent="发送飞书通知";btn.disabled=false}}catch(e){alert("发送失败");btn.textContent="发送飞书通知";btn.disabled=false}}' +
+      /* ── 备注 Notes 功能 ── */
+      'var _noteVis="public";' +
+      'var _mentionedUsers=[];' +
+      'var _mentionPickerOpen=false;' +
+      'function setNoteVis(v){_noteVis=v;var pubBtn=document.getElementById("noteVisPublic");var priBtn=document.getElementById("noteVisPrivate");if(v==="public"){pubBtn.style.background="#3370ff";pubBtn.style.color="#fff";priBtn.style.background="transparent";priBtn.style.color="#666"}else{priBtn.style.background="#7c5cfc";priBtn.style.color="#fff";pubBtn.style.background="transparent";pubBtn.style.color="#666"}}' +
+      'function toggleMentionPicker(){_mentionPickerOpen=!_mentionPickerOpen;document.getElementById("mentionPickerWrap").style.display=_mentionPickerOpen?"block":"none";if(_mentionPickerOpen){document.getElementById("mentionSearch").focus()}}' +
+      'function noteAvatar(name,avatar,sz){sz=sz||28;if(avatar)return \'<img src="\'+avatar+\'" style="width:\'+sz+\'px;height:\'+sz+\'px;border-radius:50%;object-fit:cover;flex-shrink:0">\';var colors=["#7c5cfc","#3370ff","#f5222d","#fa8c16","#52c41a","#4e7bf6"];var ci=(name||"?").charCodeAt(0)%colors.length;return \'<span style="width:\'+sz+\'px;height:\'+sz+\'px;border-radius:50%;background:\'+colors[ci]+\';color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:\'+(sz*0.45)+\'px;font-weight:700;flex-shrink:0">\'+((name||"?").slice(0,1))+\'</span>\'}' +
+      'function formatNoteTime(iso){if(!iso)return "";var d=new Date(iso);var now=new Date();var pad=function(n){return String(n).padStart(2,"0")};var time=pad(d.getHours())+":"+pad(d.getMinutes());var dateStr=(d.getMonth()+1)+"/"+d.getDate();if(d.toDateString()===now.toDateString())return "今天 "+time;var y=new Date(now);y.setDate(y.getDate()-1);if(d.toDateString()===y.toDateString())return "昨天 "+time;return dateStr+" "+time}' +
+      'function renderNote(n){var isPrivate=n.visibility==="private";var bg=isPrivate?"#f5f3ff":"#f9fafb";var border=isPrivate?"1px solid #ddd6fe":"1px solid #f0f0f0";var badge=isPrivate?\'<span style="font-size:11px;background:#ede9fe;color:#7c3aed;padding:2px 8px;border-radius:4px;font-weight:600">私密</span>\':"";var mentionBadge="";if(n.mentionedUserIds&&n.mentionedUserIds.length){mentionBadge=\'<span style="font-size:11px;color:#3370ff;margin-left:4px">@\'+n.mentionedUserIds.length+\'人</span>\'}var contentHtml=n.content.replace(/\\n/g,"<br>").replace(/@([^\\s@]+)/g,\'<span style="color:#3370ff;font-weight:600">@$1</span>\');return \'<div style="display:flex;gap:10px;padding:10px 4px;align-items:flex-start"><div style="flex-shrink:0;margin-top:2px">\'+noteAvatar(n.authorName,n.authorAvatar,28)+\'</div><div style="flex:1;min-width:0"><div style="display:flex;align-items:center;gap:8px;margin-bottom:4px"><span style="font-weight:700;font-size:13px;color:#1f2937">\'+n.authorName+\'</span>\'+badge+mentionBadge+\'<span style="margin-left:auto;font-size:11px;color:#9ca3af">\'+formatNoteTime(n.createdAt)+\'</span></div><div style="background:\'+bg+\';border:\'+border+\';border-radius:10px;padding:10px 14px;font-size:14px;color:#374151;line-height:1.6">\'+contentHtml+\'</div></div></div>\'}' +
+      'async function loadNotes(){var list=document.getElementById("notesList");var empty=document.getElementById("notesEmpty");try{var r=await fetch("/api/candidates/' + cid + '/notes");if(!r.ok){if(empty)empty.textContent="加载失败";return}var notes=await r.json();if(!notes.length){if(empty)empty.textContent="暂无备注，发送第一条吧";return}if(empty)empty.remove();list.innerHTML=notes.map(renderNote).join("")}catch(e){if(empty)empty.textContent="加载失败"}}' +
+      'async function sendNote(){var ta=document.getElementById("noteContent");var content=ta.value.trim();if(!content){alert("请输入备注内容");return}var btn=ta.parentElement.querySelector(".btn.primary");btn.textContent="发送中...";btn.disabled=true;try{var mIds=_mentionedUsers.map(function(u){return u.openId});var r=await fetch("/api/candidates/' + cid + '/notes",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({content:content,visibility:_noteVis,mentionedUserIds:mIds})});if(r.ok){ta.value="";_mentionedUsers=[];renderMentionedList();await loadNotes();var list=document.getElementById("notesList");list.scrollTop=list.scrollHeight}else{var d=await r.json().catch(function(){return{}});alert(d.error||"发送失败")}}catch(e){alert("发送失败")}finally{btn.textContent="发送";btn.disabled=false}}' +
+      'function addMention(u){if(_mentionedUsers.some(function(x){return x.openId===u.openId}))return;_mentionedUsers.push(u);renderMentionedList();var ta=document.getElementById("noteContent");var cur=ta.value;if(cur&&!cur.endsWith(" "))cur+=" ";ta.value=cur+"@"+u.name+" ";document.getElementById("mentionSearch").value="";document.getElementById("mentionDropdown").style.display="none";ta.focus()}' +
+      'function removeMention(oid){_mentionedUsers=_mentionedUsers.filter(function(x){return x.openId!==oid});renderMentionedList()}' +
+      'function renderMentionedList(){var c=document.getElementById("mentionedList");if(!c)return;c.innerHTML=_mentionedUsers.map(function(u){return \'<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px 3px 3px;border-radius:16px;background:rgba(124,92,252,.08);color:#7c3aed;font-size:12px;font-weight:600">\'+noteAvatar(u.name,u.avatar,18)+\'<span>\'+u.name+\'</span><span onclick="removeMention(\\x27\'+u.openId+\'\\x27)" style="cursor:pointer;opacity:.6;font-size:13px">&times;</span></span>\'}).join("")}' +
+      'function initMentionPicker(){var inp=document.getElementById("mentionSearch");var dd=document.getElementById("mentionDropdown");if(!inp||!dd)return;inp.addEventListener("focus",function(){showMentionDropdown(inp.value)});inp.addEventListener("input",function(){showMentionDropdown(inp.value)});document.addEventListener("click",function(e){var wrap=document.getElementById("mentionPickerWrap");if(wrap&&!wrap.contains(e.target)){dd.style.display="none"}})}' +
+      'function showMentionDropdown(q){var dd=document.getElementById("mentionDropdown");var all=window._allInterviewers||[];var selectedIds=_mentionedUsers.map(function(x){return x.openId});var filtered=all.filter(function(iv){return selectedIds.indexOf(iv.openId)===-1&&(!q||iv.name.indexOf(q)>-1||(iv.department||"").indexOf(q)>-1)}).slice(0,15);if(!filtered.length){dd.style.display="none";return}dd.innerHTML=filtered.map(function(iv){var meta=((iv.department||"")+(iv.jobTitle?" · "+iv.jobTitle:"")).trim();return \'<div onclick=\\x27addMention(\'+JSON.stringify(iv)+\')\\x27 style="padding:8px 12px;cursor:pointer;display:flex;align-items:center;gap:10px;border-bottom:1px solid #f3f4f6" onmouseover="this.style.background=\\x27#f5f3ff\\x27" onmouseout="this.style.background=\\x27#fff\\x27">\'+noteAvatar(iv.name,iv.avatar,28)+\'<div style="min-width:0"><div style="font-weight:600;font-size:13px;color:#1f2937">\'+iv.name+\'</div>\'+(meta?\'<div style="font-size:11px;color:#9ca3af;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">\'+meta+\'</div>\':\'\')+\'</div></div>\'}).join("");dd.style.display="block"}' +
+      'var _resumeLoaded=false;' +
+      'async function loadResumePreview(){if(_resumeLoaded)return;_resumeLoaded=true;var area=document.getElementById("resumePreviewArea");var btn=document.getElementById("resumeNewWindowBtn");if(!area)return;area.innerHTML=\'<div class="muted" style="text-align:center;padding:32px 0">加载简历中...</div>\';try{var r=await fetch("/api/candidates/' + cid + '/resume-url");if(!r.ok){area.innerHTML=\'<div class="muted">加载失败</div>\';_resumeLoaded=false;return}var d=await r.json();var resume=d.resume;if(!resume||!resume.url){area.innerHTML=\'<div class="muted">暂无简历</div>\';if(btn)btn.style.display="none";return}if(btn){btn.style.display="inline-flex";btn.href=resume.url}var lower=(resume.originalName||resume.filename||"").toLowerCase();if(lower.endsWith(".pdf")){area.innerHTML=\'<iframe src="\'+resume.url+\'" style="width:100%;height:75vh;border:1px solid rgba(237,233,254,.95);border-radius:14px;background:#fff"></iframe>\'}else if(lower.endsWith(".png")||lower.endsWith(".jpg")||lower.endsWith(".jpeg")||lower.endsWith(".webp")){area.innerHTML=\'<img src="\'+resume.url+\'" style="max-width:100%;border-radius:14px" />\'}else{area.innerHTML=\'<div class="muted">不支持内嵌预览</div>\'}}catch(e){area.innerHTML=\'<div class="muted">加载失败</div>\';_resumeLoaded=false}}' +
+      'loadNotes();initMentionPicker();' +
       '';
 
   // 候选人进度条 — 显示当前所在流水线阶段
@@ -1044,16 +1110,17 @@ router.get("/candidates/:id", requireLogin, async (req, res) => {
         '<div style="height:14px"></div>' +
         // 标签页
         '<div class="card">' +
-        '<div class="tabs"><button class="tab active" data-tab="info" onclick="switchTab(\'info\')">信息</button><button class="tab" data-tab="schedule" onclick="switchTab(\'schedule\')">面试安排</button><button class="tab" data-tab="resume" onclick="switchTab(\'resume\')">简历</button><button class="tab" data-tab="review" onclick="switchTab(\'review\')">面评</button><button class="tab" data-tab="offer" onclick="switchTab(\'offer\')">Offer</button><button class="tab" data-tab="activity" onclick="switchTab(\'activity\')">动态</button></div>' +
+        '<div class="tabs"><button class="tab active" data-tab="info" onclick="switchTab(\'info\')">信息</button><button class="tab" data-tab="schedule" onclick="switchTab(\'schedule\')">面试安排</button><button class="tab" data-tab="resume" onclick="switchTab(\'resume\')">简历</button><button class="tab" data-tab="review" onclick="switchTab(\'review\')">面评</button><button class="tab" data-tab="offer" onclick="switchTab(\'offer\')">Offer</button><button class="tab" data-tab="notes" onclick="switchTab(\'notes\')">备注</button><button class="tab" data-tab="activity" onclick="switchTab(\'activity\')">动态</button></div>' +
         '<div class="tabpanels">' +
         infoPanel +
         schedulePanel +
         resumePanel +
         reviewPanel +
         offerPanel +
+        notesPanel +
         '<div class="tabpanel" id="panel-activity"><div class="divider"></div>' + eventHtml + '</div>' +
         '</div></div>' +
-        '<script>function switchTab(t){document.querySelectorAll(".tab").forEach(function(e){e.classList.toggle("active",e.dataset.tab===t)});document.querySelectorAll(".tabpanel").forEach(function(p){p.classList.remove("active")});document.getElementById("panel-"+t).classList.add("active")}' +
+        '<script>function switchTab(t){document.querySelectorAll(".tab").forEach(function(e){e.classList.toggle("active",e.dataset.tab===t)});document.querySelectorAll(".tabpanel").forEach(function(p){p.classList.remove("active")});document.getElementById("panel-"+t).classList.add("active");if(t==="resume"&&typeof loadResumePreview==="function")loadResumePreview();if(t==="notes"&&typeof loadNotes==="function")loadNotes()}' +
         'async function addReview(){var rating=document.getElementById("rvRating").value;if(!rating){alert("请选择评级");return}var interviewer=document.getElementById("rvInterviewer").value.trim();if(!interviewer){alert("请填写面试官姓名");return}var pros=document.getElementById("rvPros").value.trim();var cons=document.getElementById("rvCons").value.trim();if(!pros&&!cons){alert("Pros和Cons至少填写一项");return}var payload={round:Number(document.getElementById("rvRound").value),conclusion:document.getElementById("rvConclusion").value,rating:rating,interviewer:interviewer,pros:pros,cons:cons,focusNext:document.getElementById("rvFocusNext").value};var res=await fetch("/api/candidates/' + cid + '/reviews",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});if(res.ok){var data=await res.json();if(data.autoFlowMsg){alert(data.autoFlowMsg)}location.reload()}else{var d=await res.json().catch(function(){return{}});alert(d.error||"提交失败")}}' +
         adminScripts +
         '</script>',

@@ -46,6 +46,7 @@ export function ensureDataShape(d) {
   if (!Array.isArray(d.categories)) d.categories = ["技术", "产品", "设计", "运营", "市场", "销售", "人力", "财务", "行政", "其他"];
   if (!Array.isArray(d.users)) d.users = [];
   if (!Array.isArray(d.headhunters)) d.headhunters = [];
+  if (!Array.isArray(d.notes)) d.notes = [];
   return d;
 }
 
@@ -286,6 +287,35 @@ function eventFromRow(r) {
   };
 }
 
+function noteToRow(n) {
+  return {
+    id: n.id,
+    candidate_id: n.candidateId ?? null,
+    author_id: n.authorId ?? null,
+    author_name: n.authorName ?? null,
+    author_avatar: n.authorAvatar ?? null,
+    content: n.content ?? null,
+    visibility: n.visibility ?? "public",
+    mentioned_user_ids: n.mentionedUserIds ? JSON.stringify(n.mentionedUserIds) : null,
+    created_at: n.createdAt ?? null,
+  };
+}
+function noteFromRow(r) {
+  let mids = [];
+  try { mids = r.mentioned_user_ids ? JSON.parse(r.mentioned_user_ids) : []; } catch { mids = []; }
+  return {
+    id: r.id,
+    candidateId: r.candidate_id ?? "",
+    authorId: r.author_id ?? "",
+    authorName: r.author_name ?? "",
+    authorAvatar: r.author_avatar ?? "",
+    content: r.content ?? "",
+    visibility: r.visibility ?? "public",
+    mentionedUserIds: Array.isArray(mids) ? mids : [],
+    createdAt: r.created_at ?? nowIso(),
+  };
+}
+
 function hunterToRow(h) {
   return {
     id: h.id,
@@ -419,7 +449,7 @@ export function invalidateCache() {
 // ===== 选择性加载（只返回指定表，其余为空数组）=====
 export async function loadTables(...tableNames) {
   const full = await loadData();
-  const ALL_TABLES = ["jobs", "candidates", "interviews", "interviewSchedules", "resumeFiles", "events", "offers", "users", "headhunters", "sources", "tags", "categories"];
+  const ALL_TABLES = ["jobs", "candidates", "interviews", "interviewSchedules", "resumeFiles", "events", "offers", "users", "headhunters", "sources", "tags", "categories", "notes"];
   const wanted = new Set(tableNames);
   const result = {};
   for (const t of ALL_TABLES) {
@@ -461,6 +491,8 @@ async function _loadDataFresh() {
     try { users = await sbSelectAll(admin, "users"); } catch {}
     let headhunters = [];
     try { headhunters = await sbSelectAll(admin, "headhunters"); } catch {}
+    let notes = [];
+    try { notes = await sbSelectAll(admin, "notes"); } catch {}
 
     // 读取 app_config 中的配置（categories / sources / tags）
     let appConfig = {};
@@ -479,6 +511,7 @@ async function _loadDataFresh() {
       offers: offers.map(offerFromRow),
       users: users.map(userFromRow),
       headhunters: headhunters.map(hunterFromRow),
+      notes: notes.map(noteFromRow),
     });
 
     // 使用 app_config 中持久化的 categories（优先级最高）
@@ -514,6 +547,11 @@ async function _loadDataFresh() {
           const lj = localJobMap.get(j.id);
           if (lj && lj.ownerOpenId && !j.ownerOpenId) j.ownerOpenId = lj.ownerOpenId;
           if (lj && lj.owner && !j.owner) j.owner = lj.owner;
+        }
+        // 合并本地 notes
+        const nIds = new Set(d.notes.map(n => n.id));
+        for (const ln of (local.notes || [])) {
+          if (!nIds.has(ln.id)) d.notes.push(ln);
         }
       } catch {}
       return ensureDataShape(d);
@@ -558,6 +596,7 @@ async function _loadDataFresh() {
     merge(d.users, local.users);
     // 猎头：合并 Supabase 和本地（如果 Supabase 没有 headhunters 表，d.headhunters 为空）
     merge(d.headhunters, local.headhunters);
+    merge(d.notes, local.notes);
 
     // 合并本地 candidates 的 headhunterId / careersAppId 字段
     const localCandMap = new Map((local.candidates || []).map(c => [c.id, c]));
@@ -637,6 +676,12 @@ export async function saveData(d) {
       }
     } catch {}
 
+    try {
+      if (shaped.notes.length) {
+        await upsertWithRetry(admin, "notes", shaped.notes.map(noteToRow), ["id", "candidate_id", "author_id", "content"]);
+      }
+    } catch {}
+
     // 持久化 categories 到 app_config
     try {
       await admin.from("app_config").upsert({ key: "categories", value: shaped.categories }, { onConflict: "key" });
@@ -659,6 +704,7 @@ const TABLE_MAP = {
   offers:              { sb: "offers",               toRow: offerToRow,     minKeys: ["id", "candidate_id"] },
   users:               { sb: "users",                toRow: userToRow,      minKeys: ["id", "open_id", "name"] },
   headhunters:         { sb: "headhunters",          toRow: hunterToRow,    minKeys: ["id", "name"] },
+  notes:               { sb: "notes",                toRow: noteToRow,      minKeys: ["id", "candidate_id", "author_id", "content"] },
 };
 
 // ===== 增量保存：单表 =====
@@ -731,6 +777,7 @@ export async function deleteCandidateRelated(candidateId) {
       admin.from("interview_schedules").delete().eq("candidate_id", candidateId),
       admin.from("resume_files").delete().eq("candidate_id", candidateId),
       admin.from("events").delete().eq("candidate_id", candidateId),
+      admin.from("notes").delete().eq("candidate_id", candidateId),
       admin.from("candidates").delete().eq("id", candidateId),
     ]);
     try { await admin.from("offers").delete().eq("candidate_id", candidateId); } catch {}

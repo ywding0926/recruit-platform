@@ -465,4 +465,70 @@ router.post("/api/candidates/:id/reviews", requireLogin, async (req, res) => {
   res.json({ ok: true, autoFlowMsg });
 });
 
+// ====== 候选人备注 ======
+
+router.get("/api/candidates/:id/notes", requireLogin, async (req, res) => {
+  const d = await loadData();
+  const c = d.candidates.find(x => x.id === req.params.id);
+  if (!c) return res.status(404).json({ error: "not_found" });
+
+  const vj = getVisibleJobIds(req.user, d.jobs);
+  if (vj !== null && !vj.has(c.jobId)) return res.status(403).json({ error: "no_permission" });
+
+  const uid = req.user.openId || req.user.id;
+  const notes = (d.notes || [])
+    .filter(n => n.candidateId === c.id)
+    .filter(n => {
+      if (n.visibility === "public") return true;
+      if (n.authorId === uid) return true;
+      if (Array.isArray(n.mentionedUserIds) && n.mentionedUserIds.includes(uid)) return true;
+      return false;
+    })
+    .sort((a, b) => (a.createdAt || "").localeCompare(b.createdAt || ""));
+
+  res.json(notes);
+});
+
+router.post("/api/candidates/:id/notes", requireLogin, async (req, res) => {
+  const d = await loadData();
+  const c = d.candidates.find(x => x.id === req.params.id);
+  if (!c) return res.status(404).json({ error: "not_found" });
+
+  const vj = getVisibleJobIds(req.user, d.jobs);
+  if (vj !== null && !vj.has(c.jobId)) return res.status(403).json({ error: "no_permission" });
+
+  const content = String(req.body.content || "").trim();
+  if (!content) return res.status(400).json({ error: "内容不能为空" });
+
+  const visibility = req.body.visibility === "private" ? "private" : "public";
+  const mentionedUserIds = Array.isArray(req.body.mentionedUserIds)
+    ? req.body.mentionedUserIds.filter(Boolean)
+    : [];
+
+  const note = {
+    id: rid("note"),
+    candidateId: c.id,
+    authorId: req.user.openId || req.user.id,
+    authorName: req.user.name || "",
+    authorAvatar: req.user.avatar || "",
+    content,
+    visibility,
+    mentionedUserIds,
+    createdAt: nowIso(),
+  };
+
+  if (!Array.isArray(d.notes)) d.notes = [];
+  d.notes.push(note);
+
+  pushEvent(d, {
+    candidateId: c.id,
+    type: "备注",
+    message: (visibility === "private" ? "[私密] " : "") + content.slice(0, 50) + (content.length > 50 ? "..." : ""),
+    actor: req.user.name || "系统",
+  });
+
+  await saveData(d);
+  res.json({ ok: true, note });
+});
+
 export default router;
