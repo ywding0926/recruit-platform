@@ -531,4 +531,26 @@ router.post("/api/candidates/:id/notes", requireLogin, async (req, res) => {
   res.json({ ok: true, note });
 });
 
+router.delete("/api/candidates/:id/notes/:noteId", requireLogin, async (req, res) => {
+  const d = await loadData();
+  const c = d.candidates.find(x => x.id === req.params.id);
+  if (!c) return res.status(404).json({ error: "not_found" });
+
+  const vj = getVisibleJobIds(req.user, d.jobs);
+  if (vj !== null && !vj.has(c.jobId)) return res.status(403).json({ error: "no_permission" });
+
+  if (!Array.isArray(d.notes)) return res.status(404).json({ error: "note_not_found" });
+
+  const idx = d.notes.findIndex(n => n.id === req.params.noteId);
+  if (idx === -1) return res.status(404).json({ error: "note_not_found" });
+
+  const note = d.notes[idx];
+  const uid = req.user.openId || req.user.id;
+  if (note.authorId !== uid) return res.status(403).json({ error: "只能删除自己的备注" });
+
+  d.notes.splice(idx, 1);
+  await saveData(d);
+  res.json({ ok: true });
+});
+
 export default router;

@@ -912,29 +912,45 @@ router.get("/candidates/:id", requireLogin, async (req, res) => {
   // "Offer"tab — 所有登录用户可编辑
   const offerPanel = '<div class="tabpanel" id="panel-offer"><div class="divider"></div>' + offerHtml + '</div>';
 
-  // "备注"tab — 消息式备注，支持公开/私密 + @提及
+  // "备注"tab — 公开备注 + 私密备注（仅自己可见）
+  const uid = req.user?.openId || req.user?.id || "";
+  const publicNotes = (d.notes || []).filter(n => n.candidateId === c.id && n.visibility === "public").sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
+  const privateNotes = (d.notes || []).filter(n => n.candidateId === c.id && n.visibility === "private" && n.authorId === uid).sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
+
+  const renderNoteItems = (notes) => {
+    if (!notes.length) return '<div class="muted" style="padding:16px 0;text-align:center;font-size:13px">暂无备注</div>';
+    return notes.map(n => {
+      const time = toBjTime(n.createdAt || "").slice(0, 16);
+      return '<div style="padding:10px 14px;background:#f9fafb;border-radius:10px;margin-bottom:8px;border:1px solid #f0f0f0">' +
+        '<div style="display:flex;align-items:center;justify-content:between;margin-bottom:6px">' +
+        '<span style="font-weight:600;font-size:13px;color:#374151">' + escapeHtml(n.authorName || "未知") + '</span>' +
+        '<span style="margin-left:auto;font-size:11px;color:#9ca3af">' + escapeHtml(time) + '</span>' +
+        '<span onclick="deleteNote(\'' + escapeHtml(n.id) + '\')" style="margin-left:8px;cursor:pointer;font-size:12px;color:#d1d5db;padding:2px 6px;border-radius:4px" onmouseover="this.style.color=\'#ef4444\'" onmouseout="this.style.color=\'#d1d5db\'">&times;</span>' +
+        '</div>' +
+        '<div style="font-size:14px;color:#374151;line-height:1.6;white-space:pre-wrap">' + escapeHtml(n.content) + '</div>' +
+        '</div>';
+    }).join("");
+  };
+
   const notesPanel = '<div class="tabpanel" id="panel-notes"><div class="divider"></div>' +
-    '<div id="notesList" style="min-height:120px;max-height:480px;overflow-y:auto;padding:8px 0">' +
-    '<div class="muted" style="text-align:center;padding:32px 0" id="notesEmpty">加载中...</div>' +
+    '<div class="grid" style="gap:16px">' +
+    // 公开备注
+    '<div class="card compact" style="padding:16px;border-radius:14px">' +
+    '<div style="display:flex;align-items:center;margin-bottom:12px"><span style="font-weight:900;font-size:15px">📋 公开备注</span><span class="badge gray" style="margin-left:8px;font-size:11px">所有人可见</span></div>' +
+    '<div id="publicNotesList">' + renderNoteItems(publicNotes) + '</div>' +
+    '<div style="margin-top:10px">' +
+    '<textarea id="publicNoteInput" rows="3" placeholder="输入公开备注..." style="width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:10px;font-size:14px;resize:vertical;font-family:inherit;box-sizing:border-box"></textarea>' +
+    '<button class="btn primary" onclick="saveNote(\'public\')" style="margin-top:8px;border-radius:10px">添加备注</button>' +
     '</div>' +
-    '<div style="border-top:1px solid #f0f0f0;padding:12px 0 0">' +
-    '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">' +
-    '<div style="display:flex;align-items:center;gap:4px;background:#f5f5f5;border-radius:8px;padding:2px">' +
-    '<button id="noteVisPublic" class="btn sm" onclick="setNoteVis(\'public\')" style="background:#3370ff;color:#fff;border-radius:6px;font-size:12px;padding:4px 10px">所有人可见</button>' +
-    '<button id="noteVisPrivate" class="btn sm" onclick="setNoteVis(\'private\')" style="background:transparent;color:#666;border-radius:6px;font-size:12px;padding:4px 10px">仅自己可见</button>' +
     '</div>' +
-    '<button class="btn sm" onclick="toggleMentionPicker()" style="font-size:12px;padding:4px 10px;background:rgba(51,112,255,.08);color:#3370ff">@ 提及</button>' +
+    // 私密备注
+    '<div class="card compact" style="padding:16px;border-radius:14px;background:#faf5ff;border:1px solid #ede9fe">' +
+    '<div style="display:flex;align-items:center;margin-bottom:12px"><span style="font-weight:900;font-size:15px">🔒 私密备注</span><span class="badge" style="margin-left:8px;font-size:11px;background:#ede9fe;color:#7c3aed">仅自己可见</span></div>' +
+    '<div id="privateNotesList">' + renderNoteItems(privateNotes) + '</div>' +
+    '<div style="margin-top:10px">' +
+    '<textarea id="privateNoteInput" rows="3" placeholder="输入私密备注（仅自己可见）..." style="width:100%;padding:10px 12px;border:1px solid #ddd6fe;border-radius:10px;font-size:14px;resize:vertical;font-family:inherit;box-sizing:border-box;background:#fff"></textarea>' +
+    '<button class="btn" onclick="saveNote(\'private\')" style="margin-top:8px;border-radius:10px;background:#7c3aed;color:#fff">添加私密备注</button>' +
     '</div>' +
-    '<div id="mentionPickerWrap" style="display:none;margin-bottom:8px">' +
-    '<div style="position:relative">' +
-    '<input id="mentionSearch" placeholder="搜索HR姓名..." style="width:100%;padding:8px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px" />' +
-    '<div id="mentionDropdown" style="display:none;position:absolute;left:0;right:0;top:100%;background:#fff;border:1px solid #e5e7eb;border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,.1);max-height:200px;overflow-y:auto;z-index:100"></div>' +
-    '</div>' +
-    '<div id="mentionedList" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px"></div>' +
-    '</div>' +
-    '<div style="display:flex;gap:8px;align-items:flex-end">' +
-    '<textarea id="noteContent" rows="2" placeholder="输入备注内容..." style="flex:1;padding:10px 12px;border:1px solid #e5e7eb;border-radius:10px;font-size:14px;resize:none;font-family:inherit"></textarea>' +
-    '<button class="btn primary" onclick="sendNote()" style="height:42px;padding:0 20px;border-radius:10px;white-space:nowrap">发送</button>' +
     '</div>' +
     '</div>' +
     '</div>';
@@ -1048,24 +1064,11 @@ router.get("/candidates/:id", requireLogin, async (req, res) => {
       'function prefillNextRound(n){switchTab("schedule");document.getElementById("scRound").value=n;document.getElementById("scDate").focus()}' +
       'async function sendNotify(){var btn=document.getElementById("notifyBtn");if(!btn)return;var msg=prompt("飞书通知内容（发给相关面试官）：","请关注候选人 ' + escapeHtml(c.name || "") + ' 的面试安排");if(!msg)return;btn.textContent="发送中...";btn.disabled=true;try{var r=await fetch("/api/candidates/' + cid + '/notify",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({message:msg})});if(r.ok){btn.textContent="已发送";setTimeout(function(){btn.textContent="发送飞书通知";btn.disabled=false},2000)}else{alert("发送失败");btn.textContent="发送飞书通知";btn.disabled=false}}catch(e){alert("发送失败");btn.textContent="发送飞书通知";btn.disabled=false}}' +
       /* ── 备注 Notes 功能 ── */
-      'var _noteVis="public";' +
-      'var _mentionedUsers=[];' +
-      'var _mentionPickerOpen=false;' +
-      'function setNoteVis(v){_noteVis=v;var pubBtn=document.getElementById("noteVisPublic");var priBtn=document.getElementById("noteVisPrivate");if(v==="public"){pubBtn.style.background="#3370ff";pubBtn.style.color="#fff";priBtn.style.background="transparent";priBtn.style.color="#666"}else{priBtn.style.background="#7c5cfc";priBtn.style.color="#fff";pubBtn.style.background="transparent";pubBtn.style.color="#666"}}' +
-      'function toggleMentionPicker(){_mentionPickerOpen=!_mentionPickerOpen;document.getElementById("mentionPickerWrap").style.display=_mentionPickerOpen?"block":"none";if(_mentionPickerOpen){document.getElementById("mentionSearch").focus()}}' +
-      'function noteAvatar(name,avatar,sz){sz=sz||28;if(avatar)return \'<img src="\'+avatar+\'" style="width:\'+sz+\'px;height:\'+sz+\'px;border-radius:50%;object-fit:cover;flex-shrink:0">\';var colors=["#7c5cfc","#3370ff","#f5222d","#fa8c16","#52c41a","#4e7bf6"];var ci=(name||"?").charCodeAt(0)%colors.length;return \'<span style="width:\'+sz+\'px;height:\'+sz+\'px;border-radius:50%;background:\'+colors[ci]+\';color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:\'+(sz*0.45)+\'px;font-weight:700;flex-shrink:0">\'+((name||"?").slice(0,1))+\'</span>\'}' +
-      'function formatNoteTime(iso){if(!iso)return "";var d=new Date(iso);var now=new Date();var pad=function(n){return String(n).padStart(2,"0")};var time=pad(d.getHours())+":"+pad(d.getMinutes());var dateStr=(d.getMonth()+1)+"/"+d.getDate();if(d.toDateString()===now.toDateString())return "今天 "+time;var y=new Date(now);y.setDate(y.getDate()-1);if(d.toDateString()===y.toDateString())return "昨天 "+time;return dateStr+" "+time}' +
-      'function renderNote(n){var isPrivate=n.visibility==="private";var bg=isPrivate?"#f5f3ff":"#f9fafb";var border=isPrivate?"1px solid #ddd6fe":"1px solid #f0f0f0";var badge=isPrivate?\'<span style="font-size:11px;background:#ede9fe;color:#7c3aed;padding:2px 8px;border-radius:4px;font-weight:600">私密</span>\':"";var mentionBadge="";if(n.mentionedUserIds&&n.mentionedUserIds.length){mentionBadge=\'<span style="font-size:11px;color:#3370ff;margin-left:4px">@\'+n.mentionedUserIds.length+\'人</span>\'}var contentHtml=n.content.replace(/\\n/g,"<br>").replace(/@([^\\s@]+)/g,\'<span style="color:#3370ff;font-weight:600">@$1</span>\');return \'<div style="display:flex;gap:10px;padding:10px 4px;align-items:flex-start"><div style="flex-shrink:0;margin-top:2px">\'+noteAvatar(n.authorName,n.authorAvatar,28)+\'</div><div style="flex:1;min-width:0"><div style="display:flex;align-items:center;gap:8px;margin-bottom:4px"><span style="font-weight:700;font-size:13px;color:#1f2937">\'+n.authorName+\'</span>\'+badge+mentionBadge+\'<span style="margin-left:auto;font-size:11px;color:#9ca3af">\'+formatNoteTime(n.createdAt)+\'</span></div><div style="background:\'+bg+\';border:\'+border+\';border-radius:10px;padding:10px 14px;font-size:14px;color:#374151;line-height:1.6">\'+contentHtml+\'</div></div></div>\'}' +
-      'async function loadNotes(){var list=document.getElementById("notesList");var empty=document.getElementById("notesEmpty");try{var r=await fetch("/api/candidates/' + cid + '/notes");if(!r.ok){if(empty)empty.textContent="加载失败";return}var notes=await r.json();if(!notes.length){if(empty)empty.textContent="暂无备注，发送第一条吧";return}if(empty)empty.remove();list.innerHTML=notes.map(renderNote).join("")}catch(e){if(empty)empty.textContent="加载失败"}}' +
-      'async function sendNote(){var ta=document.getElementById("noteContent");var content=ta.value.trim();if(!content){alert("请输入备注内容");return}var btn=ta.parentElement.querySelector(".btn.primary");btn.textContent="发送中...";btn.disabled=true;try{var mIds=_mentionedUsers.map(function(u){return u.openId});var r=await fetch("/api/candidates/' + cid + '/notes",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({content:content,visibility:_noteVis,mentionedUserIds:mIds})});if(r.ok){ta.value="";_mentionedUsers=[];renderMentionedList();await loadNotes();var list=document.getElementById("notesList");list.scrollTop=list.scrollHeight}else{var d=await r.json().catch(function(){return{}});alert(d.error||"发送失败")}}catch(e){alert("发送失败")}finally{btn.textContent="发送";btn.disabled=false}}' +
-      'function addMention(u){if(_mentionedUsers.some(function(x){return x.openId===u.openId}))return;_mentionedUsers.push(u);renderMentionedList();var ta=document.getElementById("noteContent");var cur=ta.value;if(cur&&!cur.endsWith(" "))cur+=" ";ta.value=cur+"@"+u.name+" ";document.getElementById("mentionSearch").value="";document.getElementById("mentionDropdown").style.display="none";ta.focus()}' +
-      'function removeMention(oid){_mentionedUsers=_mentionedUsers.filter(function(x){return x.openId!==oid});renderMentionedList()}' +
-      'function renderMentionedList(){var c=document.getElementById("mentionedList");if(!c)return;c.innerHTML=_mentionedUsers.map(function(u){return \'<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px 3px 3px;border-radius:16px;background:rgba(124,92,252,.08);color:#7c3aed;font-size:12px;font-weight:600">\'+noteAvatar(u.name,u.avatar,18)+\'<span>\'+u.name+\'</span><span onclick="removeMention(\\x27\'+u.openId+\'\\x27)" style="cursor:pointer;opacity:.6;font-size:13px">&times;</span></span>\'}).join("")}' +
-      'function initMentionPicker(){var inp=document.getElementById("mentionSearch");var dd=document.getElementById("mentionDropdown");if(!inp||!dd)return;inp.addEventListener("focus",function(){showMentionDropdown(inp.value)});inp.addEventListener("input",function(){showMentionDropdown(inp.value)});document.addEventListener("click",function(e){var wrap=document.getElementById("mentionPickerWrap");if(wrap&&!wrap.contains(e.target)){dd.style.display="none"}})}' +
-      'function showMentionDropdown(q){var dd=document.getElementById("mentionDropdown");var all=window._allInterviewers||[];var selectedIds=_mentionedUsers.map(function(x){return x.openId});var filtered=all.filter(function(iv){return selectedIds.indexOf(iv.openId)===-1&&(!q||iv.name.indexOf(q)>-1||(iv.department||"").indexOf(q)>-1)}).slice(0,15);if(!filtered.length){dd.style.display="none";return}dd.innerHTML=filtered.map(function(iv){var meta=((iv.department||"")+(iv.jobTitle?" · "+iv.jobTitle:"")).trim();return \'<div onclick=\\x27addMention(\'+JSON.stringify(iv)+\')\\x27 style="padding:8px 12px;cursor:pointer;display:flex;align-items:center;gap:10px;border-bottom:1px solid #f3f4f6" onmouseover="this.style.background=\\x27#f5f3ff\\x27" onmouseout="this.style.background=\\x27#fff\\x27">\'+noteAvatar(iv.name,iv.avatar,28)+\'<div style="min-width:0"><div style="font-weight:600;font-size:13px;color:#1f2937">\'+iv.name+\'</div>\'+(meta?\'<div style="font-size:11px;color:#9ca3af;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">\'+meta+\'</div>\':\'\')+\'</div></div>\'}).join("");dd.style.display="block"}' +
+      'async function saveNote(vis){var inputId=vis==="private"?"privateNoteInput":"publicNoteInput";var ta=document.getElementById(inputId);var content=ta.value.trim();if(!content){alert("请输入备注内容");return}var btn=ta.parentElement.querySelector("button");var origText=btn.textContent;btn.textContent="保存中...";btn.disabled=true;try{var r=await fetch("/api/candidates/' + cid + '/notes",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({content:content,visibility:vis,mentionedUserIds:[]})});if(r.ok){location.reload()}else{var d=await r.json().catch(function(){return{}});alert(d.error||"保存失败")}}catch(e){alert("保存失败")}finally{btn.textContent=origText;btn.disabled=false}}' +
+      'async function deleteNote(noteId){if(!confirm("确定删除这条备注？"))return;try{var r=await fetch("/api/candidates/' + cid + '/notes/"+encodeURIComponent(noteId),{method:"DELETE"});if(r.ok){location.reload()}else{alert("删除失败")}}catch(e){alert("删除失败")}}' +
       'var _resumeLoaded=false;' +
       'async function loadResumePreview(){if(_resumeLoaded)return;_resumeLoaded=true;var area=document.getElementById("resumePreviewArea");var btn=document.getElementById("resumeNewWindowBtn");if(!area)return;area.innerHTML=\'<div class="muted" style="text-align:center;padding:32px 0">加载简历中...</div>\';try{var r=await fetch("/api/candidates/' + cid + '/resume-url");if(!r.ok){area.innerHTML=\'<div class="muted">加载失败</div>\';_resumeLoaded=false;return}var d=await r.json();var resume=d.resume;if(!resume||!resume.url){area.innerHTML=\'<div class="muted">暂无简历</div>\';if(btn)btn.style.display="none";return}if(btn){btn.style.display="inline-flex";btn.href=resume.url}var lower=(resume.originalName||resume.filename||"").toLowerCase();if(lower.endsWith(".pdf")){area.innerHTML=\'<iframe src="\'+resume.url+\'" style="width:100%;height:75vh;border:1px solid rgba(237,233,254,.95);border-radius:14px;background:#fff"></iframe>\'}else if(lower.endsWith(".png")||lower.endsWith(".jpg")||lower.endsWith(".jpeg")||lower.endsWith(".webp")){area.innerHTML=\'<img src="\'+resume.url+\'" style="max-width:100%;border-radius:14px" />\'}else{area.innerHTML=\'<div class="muted">不支持内嵌预览</div>\'}}catch(e){area.innerHTML=\'<div class="muted">加载失败</div>\';_resumeLoaded=false}}' +
-      'loadNotes();initMentionPicker();' +
+      '' +
       '';
 
   // 候选人进度条 — 显示当前所在流水线阶段
@@ -1120,7 +1123,7 @@ router.get("/candidates/:id", requireLogin, async (req, res) => {
         notesPanel +
         '<div class="tabpanel" id="panel-activity"><div class="divider"></div>' + eventHtml + '</div>' +
         '</div></div>' +
-        '<script>function switchTab(t){document.querySelectorAll(".tab").forEach(function(e){e.classList.toggle("active",e.dataset.tab===t)});document.querySelectorAll(".tabpanel").forEach(function(p){p.classList.remove("active")});document.getElementById("panel-"+t).classList.add("active");if(t==="resume"&&typeof loadResumePreview==="function")loadResumePreview();if(t==="notes"&&typeof loadNotes==="function")loadNotes()}' +
+        '<script>function switchTab(t){document.querySelectorAll(".tab").forEach(function(e){e.classList.toggle("active",e.dataset.tab===t)});document.querySelectorAll(".tabpanel").forEach(function(p){p.classList.remove("active")});document.getElementById("panel-"+t).classList.add("active");if(t==="resume"&&typeof loadResumePreview==="function")loadResumePreview()}' +
         'async function addReview(){var rating=document.getElementById("rvRating").value;if(!rating){alert("请选择评级");return}var interviewer=document.getElementById("rvInterviewer").value.trim();if(!interviewer){alert("请填写面试官姓名");return}var pros=document.getElementById("rvPros").value.trim();var cons=document.getElementById("rvCons").value.trim();if(!pros&&!cons){alert("Pros和Cons至少填写一项");return}var payload={round:Number(document.getElementById("rvRound").value),conclusion:document.getElementById("rvConclusion").value,rating:rating,interviewer:interviewer,pros:pros,cons:cons,focusNext:document.getElementById("rvFocusNext").value};var res=await fetch("/api/candidates/' + cid + '/reviews",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});if(res.ok){var data=await res.json();if(data.autoFlowMsg){alert(data.autoFlowMsg)}location.reload()}else{var d=await res.json().catch(function(){return{}});alert(d.error||"提交失败")}}' +
         adminScripts +
         '</script>',
