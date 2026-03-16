@@ -51,11 +51,15 @@ export async function notifyHrNewCandidate(d, candidate, job) {
       `**联系方式**：${candidate.phone || "-"}\n\n` +
       `[查看候选人详情](${candidateUrl})`;
 
-    // 优先通知岗位负责人，如果没有则通知所有管理员
+    // 优先通知岗位负责人（支持多人），如果没有则通知所有管理员
     let notifyIds = [];
-    if (job?.ownerOpenId) {
-      notifyIds.push(job.ownerOpenId);
-    } else {
+    if (Array.isArray(job?.owners) && job.owners.length > 0) {
+      notifyIds = job.owners.map(o => o.openId).filter(Boolean);
+    } else if (job?.ownerOpenId) {
+      // 兼容旧格式：可能是逗号分隔的多个openId
+      notifyIds = job.ownerOpenId.split(",").map(id => id.trim()).filter(Boolean);
+    }
+    if (!notifyIds.length) {
       // 岗位未设负责人，通知所有管理员
       const admins = (d.users || []).filter(u => u.role === "admin" && u.openId);
       notifyIds = admins.map(u => u.openId);
@@ -81,6 +85,14 @@ export function getVisibleJobIds(user, jobs) {
   const name = user.name || "";
   const ids = new Set();
   for (const j of jobs) {
+    // 检查新的 owners 数组
+    if (Array.isArray(j.owners) && j.owners.length > 0) {
+      if (j.owners.some(o => (openId && o.openId === openId) || (!o.openId && name && o.name === name))) {
+        ids.add(j.id);
+        continue;
+      }
+    }
+    // 兼容旧的单负责人字段
     if ((openId && j.ownerOpenId === openId) || (!j.ownerOpenId && name && j.owner === name)) {
       ids.add(j.id);
     }

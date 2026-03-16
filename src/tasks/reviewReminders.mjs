@@ -46,8 +46,13 @@ async function checkReviewReminders() {
         if (usr) interviewerUsers.push(usr);
       }
 
-      // HR（岗位负责人）openId 作为任务关注人
-      const hrOpenId = job?.ownerOpenId || "";
+      // HR（岗位负责人）openId 作为任务关注人（支持多人）
+      let hrOpenIds = [];
+      if (Array.isArray(job?.owners) && job.owners.length > 0) {
+        hrOpenIds = job.owners.map(o => o.openId).filter(Boolean);
+      } else if (job?.ownerOpenId) {
+        hrOpenIds = job.ownerOpenId.split(",").map(id => id.trim()).filter(Boolean);
+      }
       const hrName = job?.owner || "";
 
       // 面评链接
@@ -68,7 +73,7 @@ async function checkReviewReminders() {
         await sendFeishuMessage(usr.openId, msgContent, "面评提醒");
 
         // 创建飞书任务：面试官为负责人，HR为关注人
-        const followerIds = hrOpenId ? [hrOpenId] : [];
+        const followerIds = hrOpenIds.length > 0 ? hrOpenIds : [];
         // 截止时间：面试当天 23:59 北京时间（毫秒时间戳）
         const schedRaw = String(sc.scheduledAt || "");
         const hasSchedTz = /[Zz]|[+-]\d{2}:?\d{2}$/.test(schedRaw);
@@ -88,7 +93,7 @@ async function checkReviewReminders() {
         });
 
         console.log(`[ReviewReminder] 已提醒 ${usr.name}(${usr.openId}) 填写面评 - 候选人:${candidate.name} 第${sc.round}轮` +
-          (hrOpenId ? ` HR关注人:${hrName}(${hrOpenId})` : ""));
+          (hrOpenIds.length ? ` HR关注人:${hrName}(${hrOpenIds.join(",")})` : ""));
       }
 
       // 如果找不到面试官 openId，也标记已发送避免重复

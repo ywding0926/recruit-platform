@@ -135,6 +135,7 @@ function jobToRow(j) {
     location: j.location ?? null,
     owner: j.owner ?? null,
     owner_open_id: j.ownerOpenId ?? null,
+    owners: j.owners ?? [],
     headcount: j.headcount ?? null,
     priority: j.priority ?? null,
     level: j.level ?? null,
@@ -155,6 +156,12 @@ function jobFromRow(r) {
     location: r.location ?? "",
     owner: r.owner ?? "",
     ownerOpenId: r.owner_open_id ?? "",
+    owners: (Array.isArray(r.owners) && r.owners.length > 0) ? r.owners
+      : (r.owner ? (() => {
+          const names = r.owner.split(",").map(n => n.trim()).filter(Boolean);
+          const ids = (r.owner_open_id || "").split(",").map(n => n.trim());
+          return names.map((n, i) => ({ name: n, openId: ids[i] || "" }));
+        })() : []),
     headcount: r.headcount ?? null,
     priority: r.priority ?? "",
     level: r.level ?? "",
