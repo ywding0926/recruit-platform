@@ -2,7 +2,7 @@ import { Router } from "express";
 import { requireLogin, requireAdmin } from "../auth.mjs";
 import { loadData, saveData, nowIso, rid, toBjTime } from "../db.mjs";
 import { renderPage, escapeHtml } from "../ui.mjs";
-import { feishuEnabled, getAllFeishuEmployees, searchFeishuUsers } from "../feishu.mjs";
+import { feishuEnabled, getAllFeishuEmployees, searchFeishuUsers, sendFeishuGroupMessage, getFeishuBotChats } from "../feishu.mjs";
 
 const router = Router();
 
@@ -51,6 +51,8 @@ router.get("/settings", requireLogin, requireAdmin, async (req, res) => {
     'function delSource(s){if(!confirm("确认删除来源「"+s+"」？"))return;fetch("/api/settings/sources",{method:"DELETE",headers:{"Content-Type":"application/json"},body:JSON.stringify({source:s})}).then(r=>{if(r.ok)location.reload();else r.json().then(d=>alert(d.error||"删除失败")).catch(()=>alert("删除失败"))}).catch(()=>alert("网络错误"))}' +
     'function delTag(t){if(!confirm("确认删除标签「"+t+"」？"))return;fetch("/api/settings/tags",{method:"DELETE",headers:{"Content-Type":"application/json"},body:JSON.stringify({tag:t})}).then(r=>{if(r.ok)location.reload();else r.json().then(d=>alert(d.error||"删除失败")).catch(()=>alert("删除失败"))}).catch(()=>alert("网络错误"))}' +
     'function delCategory(c){if(!confirm("确认删除分类「"+c+"」？"))return;fetch("/api/settings/categories",{method:"DELETE",headers:{"Content-Type":"application/json"},body:JSON.stringify({category:c})}).then(r=>{if(r.ok)location.reload();else r.json().then(d=>alert(d.error||"删除失败")).catch(()=>alert("删除失败"))}).catch(()=>alert("网络错误"))}</script>';
+
+  const hrGroupChatId = d.settings?.hrGroupChatId || "";
 
   res.send(
     renderPage({
@@ -104,6 +106,68 @@ router.get("/settings", requireLogin, requireAdmin, async (req, res) => {
           '}).catch(()=>{btn.disabled=false;btn.textContent="立即同步";alert("网络错误")})' +
         '}' +
         'loadSyncStatus()' +
+        '</script>' +
+        // HR 群聊配置卡片
+        '<div class="card" style="margin-top:14px">' +
+          '<div style="font-weight:900;font-size:18px">HR 群聊通知配置</div>' +
+          '<div class="muted" style="margin-top:4px">配置 HRteam 飞书群的 Chat ID，面评完成后机器人将自动发送通知到群里。</div>' +
+          '<div class="divider"></div>' +
+          '<div class="field">' +
+            '<label>群聊 Chat ID</label>' +
+            '<div style="display:flex;gap:8px;align-items:center;max-width:560px">' +
+              '<input id="hrChatIdInput" value="' + escapeHtml(hrGroupChatId) + '" placeholder="例如：oc_xxxxxxxxxxxxxxxx" style="flex:1" />' +
+              '<button class="btn primary" onclick="saveHrChatId()">保存</button>' +
+              '<button class="btn" onclick="testHrChatId()">测试发送</button>' +
+            '</div>' +
+            '<div class="muted" style="margin-top:6px;font-size:12px">不知道 Chat ID？点击下方「查看机器人所在群」获取。</div>' +
+          '</div>' +
+          '<div id="hrChatIdMsg" style="font-size:13px;margin-top:6px"></div>' +
+          '<div style="margin-top:10px">' +
+            '<button class="btn" onclick="loadBotChats()">🔍 查看机器人所在群</button>' +
+          '</div>' +
+          '<div id="botChatsList" style="margin-top:10px"></div>' +
+        '</div>' +
+        '<script>' +
+        'function saveHrChatId(){' +
+          'var v=document.getElementById("hrChatIdInput").value.trim();' +
+          'var msg=document.getElementById("hrChatIdMsg");' +
+          'msg.innerHTML=\'<span style="color:#888">保存中...</span>\';' +
+          'fetch("/api/settings/hr-chat-id",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({chatId:v})})' +
+          '.then(r=>r.json()).then(d=>{' +
+            'if(d.ok){msg.innerHTML=\'<span style="color:#52c41a;font-weight:600">✓ 已保存</span>\'}' +
+            'else{msg.innerHTML=\'<span style="color:#f5222d">保存失败：\'+(d.error||"未知错误")+\'</span>\'}' +
+          '}).catch(()=>{msg.innerHTML=\'<span style="color:#f5222d">网络错误</span>\'})' +
+        '}' +
+        'function testHrChatId(){' +
+          'var v=document.getElementById("hrChatIdInput").value.trim();' +
+          'if(!v){alert("请先填写 Chat ID");return}' +
+          'var msg=document.getElementById("hrChatIdMsg");' +
+          'msg.innerHTML=\'<span style="color:#888">发送测试消息中...</span>\';' +
+          'fetch("/api/settings/hr-chat-id/test",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({chatId:v})})' +
+          '.then(r=>r.json()).then(d=>{' +
+            'if(d.ok){msg.innerHTML=\'<span style="color:#52c41a;font-weight:600">✓ 测试消息已发送，请检查群聊</span>\'}' +
+            'else{msg.innerHTML=\'<span style="color:#f5222d">发送失败：\'+(d.error||"未知错误")+\'</span>\'}' +
+          '}).catch(()=>{msg.innerHTML=\'<span style="color:#f5222d">网络错误</span>\'})' +
+        '}' +
+        'function loadBotChats(){' +
+          'var el=document.getElementById("botChatsList");' +
+          'el.innerHTML=\'<span style="color:#888;font-size:13px">加载中...</span>\';' +
+          'fetch("/api/settings/bot-chats")' +
+          '.then(r=>r.json()).then(function(d){' +
+            'if(!d.chats||d.chats.length===0){el.innerHTML=\'<div style="color:#888;font-size:13px">没有找到群，请确认机器人已被拉入群聊。</div>\';return}' +
+            'var html=\'<div style="font-size:13px;font-weight:600;margin-bottom:6px;color:#666">机器人所在的群（点击 Chat ID 可自动填入）：</div>\';' +
+            'html+=\'<table style="width:100%;font-size:13px;border-collapse:collapse;max-width:600px">\';' +
+            'html+=\'<tr><th style="text-align:left;padding:6px 8px;border-bottom:1px solid #eee;color:#999;font-weight:600">群名称</th><th style="text-align:left;padding:6px 8px;border-bottom:1px solid #eee;color:#999;font-weight:600">Chat ID</th><th style="padding:6px 8px;border-bottom:1px solid #eee"></th></tr>\';' +
+            'd.chats.forEach(function(c){' +
+              'html+=\'<tr><td style="padding:6px 8px;border-bottom:1px solid #f5f5f5">\'+c.name+\'</td>\';' +
+              'html+=\'<td style="padding:6px 8px;border-bottom:1px solid #f5f5f5;font-family:monospace;color:#7c5cfc">\'+c.chatId+\'</td>\';' +
+              'html+=\'<td style="padding:6px 8px;border-bottom:1px solid #f5f5f5"><button class="btn sm" onclick="document.getElementById(\\\'hrChatIdInput\\\').value=\\\'\'+c.chatId+\'\\\';document.getElementById(\\\'hrChatIdMsg\\\').innerHTML=\\\'\\\'"">使用此群</button></td>\';' +
+              'html+=\'</tr>\';' +
+            '});' +
+            'html+=\'</table>\';' +
+            'el.innerHTML=html;' +
+          '}).catch(function(){el.innerHTML=\'<span style="color:#f5222d;font-size:13px">加载失败</span>\'})' +
+        '}' +
         '</script>',
     })
   );
@@ -158,6 +222,34 @@ router.delete("/api/settings/tags", requireLogin, requireAdmin, async (req, res)
   d.tags = (d.tags || []).filter((x) => x !== t);
   await saveData(d);
   res.json({ ok: true });
+});
+
+// ====== HR 群聊 Chat ID 配置 ======
+router.get("/api/settings/bot-chats", requireLogin, requireAdmin, async (req, res) => {
+  if (!feishuEnabled()) return res.status(400).json({ error: "飞书未启用" });
+  const chats = await getFeishuBotChats();
+  res.json({ chats });
+});
+
+router.post("/api/settings/hr-chat-id", requireLogin, requireAdmin, async (req, res) => {
+  const d = await loadData();
+  const chatId = String(req.body.chatId || "").trim();
+  if (!d.settings || typeof d.settings !== "object") d.settings = {};
+  d.settings.hrGroupChatId = chatId;
+  await saveData(d);
+  res.json({ ok: true });
+});
+
+router.post("/api/settings/hr-chat-id/test", requireLogin, requireAdmin, async (req, res) => {
+  if (!feishuEnabled()) return res.status(400).json({ error: "飞书未启用，请先配置 FEISHU_APP_ID 和 FEISHU_APP_SECRET" });
+  const chatId = String(req.body.chatId || "").trim();
+  if (!chatId) return res.status(400).json({ error: "chatId 不能为空" });
+  const result = await sendFeishuGroupMessage(chatId, "这是一条来自 Machinepulse 招聘系统的测试消息，群聊通知配置成功 ✅", "测试通知");
+  if (result && result.code === 0) {
+    res.json({ ok: true });
+  } else {
+    res.status(400).json({ error: result?.msg || "发送失败，请检查 Chat ID 是否正确，以及机器人是否已加入该群" });
+  }
 });
 
 // ====== 从飞书同步通讯录 ======
