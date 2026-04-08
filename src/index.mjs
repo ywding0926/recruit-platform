@@ -14,6 +14,7 @@ import { sessionMiddleware, registerAuthRoutes, requireLogin } from "./auth.mjs"
 // ====== 路由 ======
 import dashboardRouter from "./routes/dashboard.mjs";
 import jobsRouter from "./routes/jobs.mjs";
+import analyticsRouter from "./routes/analytics.mjs";
 import candidatesRouter from "./routes/candidates.mjs";
 import candidateApiRouter from "./routes/candidateApi.mjs";
 import offersRouter from "./routes/offers.mjs";
@@ -21,10 +22,6 @@ import settingsRouter from "./routes/settings.mjs";
 import scheduleRouter from "./routes/schedule.mjs";
 import reviewRouter from "./routes/review.mjs";
 import resumeApiRouter from "./routes/resumeApi.mjs";
-import openApiRouter from "./routes/openApi.mjs";
-import headhuntersRouter from "./routes/headhunters.mjs";
-import portalRouter from "./routes/portal.mjs";
-import referralRouter from "./routes/referral.mjs";
 import { registerErrorHandler } from "./routes/errorHandler.mjs";
 
 // ====== 定时任务 ======
@@ -71,6 +68,7 @@ app.get("/debug/session", requireLogin, async (req, res) => {
 // ====== 挂载路由（顺序与原文件一致）======
 app.use(dashboardRouter);
 app.use(jobsRouter);
+app.use(analyticsRouter);
 app.use(candidatesRouter);
 app.use(candidateApiRouter);
 app.use(offersRouter);
@@ -78,10 +76,6 @@ app.use(settingsRouter);
 app.use(scheduleRouter);
 app.use(reviewRouter);
 app.use(resumeApiRouter);
-app.use(openApiRouter);
-app.use(headhuntersRouter);
-app.use(portalRouter);
-app.use(referralRouter);
 app.use(careersSyncRouter);
 
 // ====== 全局错误处理 ======

@@ -6,7 +6,6 @@ async function checkReviewReminders() {
     if (!feishuEnabled()) return;
     const d = await loadData();
     const now = Date.now();
-    const THREE_HOURS = 3 * 60 * 60 * 1000;
     let changed = false;
 
     // 预构建索引，避免 N+1 线性扫描
@@ -22,9 +21,25 @@ async function checkReviewReminders() {
       // 跳过已发送提醒的、无面试时间的
       if (sc.reviewReminderSent || !sc.scheduledAt) continue;
 
-      // 解析面试时间，判断是否已过3小时
-      const schedTime = new Date(sc.scheduledAt).getTime();
-      if (isNaN(schedTime) || (now - schedTime) < THREE_HOURS) continue;
+      // 历史面试（今天零点之前开始的）直接标记已发送，不触发提醒
+      // 这样即使 Supabase 缺少 review_reminder_sent 列，也不会对历史数据重复发送
+      const todayStartMs = new Date(new Date().toLocaleDateString("en-CA") + "T00:00:00+08:00").getTime();
+      const schedStartMs = new Date(
+        /[Zz]|[+-]\d{2}:?\d{2}$/.test(String(sc.scheduledAt))
+          ? sc.scheduledAt
+          : sc.scheduledAt + "+08:00"
+      ).getTime();
+      if (!isNaN(schedStartMs) && schedStartMs < todayStartMs) {
+        sc.reviewReminderSent = true;
+        changed = true;
+        continue;
+      }
+
+      // 解析面试结束时间：优先用 endAt，没有则用 scheduledAt + 1小时（默认面试时长）
+      const endAtStr = sc.endAt || sc.scheduledAt;
+      const startTime = new Date(endAtStr).getTime();
+      const endTime = sc.endAt ? startTime : startTime + 45 * 60 * 1000; // 无 endAt 则加45分钟
+      if (isNaN(endTime) || now < endTime) continue;
 
       // 检查该轮次是否已有面评
       if (reviewSet.has(sc.candidateId + ":" + sc.round)) {
@@ -60,6 +75,13 @@ async function checkReviewReminders() {
         ? `${process.env.BASE_URL || "https://recruit-platform-sable.vercel.app"}/review/${sc.reviewToken}`
         : "";
 
+      // 获取候选人最新简历链接
+      const resumeFiles = (d.resumeFiles || [])
+        .filter(r => r.candidateId === candidate.id && r.url)
+        .sort((a, b) => (b.uploadedAt || "").localeCompare(a.uploadedAt || ""));
+      const latestResume = resumeFiles[0] || null;
+      const resumeUrl = latestResume?.url || "";
+
       // 给每个面试官发消息 + 创建任务
       for (const usr of interviewerUsers) {
         const msgContent = `**面评提醒** 📝\n\n` +
@@ -67,10 +89,19 @@ async function checkReviewReminders() {
           `岗位：${job?.title || candidate.jobTitle || "-"}\n` +
           `面试轮次：第${sc.round}轮\n` +
           `面试时间：${sc.scheduledAt}\n\n` +
-          `面试已结束超过2小时，请尽快填写面评。` +
-          (reviewUrl ? `\n\n[点击填写面评](${reviewUrl})` : "");
+          `面试时间已到，请填写本轮面评。`;
 
-        await sendFeishuMessage(usr.openId, msgContent, "面评提醒");
+        // 操作按钮：面评链接 + 简历附件
+        const actions = [];
+        if (reviewUrl) {
+          actions.push({ tag: "button", text: { tag: "plain_text", content: "📝 填写面评" }, url: reviewUrl + "?lk_jump_to_browser=true", type: "primary" });
+        }
+        if (resumeUrl) {
+          actions.push({ tag: "button", text: { tag: "plain_text", content: "📄 查看简历" }, url: resumeUrl + (resumeUrl.includes("?") ? "&" : "?") + "lk_jump_to_browser=true", type: "default" });
+        }
+        const extraElements = actions.length > 0 ? [{ tag: "action", actions }] : [];
+
+        await sendFeishuMessage(usr.openId, msgContent, "面评提醒", extraElements);
 
         // 创建飞书任务：面试官为负责人，HR为关注人
         const followerIds = hrOpenIds.length > 0 ? hrOpenIds : [];

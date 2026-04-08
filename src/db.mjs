@@ -45,8 +45,9 @@ export function ensureDataShape(d) {
   if (!Array.isArray(d.tags)) d.tags = ["高潜", "紧急", "待定", "优秀", "内推优先", "已拒绝其他Offer"];
   if (!Array.isArray(d.categories)) d.categories = ["技术", "产品", "设计", "运营", "市场", "销售", "人力", "财务", "行政", "其他"];
   if (!Array.isArray(d.users)) d.users = [];
-  if (!Array.isArray(d.headhunters)) d.headhunters = [];
   if (!Array.isArray(d.notes)) d.notes = [];
+  if (!d.settings || typeof d.settings !== "object") d.settings = {};
+  if (typeof d.settings.hrGroupChatId !== "string") d.settings.hrGroupChatId = "";
   return d;
 }
 
@@ -93,7 +94,10 @@ function candToRow(c) {
     follow_at: follow.followAt ?? null,
     follow_note: follow.note ?? null,
     headhunter_id: c.headhunterId ?? null,
+    referrer: c.referrer ?? null,
     referrer_id: c.referrerId ?? null,
+    vendor_id: c.vendorId ?? null,
+    vendor_name: c.vendorName ?? null,
     careers_app_id: c.careersAppId ?? null,
     created_at: c.createdAt ?? null,
     updated_at: c.updatedAt ?? null,
@@ -119,7 +123,10 @@ function candFromRow(r) {
       note: r.follow_note ?? "",
     },
     headhunterId: r.headhunter_id ?? "",
+    referrer: r.referrer ?? "",
     referrerId: r.referrer_id ?? "",
+    vendorId: r.vendor_id ?? "",
+    vendorName: r.vendor_name ?? "",
     careersAppId: r.careers_app_id ?? "",
     createdAt: r.created_at ?? nowIso(),
     updatedAt: r.updated_at ?? r.created_at ?? nowIso(),
@@ -590,9 +597,19 @@ async function _loadDataFresh() {
 
     // 合并其他本地数据
     const merge = (arr, localArr, key = "id") => {
-      const ids = new Set(arr.map((x) => x[key]));
+      const idxMap = new Map(arr.map((x, i) => [x[key], i]));
       for (const item of (localArr || [])) {
-        if (!ids.has(item[key])) arr.push(item);
+        if (!idxMap.has(item[key])) {
+          arr.push(item);
+        } else {
+          // 用本地数据补充 Supabase 里没有的字段（不覆盖 Supabase 已有的非空字段）
+          const existing = arr[idxMap.get(item[key])];
+          for (const k of Object.keys(item)) {
+            if (existing[k] === undefined || existing[k] === null || existing[k] === "") {
+              existing[k] = item[k];
+            }
+          }
+        }
       }
     };
     merge(d.offers, local.offers);
@@ -638,6 +655,9 @@ async function _loadDataFresh() {
 
 export async function saveData(d) {
   const shaped = ensureDataShape(d);
+
+  // 写入前先清除内存缓存，确保下次 loadData 读到最新数据
+  invalidateCache();
 
   try {
     saveDataLocal(shaped);

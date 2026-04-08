@@ -17,7 +17,9 @@ export function statusBadge(status) {
     "待四面": "status-purple", "四面通过": "status-purple",
     "待五面": "status-purple", "五面通过": "status-purple",
     "待发offer": "status-orange", "Offer发放": "status-blue",
-    "入职": "status-green", "淘汰": "status-red",
+    "拒offer": "status-red", "入职": "status-green",
+    "面试不通过": "status-red", "面试Pending": "status-gray",
+    "淘汰": "status-red",
   };
   const cls = map[s] || "status-gray";
   return `<span class="badge ${cls}">${escapeHtml(s)}</span>`;
@@ -60,10 +62,9 @@ export function renderPage({ title, user, active, contentHtml }) {
     ["candidates", "人才库", "/candidates", "M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"],
     ["board", "看板", "/candidates/board", "M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"],
     ["schedule", "日程", "/schedule", "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"],
-    ["referral", "内推", "/referral", "M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"],
     ...(isAdmin ? [
-      ["offers", "Offer", "/offers", "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"],
-      ["headhunters", "猎头", "/headhunters", "M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"],
+      ["offers", "面试通过/入职统计", "/offers", "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"],
+      ["analytics", "数据分析", "/analytics", "M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"],
       ["settings", "设置", "/settings", "M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z"],
     ] : []),
   ];
@@ -106,14 +107,14 @@ export function renderPage({ title, user, active, contentHtml }) {
 <title>${escapeHtml(title)} - Machinepulse招聘系统</title>
 <style>
 :root{
-  --bg:#faf9fb;--bg2:#ffffff;--card:#ffffff;--text:#2e2e3a;--muted:#999;
-  --border:#eee;--border-light:#f0eef3;
-  --primary:#7c5cfc;--primary-light:#f3f0ff;--primary-hover:#6b4ce0;--primary-bg:rgba(124,92,252,.04);
-  --green:#52c41a;--green-bg:rgba(82,196,26,.06);--green-border:rgba(82,196,26,.15);
-  --red:#f5222d;--red-bg:rgba(245,34,45,.05);--red-border:rgba(245,34,45,.15);
-  --orange:#fa8c16;--orange-bg:rgba(250,140,22,.06);--orange-border:rgba(250,140,22,.15);
-  --blue:#4e7bf6;--blue-bg:rgba(78,123,246,.06);--blue-border:rgba(78,123,246,.15);
-  --purple:#7c5cfc;--purple-bg:rgba(124,92,252,.06);--purple-border:rgba(124,92,252,.12);
+  --bg:#f5f7fa;--bg2:#ffffff;--card:#ffffff;--text:#1f2329;--muted:#8c93a3;
+  --border:#e4e8ef;--border-light:#edf0f5;
+  --primary:#5b6af5;--primary-light:#eef0fe;--primary-hover:#4455e8;--primary-bg:rgba(91,106,245,.05);
+  --green:#2eb87a;--green-bg:rgba(46,184,122,.07);--green-border:rgba(46,184,122,.25);
+  --red:#f05a5a;--red-bg:rgba(240,90,90,.06);--red-border:rgba(240,90,90,.22);
+  --orange:#f5960a;--orange-bg:rgba(245,150,10,.07);--orange-border:rgba(245,150,10,.25);
+  --blue:#3b9de8;--blue-bg:rgba(59,157,232,.07);--blue-border:rgba(59,157,232,.25);
+  --purple:#9b72f5;--purple-bg:rgba(155,114,245,.07);--purple-border:rgba(155,114,245,.25);
   --shadow:0 1px 3px rgba(0,0,0,.04);--shadow2:0 8px 30px rgba(0,0,0,.08);
   --radius:6px;--radius2:10px;--sidebar-w:200px;
 }
@@ -127,7 +128,7 @@ a{color:inherit;text-decoration:none}
 /* === 侧边栏 === */
 .sidebar{width:var(--sidebar-w);height:100vh;background:#fff;border-right:1px solid var(--border-light);display:flex;flex-direction:column;flex-shrink:0;position:fixed;left:0;top:0;z-index:100}
 .sidebar-brand{padding:20px 16px 20px;display:flex;align-items:center;gap:10px}
-.brand-logo{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,#a78bfa,#7c5cfc);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:13px}
+.brand-logo{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,#9b72f5,#5b6af5);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:13px}
 .brand-text{font-weight:700;font-size:15px;color:var(--text)}
 .brand-sub{font-size:11px;color:var(--muted);font-weight:400}
 .sidebar-nav{flex:1;padding:4px 8px;overflow-y:auto}
@@ -137,7 +138,7 @@ a{color:inherit;text-decoration:none}
 .nav-item svg{flex-shrink:0;opacity:.6}
 .nav-item.active svg{opacity:1}
 .sidebar-user{padding:14px 16px;border-top:1px solid var(--border-light);display:flex;align-items:center;gap:10px}
-.avatar{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#a78bfa,#7c5cfc);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;overflow:hidden;flex-shrink:0}
+.avatar{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#9b72f5,#5b6af5);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;overflow:hidden;flex-shrink:0}
 .avatar img{width:100%;height:100%;object-fit:cover}
 .user-meta{flex:1;min-width:0}
 .user-name{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -197,9 +198,9 @@ tr:last-child td{border-bottom:none}
 .status-gray{background:#f4f4f5;color:#8c8c8c}
 .status-purple{background:var(--purple-bg);color:var(--purple);border:1px solid var(--purple-border)}
 .status-blue{background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-border)}
-.status-green{background:var(--green-bg);color:#389e0d;border:1px solid var(--green-border)}
+.status-green{background:var(--green-bg);color:#1f9960;border:1px solid var(--green-border)}
 .status-red{background:var(--red-bg);color:var(--red);border:1px solid var(--red-border)}
-.status-orange{background:var(--orange-bg);color:#d46b08;border:1px solid var(--orange-border)}
+.status-orange{background:var(--orange-bg);color:#d47c08;border:1px solid var(--orange-border)}
 
 /* === 统计卡片 === */
 .stat-card{text-align:left;padding:16px 20px}
@@ -232,7 +233,7 @@ tr:last-child td{border-bottom:none}
 .bar-green{background:var(--green)}
 .bar-red{background:var(--red)}
 .bar-orange{background:var(--orange)}
-.bar-purple{background:linear-gradient(90deg,#a78bfa,#7c5cfc)}
+.bar-purple{background:linear-gradient(90deg,#9b72f5,#5b6af5)}
 
 /* === 看板 === */
 .kanban{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;overflow-x:auto;padding-bottom:10px;height:calc(100vh - 200px);min-width:0}
@@ -256,7 +257,7 @@ tr:last-child td{border-bottom:none}
 .qbtn-next{background:var(--primary);color:#fff;border-color:var(--primary)}
 .qbtn-next:hover{background:#6346e0;border-color:#6346e0}
 .qbtn-reject{background:#fff;color:var(--muted);border-color:var(--border-light)}
-.qbtn-reject:hover{background:#fff0f0;color:#f5222d;border-color:#f5222d}
+.qbtn-reject:hover{background:#fff0f0;color:#f05a5a;border-color:#f05a5a}
 
 /* === 抽屉 === */
 .drawerMask{position:fixed;inset:0;background:rgba(0,0,0,.2);display:none;z-index:200;backdrop-filter:blur(1px)}

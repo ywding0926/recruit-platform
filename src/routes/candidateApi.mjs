@@ -1,9 +1,9 @@
 import { Router } from "express";
 import { requireLogin } from "../auth.mjs";
-import { loadData, saveData, nowIso, rid } from "../db.mjs";
+import { loadData, saveData, nowIso, rid, deleteFromSupabase } from "../db.mjs";
 import { STATUS_SET, INTERVIEW_ROUNDS, INTERVIEW_RATING } from "../constants.mjs";
 import { getVisibleJobIds, pushEvent, refreshResumeUrlIfNeeded } from "../helpers.mjs";
-import { feishuEnabled, sendFeishuMessage, createFeishuCalendarEvent } from "../feishu.mjs";
+import { feishuEnabled, sendFeishuMessage, sendFeishuGroupMessage, createFeishuCalendarEvent } from "../feishu.mjs";
 
 const router = Router();
 
@@ -37,12 +37,23 @@ router.post("/api/candidates/:id", requireLogin, async (req, res) => {
   const phone = String(req.body.phone ?? "").trim();
   const email = String(req.body.email ?? "").trim();
   const source = String(req.body.source ?? "").trim();
+  const referrer = String(req.body.referrer ?? "").trim();
+  const referrerId = String(req.body.referrerId ?? "").trim();
+  const vendorId = String(req.body.vendorId ?? "").trim();
   const note = String(req.body.note ?? "").trim();
 
   if (name) c.name = name;
   c.phone = phone;
   c.email = email;
   c.source = source;
+  c.referrer = referrer;
+  c.referrerId = referrerId;
+  c.vendorId = vendorId;
+  // 猎头来源：更新供应商显示名称
+  if (source === "猎头" && vendorId) {
+    const h = (d.headhunters || []).find(x => x.id === vendorId);
+    c.vendorName = h ? (h.company ? h.company + (h.name ? " · " + h.name : "") : h.name) : vendorId;
+  }
   c.note = note;
   if (Array.isArray(req.body.tags)) c.tags = req.body.tags.filter(Boolean);
   c.updatedAt = nowIso();
@@ -194,18 +205,20 @@ router.post("/api/candidates/:id/schedule", requireLogin, async (req, res) => {
   // 为每个面试官生成独立 reviewToken（面试官免登录填面评用）
   const existingToken = idx > -1 ? d.interviewSchedules[idx].reviewToken : "";
   const reviewToken = existingToken || rid("rt");
+  const prevMeetingUrl = idx > -1 ? (d.interviewSchedules[idx].meetingUrl || d.interviewSchedules[idx].link || "") : "";
   const item = {
     id: idx > -1 ? d.interviewSchedules[idx].id : rid("sc"),
     candidateId: c.id,
     round,
     scheduledAt,
     interviewers,
-    link,
+    link: link || prevMeetingUrl,  // 前端未传 link 时保留已有会议链接
     location,
     reviewToken,
     meetingNo: idx > -1 ? (d.interviewSchedules[idx].meetingNo || "") : "",
     recordingUrl: idx > -1 ? (d.interviewSchedules[idx].recordingUrl || "") : "",
     calendarEventId: idx > -1 ? (d.interviewSchedules[idx].calendarEventId || "") : "",
+    meetingUrl: idx > -1 ? (d.interviewSchedules[idx].meetingUrl || "") : "",
     createdAt: idx > -1 ? d.interviewSchedules[idx].createdAt : nowIso(),
     updatedAt: nowIso(),
   };
@@ -281,12 +294,23 @@ router.post("/api/candidates/:id/schedule", requireLogin, async (req, res) => {
         : new Date(localStr + "+08:00");
       const endDt = new Date(startDt.getTime() + 60 * 60 * 1000);
       console.log("[Schedule] 同步飞书日历, attendees:", attendeeOpenIds.length, "人, 用户输入:", scheduledAt, "转换UTC:", startDt.toISOString());
+      // 获取候选人最新简历（用于添加到飞书日历附件）
+      const resumeFiles = (d.resumeFiles || [])
+        .filter(r => r.candidateId === c.id && r.url)
+        .sort((a, b) => (b.uploadedAt || "").localeCompare(a.uploadedAt || ""));
+      const latestResume = resumeFiles[0] || null;
+      const resumeAttachments = latestResume
+        ? [{ url: latestResume.url, name: latestResume.originalName || latestResume.filename || "resume.pdf" }]
+        : [];
+
       const calResult = await createFeishuCalendarEvent({
         summary: `面试：${c.name} - ${c.jobTitle || "未知岗位"} - 第${round}轮`,
         description: `候选人：${c.name}\n职位：${c.jobTitle || "-"}\n轮次：第${round}轮\n面试官：${interviewers || "-"}\n${link ? "链接：" + link : ""}${location ? "\n地点：" + location : ""}`,
         startTime: startDt.toISOString(),
         endTime: endDt.toISOString(),
         attendeeOpenIds,
+        resumeAttachments,
+        hostOpenId: req.user?.openId || "",
       });
       console.log("[Schedule] 日历同步结果:", JSON.stringify({ code: calResult?.code, eventId: calResult?.eventId, meetingUrl: calResult?.meetingUrl }));
       calendarSynced = true;
@@ -378,7 +402,7 @@ router.post("/api/candidates/:id/reviews", requireLogin, async (req, res) => {
 
   const idx = d.interviews.findIndex((x) => x.candidateId === c.id && x.round === round && (x.interviewer || "") === interviewer);
   const item = {
-    id: idx > -1 ? d.interviews[idx].id : rid("rv"),
+    id: (idx > -1 && d.interviews[idx].id) ? d.interviews[idx].id : rid("rv"),
     candidateId: c.id,
     round,
     conclusion,
@@ -394,75 +418,153 @@ router.post("/api/candidates/:id/reviews", requireLogin, async (req, res) => {
   else d.interviews.push(item);
 
   let autoFlowMsg = "";
-  const RATING_SCORES = { S: 5, A: 4, "B+": 3.5, B: 3, "B-": 2, C: 1 };
-  const ratingScore = RATING_SCORES[rating] || 0;
-
   const old = c.status || "待筛选";
-  const status = String(req.body.status || "待筛选");
 
-  if (rating === "B-" || rating === "C") {
-    c.status = status;
-    autoFlowMsg = "评级为" + rating + "，建议标记该候选人为淘汰状态。";
-  } else if (ratingScore >= 3.5) {
-    const passStatusMap = { 1: "一面通过", 2: "二面通过", 3: "三面通过", 4: "四面通过", 5: "五面通过" };
-    const passStatus = passStatusMap[round];
-    if (passStatus && STATUS_SET.has(passStatus)) {
-      c.status = passStatus;
-      if (round >= 5) {
-        c.status = "待发offer";
-        autoFlowMsg = "第" + round + "轮面试通过（评级" + rating + "），已自动流转到「待发Offer」。";
-      } else {
-        autoFlowMsg = "评级" + rating + "，已自动流转到「" + passStatus + "」。";
-      }
-    } else {
-      c.status = status;
-    }
-  } else {
-    c.status = status;
+  if (conclusion === "通过") {
+    const passStatusMap = { 1: "一面通过", 2: "二面通过", 3: "三面通过", 4: "四面通过", 5: "待发offer" };
+    const passStatus = passStatusMap[round] || "待发offer";
+    c.status = passStatus;
+    autoFlowMsg = "面试结论通过，已自动流转到「" + passStatus + "」。";
+  } else if (conclusion === "不通过") {
+    const failStatusMap = { 1: "一面不通过", 2: "二面不通过", 3: "三面不通过", 4: "四面不通过", 5: "五面不通过" };
+    const failStatus = failStatusMap[round] || "面试不通过";
+    c.status = failStatus;
+    autoFlowMsg = "面试结论不通过，状态已更新为「" + failStatus + "」。";
+  } else if (conclusion === "Pending") {
+    c.status = "面试Pending";
+    autoFlowMsg = "面试结论待定，状态已更新为「面试Pending」。";
   }
   c.updatedAt = nowIso();
 
-  pushEvent(d, { candidateId: c.id, type: "面评", message: "第" + round + "轮（" + interviewer + "）：进度=" + status + "，评级=" + (rating || "-") + "\nPros：" + (pros || "-") + "\nCons：" + (cons || "-"), actor: req.user?.name || "系统" });
+  pushEvent(d, { candidateId: c.id, type: "面评", message: "第" + round + "轮（" + interviewer + "）：结论=" + conclusion + "，评级=" + (rating || "-") + "\nPros：" + (pros || "-") + "\nCons：" + (cons || "-"), actor: req.user?.name || "系统" });
   if (old !== c.status) {
     pushEvent(d, { candidateId: c.id, type: "状态同步", message: "因面评更新，状态：" + old + " -> " + c.status, actor: "系统" });
   }
   if (!c.follow) c.follow = {};
-  if (c.status === "淘汰") {
+  if (conclusion === "通过") {
+    if (c.status === "待发offer") {
+      c.follow.nextAction = "准备Offer";
+    } else {
+      c.follow.nextAction = "安排下一轮面试";
+      c.follow.followAt = new Date(Date.now() + 2 * 86400000).toISOString().slice(0, 10);
+    }
+  } else if (conclusion === "不通过") {
     c.follow.nextAction = "已结束";
-    c.follow.note = (c.follow.note ? c.follow.note + "\n" : "") + "第" + round + "轮面试淘汰";
-  } else if (c.status.includes("通过")) {
-    c.follow.nextAction = "安排下一轮面试";
-    c.follow.followAt = new Date(Date.now() + 2 * 86400000).toISOString().slice(0, 10);
-  } else if (c.status === "待发offer") {
-    c.follow.nextAction = "准备Offer";
+    c.follow.note = (c.follow.note ? c.follow.note + "\n" : "") + "第" + round + "轮面试不通过";
   }
   await saveData(d);
 
-  // 面评完成后通知管理员
+  // 面评完成后通知管理员 + HR 群聊
   try {
     const baseUrl = process.env.BASE_URL || "https://recruit-platform-sable.vercel.app";
-    const candidateUrl = baseUrl + "/candidates/" + c.id;
+    const candidateUrl = baseUrl + "/candidates/" + c.id + "?lk_jump_to_browser=true";
     const job = d.jobs.find(j => j.id === c.jobId);
     const admins = (d.users || []).filter(u => u.role === "admin" && u.openId);
+    const notifyMsg = `**面评已提交** ✅\n\n` +
+      `**候选人**：${c.name}\n` +
+      `**岗位**：${job?.title || c.jobTitle || "-"}\n` +
+      `**轮次**：第${round}轮\n` +
+      `**面试官**：${interviewer}\n` +
+      `**面试结论**：${conclusion || "-"}\n` +
+      `**评级**：${rating}`;
+    const notifyBtn = { tag: "action", actions: [{ tag: "button", text: { tag: "plain_text", content: "📋 查看候选人详情" }, url: candidateUrl, type: "primary" }] };
+
+    // 通知各管理员（一对一）
     console.log("[ReviewNotify] 内部面评通知: 候选人=" + c.name + " admins=" + admins.length + " (" + admins.map(a => a.name).join(",") + ")");
-    if (admins.length > 0) {
-      const notifyMsg = `**面评已提交** ✅\n\n` +
-        `**候选人**：${c.name}\n` +
-        `**岗位**：${job?.title || c.jobTitle || "-"}\n` +
-        `**轮次**：第${round}轮\n` +
-        `**面试官**：${interviewer}\n` +
-        `**评级**：${rating}\n\n` +
-        `[查看候选人详情](${candidateUrl})`;
-      for (const admin of admins) {
-        await sendFeishuMessage(admin.openId, notifyMsg, "面评完成通知");
-        console.log("[ReviewNotify] 已通知 " + admin.name + "(" + admin.openId + ")");
-      }
+    for (const admin of admins) {
+      await sendFeishuMessage(admin.openId, notifyMsg, "面评完成通知", [notifyBtn]);
+      console.log("[ReviewNotify] 已通知 " + admin.name + "(" + admin.openId + ")");
+    }
+
+    // 发送群聊通知（HRteam 群）
+    const hrGroupChatId = d.settings?.hrGroupChatId || "";
+    if (hrGroupChatId) {
+      const groupMsg = `「**${c.name}**」的「**第${round}轮**」面试面评填写完成\n**面试官**：${interviewer}\n**面试结论**：${conclusion || "-"}，**评级**：${rating}`;
+      await sendFeishuGroupMessage(hrGroupChatId, groupMsg, "面评完成通知", [notifyBtn]);
+      console.log("[ReviewNotify] 已通知 HR 群聊 chatId=" + hrGroupChatId);
     }
   } catch (notifyErr) {
     console.warn("[ReviewNotify] 通知失败:", notifyErr.message);
   }
 
   res.json({ ok: true, autoFlowMsg });
+});
+
+// ====== 面评编辑 ======
+router.post("/api/candidates/:id/reviews/:reviewId", requireLogin, async (req, res) => {
+  const d = await loadData();
+  const c = d.candidates.find((x) => x.id === req.params.id);
+  if (!c) return res.status(404).json({ error: "not_found" });
+  { const vj = getVisibleJobIds(req.user, d.jobs); if (vj !== null && !vj.has(c.jobId)) return res.status(403).json({ error: "no_permission" }); }
+
+  const reviewIdx = d.interviews.findIndex((x) => x.id === req.params.reviewId && x.candidateId === c.id);
+  if (reviewIdx === -1) return res.status(404).json({ error: "review_not_found" });
+
+  const existing = d.interviews[reviewIdx];
+  const round = Number(req.body.round || existing.round);
+  const conclusion = String(req.body.conclusion || existing.conclusion || "通过");
+  const rating = String(req.body.rating || existing.rating || "");
+  const interviewer = String(req.body.interviewer || existing.interviewer || "").trim();
+  var pros = String(req.body.pros !== undefined ? req.body.pros : existing.pros || "");
+  var cons = String(req.body.cons !== undefined ? req.body.cons : existing.cons || "");
+  var focusNext = String(req.body.focusNext !== undefined ? req.body.focusNext : existing.focusNext || "");
+
+  if (rating && !INTERVIEW_RATING.includes(rating)) return res.status(400).send("invalid_rating");
+
+  d.interviews[reviewIdx] = {
+    ...existing,
+    round,
+    conclusion,
+    rating,
+    interviewer,
+    pros,
+    cons,
+    focusNext,
+    updatedAt: nowIso(),
+  };
+
+  let autoFlowMsg = "";
+  const old = c.status || "待筛选";
+
+  if (conclusion === "通过") {
+    const passStatusMap = { 1: "一面通过", 2: "二面通过", 3: "三面通过", 4: "四面通过", 5: "待发offer" };
+    const passStatus = passStatusMap[round] || "待发offer";
+    c.status = passStatus;
+    autoFlowMsg = "面试结论通过，已自动流转到「" + passStatus + "」。";
+  } else if (conclusion === "不通过") {
+    c.status = "面试不通过";
+    autoFlowMsg = "面试结论不通过，状态已更新为「面试不通过」。";
+  } else if (conclusion === "Pending") {
+    c.status = "面试Pending";
+    autoFlowMsg = "面试结论待定，状态已更新为「面试Pending」。";
+  }
+  c.updatedAt = nowIso();
+  if (old !== c.status) {
+    pushEvent(d, { candidateId: c.id, type: "状态同步", message: "因面评修改，状态：" + old + " -> " + c.status, actor: "系统" });
+  }
+  pushEvent(d, { candidateId: c.id, type: "面评修改", message: "第" + round + "轮（" + interviewer + "）：结论=" + conclusion + "，评级=" + (rating || "-"), actor: req.user?.name || "系统" });
+
+  await saveData(d);
+  res.json({ ok: true, autoFlowMsg });
+});
+
+// ====== 面评删除 ======
+router.delete("/api/candidates/:id/reviews/:reviewId", requireLogin, async (req, res) => {
+  const d = await loadData();
+  const c = d.candidates.find((x) => x.id === req.params.id);
+  if (!c) return res.status(404).json({ error: "not_found" });
+  { const vj = getVisibleJobIds(req.user, d.jobs); if (vj !== null && !vj.has(c.jobId)) return res.status(403).json({ error: "no_permission" }); }
+
+  const reviewIdx = d.interviews.findIndex((x) => x.id === req.params.reviewId && x.candidateId === c.id);
+  if (reviewIdx === -1) return res.status(404).json({ error: "review_not_found" });
+
+  const rv = d.interviews[reviewIdx];
+  d.interviews.splice(reviewIdx, 1);
+  pushEvent(d, { candidateId: c.id, type: "面评删除", message: "第" + rv.round + "轮（" + (rv.interviewer || "-") + "）面评已删除", actor: req.user?.name || "系统" });
+  await saveData(d);
+  // Supabase 用 upsert 不会删除已有记录，需显式删除
+  await deleteFromSupabase("interviews", rv.id);
+  res.json({ ok: true });
 });
 
 // ====== 候选人备注 ======

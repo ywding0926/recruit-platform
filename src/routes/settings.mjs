@@ -1,8 +1,8 @@
 import { Router } from "express";
 import { requireLogin, requireAdmin } from "../auth.mjs";
-import { loadData, saveData, nowIso, rid, toBjTime } from "../db.mjs";
+import { loadData, saveData, nowIso, rid, toBjTime, deleteFromSupabase } from "../db.mjs";
 import { renderPage, escapeHtml } from "../ui.mjs";
-import { feishuEnabled, getAllFeishuEmployees, searchFeishuUsers, sendFeishuGroupMessage, getFeishuBotChats } from "../feishu.mjs";
+import { feishuEnabled, getAllFeishuEmployees, searchFeishuUsers, sendFeishuGroupMessage, getTenantAccessToken } from "../feishu.mjs";
 
 const router = Router();
 
@@ -39,6 +39,45 @@ router.get("/settings", requireLogin, requireAdmin, async (req, res) => {
     return '<tr><td style="font-weight:700">' + escapeHtml(u.name || "未命名") + '</td><td>' + roleLabel + '</td><td>' + providerLabel + '</td><td class="muted" style="font-size:12px">' + escapeHtml(toBjTime(u.createdAt || "").slice(0, 10)) + '</td><td>' + toggleBtn + '</td></tr>';
   }).join("");
 
+  // 猎头管理列表
+  const headhunters = d.headhunters || [];
+  const huntersTableHtml = headhunters.length
+    ? '<table><thead><tr><th>公司</th><th>联系人</th><th>状态</th><th>创建时间</th><th>操作</th></tr></thead><tbody>' +
+      headhunters.map((h) => {
+        const hid = escapeHtml(h.id);
+        const hname = escapeHtml(h.name || "");
+        const hcompany = escapeHtml(h.company || "");
+        const henabledLabel = h.enabled !== false
+          ? '<span class="badge status-green" style="font-size:11px">启用</span>'
+          : '<span class="badge status-gray" style="font-size:11px">停用</span>';
+        const toggleEnabledBtn = h.enabled !== false
+          ? '<button class="btn sm" onclick="toggleHunter(\'' + hid + '\',false)" style="margin-right:4px">停用</button>'
+          : '<button class="btn sm primary" onclick="toggleHunter(\'' + hid + '\',true)" style="margin-right:4px">启用</button>';
+        return '<tr>' +
+          '<td style="font-weight:700">' + hcompany + '</td>' +
+          '<td>' + hname + '</td>' +
+          '<td>' + henabledLabel + '</td>' +
+          '<td class="muted" style="font-size:12px">' + escapeHtml(toBjTime(h.createdAt || "").slice(0, 10)) + '</td>' +
+          '<td>' + toggleEnabledBtn + '<button class="btn sm" onclick="delHunter(\'' + hid + '\')" style="color:#f5222d">删除</button></td>' +
+          '</tr>';
+      }).join("") +
+      '</tbody></table>'
+    : '<div class="muted">暂无猎头供应商</div>';
+
+  const headhunterMgmtHtml = '<div class="card" style="margin-top:14px">' +
+    '<div style="font-weight:900;font-size:18px">猎头管理</div>' +
+    '<div class="muted">管理猎头供应商。启用的猎头可在候选人录入时选择绑定。</div>' +
+    '<div class="divider"></div>' +
+    huntersTableHtml +
+    '<div class="divider"></div>' +
+    '<div style="font-weight:600;font-size:14px;margin-bottom:8px">新增猎头</div>' +
+    '<div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;max-width:640px">' +
+      '<div><label style="font-size:12px;color:#666;display:block;margin-bottom:2px">公司名称 <span style="color:#f5222d">*</span></label><input id="newHunterCompany" placeholder="例如：猎聘网" style="width:180px" /></div>' +
+      '<div><label style="font-size:12px;color:#666;display:block;margin-bottom:2px">联系人姓名</label><input id="newHunterName" placeholder="例如：张招聘" style="width:150px" /></div>' +
+      '<button class="btn primary" onclick="addHunter()" style="margin-bottom:1px">新增</button>' +
+    '</div>' +
+    '</div>';
+
   const userMgmtHtml = '<div class="card" style="margin-top:14px">' +
     '<div style="font-weight:900;font-size:18px">用户管理</div>' +
     '<div class="muted">管理系统用户和角色权限。管理员拥有全部操作权限，成员仅可查看数据和提交面评。</div>' +
@@ -46,11 +85,7 @@ router.get("/settings", requireLogin, requireAdmin, async (req, res) => {
     (d.users.length
       ? '<table><thead><tr><th>姓名</th><th>角色</th><th>登录方式</th><th>注册时间</th><th>操作</th></tr></thead><tbody>' + usersHtml + '</tbody></table>'
       : '<div class="muted">暂无用户</div>') +
-    '</div>' +
-    '<script>function toggleRole(userId,newRole){if(!confirm(newRole==="admin"?"确认将该用户设为管理员？":"确认将该用户降为普通成员？"))return;fetch("/api/users/"+userId+"/role",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({role:newRole})}).then(r=>{if(r.ok)location.reload();else r.json().then(d=>alert(d.error||"操作失败")).catch(()=>alert("操作失败"))}).catch(()=>alert("网络错误"))}' +
-    'function delSource(s){if(!confirm("确认删除来源「"+s+"」？"))return;fetch("/api/settings/sources",{method:"DELETE",headers:{"Content-Type":"application/json"},body:JSON.stringify({source:s})}).then(r=>{if(r.ok)location.reload();else r.json().then(d=>alert(d.error||"删除失败")).catch(()=>alert("删除失败"))}).catch(()=>alert("网络错误"))}' +
-    'function delTag(t){if(!confirm("确认删除标签「"+t+"」？"))return;fetch("/api/settings/tags",{method:"DELETE",headers:{"Content-Type":"application/json"},body:JSON.stringify({tag:t})}).then(r=>{if(r.ok)location.reload();else r.json().then(d=>alert(d.error||"删除失败")).catch(()=>alert("删除失败"))}).catch(()=>alert("网络错误"))}' +
-    'function delCategory(c){if(!confirm("确认删除分类「"+c+"」？"))return;fetch("/api/settings/categories",{method:"DELETE",headers:{"Content-Type":"application/json"},body:JSON.stringify({category:c})}).then(r=>{if(r.ok)location.reload();else r.json().then(d=>alert(d.error||"删除失败")).catch(()=>alert("删除失败"))}).catch(()=>alert("网络错误"))}</script>';
+    '</div>';
 
   const hrGroupChatId = d.settings?.hrGroupChatId || "";
 
@@ -59,7 +94,18 @@ router.get("/settings", requireLogin, requireAdmin, async (req, res) => {
       title: "设置",
       user: req.user,
       active: "settings",
-      contentHtml: '<div class="card"><div style="font-weight:900;font-size:18px">设置</div><div class="divider"></div>' +
+      contentHtml:
+        // 所有工具函数统一放在页面最前面，避免 onclick 找不到函数的问题
+        '<script>' +
+        'function delSource(s){if(!confirm("确认删除来源「"+s+"」？"))return;fetch("/api/settings/sources",{method:"DELETE",headers:{"Content-Type":"application/json"},body:JSON.stringify({source:s})}).then(r=>{if(r.ok)location.reload();else r.json().then(d=>alert(d.error||"删除失败")).catch(()=>alert("删除失败"))}).catch(()=>alert("网络错误"))}' +
+        'function delTag(t){if(!confirm("确认删除标签「"+t+"」？"))return;fetch("/api/settings/tags",{method:"DELETE",headers:{"Content-Type":"application/json"},body:JSON.stringify({tag:t})}).then(r=>{if(r.ok)location.reload();else r.json().then(d=>alert(d.error||"删除失败")).catch(()=>alert("删除失败"))}).catch(()=>alert("网络错误"))}' +
+        'function delCategory(c){if(!confirm("确认删除分类「"+c+"」？"))return;fetch("/api/settings/categories",{method:"DELETE",headers:{"Content-Type":"application/json"},body:JSON.stringify({category:c})}).then(r=>{if(r.ok)location.reload();else r.json().then(d=>alert(d.error||"删除失败")).catch(()=>alert("删除失败"))}).catch(()=>alert("网络错误"))}' +
+        'function toggleRole(userId,newRole){if(!confirm(newRole==="admin"?"确认将该用户设为管理员？":"确认将该用户降为普通成员？"))return;fetch("/api/users/"+userId+"/role",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({role:newRole})}).then(r=>{if(r.ok)location.reload();else r.json().then(d=>alert(d.error||"操作失败")).catch(()=>alert("操作失败"))}).catch(()=>alert("网络错误"))}' +
+        'function addHunter(){var company=document.getElementById("newHunterCompany").value.trim();var name=document.getElementById("newHunterName").value.trim();if(!company){alert("请填写公司名称");return}fetch("/api/settings/headhunters",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({company:company,name:name})}).then(r=>{if(r.ok)location.reload();else r.json().then(d=>alert(d.error||"新增失败")).catch(()=>alert("新增失败"))}).catch(()=>alert("网络错误"))}' +
+        'function delHunter(id){if(!confirm("确认删除该猎头供应商？删除后已绑定该供应商的候选人记录不受影响。"))return;fetch("/api/settings/headhunters/"+id,{method:"DELETE"}).then(r=>{if(r.ok)location.reload();else r.json().then(d=>alert(d.error||"删除失败")).catch(()=>alert("删除失败"))}).catch(()=>alert("网络错误"))}' +
+        'function toggleHunter(id,enabled){fetch("/api/settings/headhunters/"+id,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({enabled:enabled})}).then(r=>{if(r.ok)location.reload();else r.json().then(d=>alert(d.error||"操作失败")).catch(()=>alert("操作失败"))}).catch(()=>alert("网络错误"))}' +
+        '</script>' +
+        '<div class="card"><div style="font-weight:900;font-size:18px">设置</div><div class="divider"></div>' +
         '<div class="field"><label>当前来源</label><div class="row">' + (sourcesHtml || '<span class="muted">暂无</span>') + '</div></div>' +
         '<form method="POST" action="/settings/sources" class="row"><input name="source" placeholder="新增来源（例如：脉脉/拉勾/校园）" style="max-width:420px" /><button class="btn primary" type="submit">新增来源</button></form>' +
         '<div class="divider"></div>' +
@@ -69,6 +115,7 @@ router.get("/settings", requireLogin, requireAdmin, async (req, res) => {
         '<div class="field"><label>职位分类</label><div class="row">' + (categoriesHtml || '<span class="muted">暂无</span>') + '</div></div>' +
         '<form method="POST" action="/settings/categories" class="row"><input name="category" placeholder="新增分类（例如：技术/产品/运营）" style="max-width:420px" /><button class="btn primary" type="submit">新增分类</button></form>' +
         '</div>' +
+        headhunterMgmtHtml +
         userMgmtHtml +
         // 官网投递同步卡片
         '<div class="card" style="margin-top:14px">' +
@@ -227,8 +274,18 @@ router.delete("/api/settings/tags", requireLogin, requireAdmin, async (req, res)
 // ====== HR 群聊 Chat ID 配置 ======
 router.get("/api/settings/bot-chats", requireLogin, requireAdmin, async (req, res) => {
   if (!feishuEnabled()) return res.status(400).json({ error: "飞书未启用" });
-  const chats = await getFeishuBotChats();
-  res.json({ chats });
+  try {
+    const token = await getTenantAccessToken();
+    const r = await fetch("https://open.feishu.cn/open-apis/im/v1/chats?user_id_type=open_id&page_size=50", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const data = await r.json();
+    if (data.code !== 0) return res.status(400).json({ error: data.msg || "获取失败" });
+    const chats = (data.data?.items || []).map(c => ({ chatId: c.chat_id, name: c.name, memberCount: c.member_count }));
+    res.json({ chats });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 router.post("/api/settings/hr-chat-id", requireLogin, requireAdmin, async (req, res) => {
@@ -312,6 +369,47 @@ router.post("/api/users/:id/role", requireLogin, requireAdmin, async (req, res) 
     console.error("[Role] 角色修改失败:", e.message);
     res.status(500).json({ error: "操作失败" });
   }
+});
+
+// ====== 猎头管理 ======
+router.post("/api/settings/headhunters", requireLogin, requireAdmin, async (req, res) => {
+  const d = await loadData();
+  const company = String(req.body.company || "").trim();
+  const name = String(req.body.name || "").trim();
+  if (!company) return res.status(400).json({ error: "公司名称不能为空" });
+  if (!d.headhunters) d.headhunters = [];
+  // 防重复（同公司名）
+  if (d.headhunters.find(h => h.company === company)) {
+    return res.status(400).json({ error: "该猎头公司已存在" });
+  }
+  d.headhunters.push({ id: rid("htr"), company, name, enabled: true, createdAt: nowIso() });
+  await saveData(d);
+  res.json({ ok: true });
+});
+
+router.put("/api/settings/headhunters/:id", requireLogin, requireAdmin, async (req, res) => {
+  const d = await loadData();
+  const h = (d.headhunters || []).find(x => x.id === req.params.id);
+  if (!h) return res.status(404).json({ error: "猎头不存在" });
+  if (req.body.enabled !== undefined) h.enabled = !!req.body.enabled;
+  if (req.body.name !== undefined) h.name = String(req.body.name).trim();
+  if (req.body.company !== undefined) {
+    const company = String(req.body.company).trim();
+    if (!company) return res.status(400).json({ error: "公司名称不能为空" });
+    h.company = company;
+  }
+  await saveData(d);
+  res.json({ ok: true });
+});
+
+router.delete("/api/settings/headhunters/:id", requireLogin, requireAdmin, async (req, res) => {
+  const d = await loadData();
+  const before = (d.headhunters || []).length;
+  d.headhunters = (d.headhunters || []).filter(x => x.id !== req.params.id);
+  if (d.headhunters.length === before) return res.status(404).json({ error: "猎头不存在" });
+  await saveData(d);
+  await deleteFromSupabase("headhunters", req.params.id);
+  res.json({ ok: true });
 });
 
 export default router;

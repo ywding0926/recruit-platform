@@ -128,6 +128,26 @@ export async function sendFeishuMessage(openId, content, title = "招聘平台�
   }
 }
 
+/* ---------- 获取机器人加入的群列表 ---------- */
+export async function getFeishuBotChats() {
+  if (!feishuEnabled()) return [];
+  try {
+    const token = await getTenantAccessToken();
+    const res = await fetch(`${FEISHU_HOST}/open-apis/im/v1/chats?user_id_type=open_id&page_size=50`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const data = await res.json();
+    if (data.code !== 0) {
+      console.error("[Feishu] 获取群列表失败:", data.msg);
+      return [];
+    }
+    return (data.data?.items || []).map(c => ({ chatId: c.chat_id, name: c.name, memberCount: c.member_count }));
+  } catch (e) {
+    console.error("[Feishu] 获取群列表异常:", e.message);
+    return [];
+  }
+}
+
 /* ---------- 发送群聊消息（卡片） ---------- */
 export async function sendFeishuGroupMessage(chatId, content, title = "招聘平台通知", extraElements = []) {
   if (!feishuEnabled() || !chatId) return null;
@@ -444,7 +464,7 @@ export async function uploadResumeToFeishu(fileUrl, fileName, calendarId) {
  * @param {string[]} opts.attendeeOpenIds
  * @param {{ url: string, name: string }[]} [opts.resumeAttachments] - 简历附件列表，自动上传
  */
-export async function createFeishuCalendarEvent({ summary, description, startTime, endTime, attendeeOpenIds = [], resumeAttachments = [] }) {
+export async function createFeishuCalendarEvent({ summary, description, startTime, endTime, attendeeOpenIds = [], resumeAttachments = [], hostOpenId = "" }) {
   if (!feishuEnabled()) {
     console.log("[Feishu Calendar] 跳过：feishu 未启用");
     return null;
@@ -518,7 +538,13 @@ export async function createFeishuCalendarEvent({ summary, description, startTim
       attendee_ability: "can_modify_event",
       need_notification: true,
       // 自动创建飞书视频会议
-      vchat: { vc_type: "vc" },
+      // Bot 身份不支持 assign_hosts，需设 allow_attendees_start: true
+      vchat: {
+        vc_type: "vc",
+        meeting_settings: {
+          allow_attendees_start: true,
+        },
+      },
       // 附件（简历）
       ...(attachmentFileTokens.length > 0 ? { attachments: attachmentFileTokens.map(ft => ({ file_token: ft })) } : {}),
     };
