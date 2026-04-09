@@ -596,6 +596,123 @@ export async function createFeishuCalendarEvent({ summary, description, startTim
   }
 }
 
+/* ---------- Calendar：更新日历事件 ---------- */
+export async function updateFeishuCalendarEvent({ calendarEventId, summary, description, startTime, endTime, attendeeOpenIds = [] }) {
+  if (!feishuEnabled() || !calendarEventId) return null;
+  try {
+    const token = await getTenantAccessToken();
+
+    // 获取日历ID（复用 primary 接口）
+    let calendarId = null;
+    const calRes = await fetch(`${FEISHU_HOST}/open-apis/calendar/v4/calendars/primary`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const calData = await calRes.json();
+    if (calData.code === 0 && calData.data) {
+      calendarId = calData.data.calendars?.[0]?.calendar?.calendar_id
+        || calData.data.calendar_id
+        || calData.data.calendar?.calendar_id
+        || null;
+    }
+    if (!calendarId) {
+      const listRes = await fetch(`${FEISHU_HOST}/open-apis/calendar/v4/calendars?page_size=50`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const listData = await listRes.json();
+      const cals = listData.data?.calendar_list || [];
+      const writable = cals.find(c => c.role === "owner") || cals.find(c => c.role === "writer") || cals[0];
+      if (writable) calendarId = writable.calendar_id;
+    }
+    if (!calendarId) { console.error("[Feishu Calendar] update: 无法获取日历ID"); return null; }
+
+    const startTs = String(Math.floor(new Date(startTime).getTime() / 1000));
+    const endTs = String(Math.floor(new Date(endTime).getTime() / 1000));
+
+    // 更新事件基本信息
+    const patchRes = await fetch(`${FEISHU_HOST}/open-apis/calendar/v4/calendars/${calendarId}/events/${calendarEventId}?user_id_type=open_id`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ summary, description: description || "", start_time: { timestamp: startTs }, end_time: { timestamp: endTs }, need_notification: true }),
+    });
+    const patchData = await patchRes.json();
+    console.log("[Feishu Calendar] 更新事件结果:", JSON.stringify({ code: patchData.code, msg: patchData.msg }));
+
+    // 更新参与人：先删除旧参与人列表，再批量添加新参与人
+    if (attendeeOpenIds.length > 0) {
+      // 获取现有参与人
+      const listAttRes = await fetch(`${FEISHU_HOST}/open-apis/calendar/v4/calendars/${calendarId}/events/${calendarEventId}/attendees?user_id_type=open_id`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const listAttData = await listAttRes.json();
+      const existingIds = (listAttData.data?.items || []).map(a => a.attendee_id).filter(Boolean);
+      // 删除旧参与人
+      if (existingIds.length > 0) {
+        await fetch(`${FEISHU_HOST}/open-apis/calendar/v4/calendars/${calendarId}/events/${calendarEventId}/attendees/batch_delete?user_id_type=open_id`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ attendee_ids: existingIds, need_notification: false }),
+        });
+      }
+      // 添加新参与人
+      const attendees = attendeeOpenIds.map(id => ({ type: "user", user_id: id, is_optional: false }));
+      const addAttRes = await fetch(`${FEISHU_HOST}/open-apis/calendar/v4/calendars/${calendarId}/events/${calendarEventId}/attendees?user_id_type=open_id`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ attendees, need_notification: true }),
+      });
+      const addAttData = await addAttRes.json();
+      console.log("[Feishu Calendar] 更新参与人结果:", JSON.stringify({ code: addAttData.code, msg: addAttData.msg }));
+    }
+
+    return { code: patchData.code, calendarId };
+  } catch (e) {
+    console.error("[Feishu] 更新日历事件异常:", e.message);
+    return null;
+  }
+}
+
+/* ---------- Calendar：删除日历事件 ---------- */
+export async function deleteFeishuCalendarEvent({ calendarEventId }) {
+  if (!feishuEnabled() || !calendarEventId) return null;
+  try {
+    const token = await getTenantAccessToken();
+
+    // 获取日历ID
+    let calendarId = null;
+    const calRes = await fetch(`${FEISHU_HOST}/open-apis/calendar/v4/calendars/primary`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const calData = await calRes.json();
+    if (calData.code === 0 && calData.data) {
+      calendarId = calData.data.calendars?.[0]?.calendar?.calendar_id
+        || calData.data.calendar_id
+        || calData.data.calendar?.calendar_id
+        || null;
+    }
+    if (!calendarId) {
+      const listRes = await fetch(`${FEISHU_HOST}/open-apis/calendar/v4/calendars?page_size=50`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const listData = await listRes.json();
+      const cals = listData.data?.calendar_list || [];
+      const writable = cals.find(c => c.role === "owner") || cals.find(c => c.role === "writer") || cals[0];
+      if (writable) calendarId = writable.calendar_id;
+    }
+    if (!calendarId) { console.error("[Feishu Calendar] delete: 无法获取日历ID"); return null; }
+
+    const delRes = await fetch(`${FEISHU_HOST}/open-apis/calendar/v4/calendars/${calendarId}/events/${calendarEventId}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const delData = await delRes.json();
+    console.log("[Feishu Calendar] 删除事件结果:", JSON.stringify({ code: delData.code, msg: delData.msg }));
+    return { code: delData.code };
+  } catch (e) {
+    console.error("[Feishu] 删除日历事件异常:", e.message);
+    return null;
+  }
+}
+
 /* ---------- VC：从会议链接获取录制/妙记链接 ---------- */
 /**
  * 根据飞书会议 URL 获取会议录制链接

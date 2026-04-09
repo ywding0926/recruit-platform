@@ -3,7 +3,7 @@ import { requireLogin } from "../auth.mjs";
 import { loadData, saveData, nowIso, rid, deleteFromSupabase } from "../db.mjs";
 import { STATUS_SET, INTERVIEW_ROUNDS, INTERVIEW_RATING } from "../constants.mjs";
 import { getVisibleJobIds, pushEvent, refreshResumeUrlIfNeeded } from "../helpers.mjs";
-import { feishuEnabled, sendFeishuMessage, sendFeishuGroupMessage, createFeishuCalendarEvent } from "../feishu.mjs";
+import { feishuEnabled, sendFeishuMessage, sendFeishuGroupMessage, createFeishuCalendarEvent, updateFeishuCalendarEvent, deleteFeishuCalendarEvent } from "../feishu.mjs";
 
 const router = Router();
 
@@ -281,55 +281,62 @@ router.post("/api/candidates/:id/schedule", requireLogin, async (req, res) => {
   console.log("[Schedule] syncCalendar:", req.body.syncCalendar, "feishuEnabled:", feishuEnabled(), "scheduledAt:", scheduledAt, "attendeeOpenIds:", attendeeOpenIds, "interviewers:", interviewers);
   let meetingUrl = "";
   let calendarSynced = false;
-  const shouldCreateCalendar = feishuEnabled() && scheduledAt && req.body.syncCalendar === "on" && (scheduleChanged || !alreadyHasCalendar);
-  if (shouldCreateCalendar) {
+  const shouldSyncCalendar = feishuEnabled() && scheduledAt && req.body.syncCalendar === "on" && scheduleChanged;
+  if (shouldSyncCalendar) {
     try {
-      // scheduledAt 是用户输入的中国时间（如 "2026-02-12 14:00" 或 "2026-02-12T14:00"）
-      // Vercel 服务器运行在 UTC 时区，需要手动按 +8 偏移转换
       const localStr = scheduledAt.replace(" ", "T");
-      // 如果输入不含时区后缀，当作 Asia/Shanghai（UTC+8）处理
       const hasTimezone = /[Zz]|[+-]\d{2}:?\d{2}$/.test(localStr);
-      const startDt = hasTimezone
-        ? new Date(localStr)
-        : new Date(localStr + "+08:00");
+      const startDt = hasTimezone ? new Date(localStr) : new Date(localStr + "+08:00");
       const endDt = new Date(startDt.getTime() + 60 * 60 * 1000);
-      console.log("[Schedule] 同步飞书日历, attendees:", attendeeOpenIds.length, "人, 用户输入:", scheduledAt, "转换UTC:", startDt.toISOString());
-      // 获取候选人最新简历（用于添加到飞书日历附件）
-      const resumeFiles = (d.resumeFiles || [])
-        .filter(r => r.candidateId === c.id && r.url)
-        .sort((a, b) => (b.uploadedAt || "").localeCompare(a.uploadedAt || ""));
-      const latestResume = resumeFiles[0] || null;
-      const resumeAttachments = latestResume
-        ? [{ url: latestResume.url, name: latestResume.originalName || latestResume.filename || "resume.pdf" }]
-        : [];
+      const calSummary = `面试：${c.name} - ${c.jobTitle || "未知岗位"} - 第${round}轮`;
+      const calDesc = `候选人：${c.name}\n职位：${c.jobTitle || "-"}\n轮次：第${round}轮\n面试官：${interviewers || "-"}\n${link ? "链接：" + link : ""}${location ? "\n地点：" + location : ""}`;
 
-      const calResult = await createFeishuCalendarEvent({
-        summary: `面试：${c.name} - ${c.jobTitle || "未知岗位"} - 第${round}轮`,
-        description: `候选人：${c.name}\n职位：${c.jobTitle || "-"}\n轮次：第${round}轮\n面试官：${interviewers || "-"}\n${link ? "链接：" + link : ""}${location ? "\n地点：" + location : ""}`,
-        startTime: startDt.toISOString(),
-        endTime: endDt.toISOString(),
-        attendeeOpenIds,
-        resumeAttachments,
-        hostOpenId: req.user?.openId || "",
-      });
-      console.log("[Schedule] 日历同步结果:", JSON.stringify({ code: calResult?.code, eventId: calResult?.eventId, meetingUrl: calResult?.meetingUrl }));
-      calendarSynced = true;
-      // 保存飞书日历事件ID + 会议链接到日程记录
-      const scIdx = d.interviewSchedules.findIndex(x => x.candidateId === c.id && x.round === round);
-      if (scIdx > -1) {
-        if (calResult?.eventId) {
-          d.interviewSchedules[scIdx].calendarEventId = calResult.eventId;
+      if (alreadyHasCalendar) {
+        // 已有日历事件 → 更新，不重新创建
+        console.log("[Schedule] 更新已有飞书日历事件:", item.calendarEventId);
+        const upResult = await updateFeishuCalendarEvent({
+          calendarEventId: item.calendarEventId,
+          summary: calSummary,
+          description: calDesc,
+          startTime: startDt.toISOString(),
+          endTime: endDt.toISOString(),
+          attendeeOpenIds,
+        });
+        calendarSynced = upResult?.code === 0;
+        console.log("[Schedule] 日历更新结果:", JSON.stringify({ code: upResult?.code }));
+      } else {
+        // 没有日历事件 → 新建
+        console.log("[Schedule] 新建飞书日历事件, attendees:", attendeeOpenIds.length);
+        const resumeFiles = (d.resumeFiles || [])
+          .filter(r => r.candidateId === c.id && r.url)
+          .sort((a, b) => (b.uploadedAt || "").localeCompare(a.uploadedAt || ""));
+        const latestResume = resumeFiles[0] || null;
+        const resumeAttachments = latestResume
+          ? [{ url: latestResume.url, name: latestResume.originalName || latestResume.filename || "resume.pdf" }]
+          : [];
+        const calResult = await createFeishuCalendarEvent({
+          summary: calSummary,
+          description: calDesc,
+          startTime: startDt.toISOString(),
+          endTime: endDt.toISOString(),
+          attendeeOpenIds,
+          resumeAttachments,
+          hostOpenId: req.user?.openId || "",
+        });
+        console.log("[Schedule] 日历新建结果:", JSON.stringify({ code: calResult?.code, eventId: calResult?.eventId, meetingUrl: calResult?.meetingUrl }));
+        calendarSynced = true;
+        const scIdx = d.interviewSchedules.findIndex(x => x.candidateId === c.id && x.round === round);
+        if (scIdx > -1) {
+          if (calResult?.eventId) d.interviewSchedules[scIdx].calendarEventId = calResult.eventId;
+          if (calResult?.meetingUrl) {
+            meetingUrl = calResult.meetingUrl;
+            d.interviewSchedules[scIdx].link = meetingUrl;
+            d.interviewSchedules[scIdx].meetingUrl = meetingUrl;
+            const mNoMatch = meetingUrl.match(/\/j\/(\d+)/);
+            if (mNoMatch) d.interviewSchedules[scIdx].meetingNo = mNoMatch[1];
+          }
+          await saveData(d);
         }
-        if (calResult?.meetingUrl) {
-          meetingUrl = calResult.meetingUrl;
-          d.interviewSchedules[scIdx].link = meetingUrl;
-          d.interviewSchedules[scIdx].meetingUrl = meetingUrl;
-          // 提取会议号，后续用于查询录制/妙记
-          const mNoMatch = meetingUrl.match(/\/j\/(\d+)/);
-          if (mNoMatch) d.interviewSchedules[scIdx].meetingNo = mNoMatch[1];
-        }
-        await saveData(d);
-        console.log("[Schedule] 日历事件已保存, eventId:", calResult?.eventId || "-", "meetingUrl:", meetingUrl || "-");
       }
     } catch (e) {
       console.error("[Feishu Calendar] 异常:", e.message);
@@ -378,6 +385,38 @@ router.post("/api/candidates/:id/schedule", requireLogin, async (req, res) => {
   const skipReason = (!shouldCreateCalendar && feishuEnabled() && scheduledAt && req.body.syncCalendar === "on") ? "日历事件已存在且时间/面试官未变更，跳过重复创建" : "";
   if (skipReason) console.log("[Schedule]", skipReason);
   res.json({ ok: true, calendarSynced });
+});
+
+router.delete("/api/candidates/:id/schedule/:scheduleId", requireLogin, async (req, res) => {
+  const d = await loadData();
+  const c = d.candidates.find((x) => x.id === req.params.id);
+  if (!c) return res.status(404).json({ error: "not_found" });
+  { const vj = getVisibleJobIds(req.user, d.jobs); if (vj !== null && !vj.has(c.jobId)) return res.status(403).json({ error: "no_permission" }); }
+
+  const idx = d.interviewSchedules.findIndex(x => x.id === req.params.scheduleId && x.candidateId === c.id);
+  if (idx === -1) return res.status(404).json({ error: "schedule_not_found" });
+
+  const sc = d.interviewSchedules[idx];
+  const calendarEventId = sc.calendarEventId || "";
+
+  // 删除系统记录
+  d.interviewSchedules.splice(idx, 1);
+  pushEvent(d, { candidateId: c.id, type: "删除面试", message: "删除第" + sc.round + "轮面试安排", actor: req.user?.name || "系统" });
+  await saveData(d);
+
+  // 同步删除飞书日历事件
+  let calendarDeleted = false;
+  if (calendarEventId && feishuEnabled()) {
+    try {
+      const delResult = await deleteFeishuCalendarEvent({ calendarEventId });
+      calendarDeleted = delResult?.code === 0;
+      console.log("[Schedule] 飞书日历事件删除结果:", JSON.stringify({ code: delResult?.code, calendarEventId }));
+    } catch (e) {
+      console.error("[Schedule] 飞书日历删除异常:", e.message);
+    }
+  }
+
+  res.json({ ok: true, calendarDeleted });
 });
 
 router.post("/api/candidates/:id/reviews", requireLogin, async (req, res) => {
