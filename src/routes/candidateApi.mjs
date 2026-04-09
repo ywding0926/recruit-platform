@@ -222,9 +222,10 @@ router.post("/api/candidates/:id/schedule", requireLogin, async (req, res) => {
     createdAt: idx > -1 ? d.interviewSchedules[idx].createdAt : nowIso(),
     updatedAt: nowIso(),
   };
-  // 判断是否需要重新创建日历事件：时间或面试官变化时才重新创建
+  // 判断飞书日历同步策略
   const prevSchedule = idx > -1 ? d.interviewSchedules[idx] : null;
-  const scheduleChanged = !prevSchedule || prevSchedule.scheduledAt !== scheduledAt || prevSchedule.interviewers !== interviewers;
+  // 只要用户主动提交保存，就视为需要同步（编辑时必须先删旧日历再建新的）
+  const scheduleChanged = true;
   const alreadyHasCalendar = !!(prevSchedule?.calendarEventId);
   if (idx > -1) d.interviewSchedules[idx] = item;
   else d.interviewSchedules.push(item);
