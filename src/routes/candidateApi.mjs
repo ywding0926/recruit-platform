@@ -438,7 +438,10 @@ router.post("/api/candidates/:id/reviews", requireLogin, async (req, res) => {
   let autoFlowMsg = "";
   const old = c.status || "待筛选";
 
-  if (conclusion === "通过") {
+  if (rating === "Pending") {
+    // 评级为 Pending（待定）时不触发自动状态流转
+    autoFlowMsg = "评级为 Pending（待定），候选人状态保持不变。";
+  } else if (conclusion === "通过") {
     const passStatusMap = { 1: "一面通过", 2: "二面通过", 3: "三面通过", 4: "四面通过", 5: "待发offer" };
     const passStatus = passStatusMap[round] || "待发offer";
     c.status = passStatus;
@@ -459,16 +462,18 @@ router.post("/api/candidates/:id/reviews", requireLogin, async (req, res) => {
     pushEvent(d, { candidateId: c.id, type: "状态同步", message: "因面评更新，状态：" + old + " -> " + c.status, actor: "系统" });
   }
   if (!c.follow) c.follow = {};
-  if (conclusion === "通过") {
-    if (c.status === "待发offer") {
-      c.follow.nextAction = "准备Offer";
-    } else {
-      c.follow.nextAction = "安排下一轮面试";
-      c.follow.followAt = new Date(Date.now() + 2 * 86400000).toISOString().slice(0, 10);
+  if (rating !== "Pending") {
+    if (conclusion === "通过") {
+      if (c.status === "待发offer") {
+        c.follow.nextAction = "准备Offer";
+      } else {
+        c.follow.nextAction = "安排下一轮面试";
+        c.follow.followAt = new Date(Date.now() + 2 * 86400000).toISOString().slice(0, 10);
+      }
+    } else if (conclusion === "不通过") {
+      c.follow.nextAction = "已结束";
+      c.follow.note = (c.follow.note ? c.follow.note + "\n" : "") + "第" + round + "轮面试不通过";
     }
-  } else if (conclusion === "不通过") {
-    c.follow.nextAction = "已结束";
-    c.follow.note = (c.follow.note ? c.follow.note + "\n" : "") + "第" + round + "轮面试不通过";
   }
   await saveData(d);
 
@@ -544,7 +549,10 @@ router.post("/api/candidates/:id/reviews/:reviewId", requireLogin, async (req, r
   let autoFlowMsg = "";
   const old = c.status || "待筛选";
 
-  if (conclusion === "通过") {
+  if (rating === "Pending") {
+    // 评级为 Pending（待定）时不触发自动状态流转
+    autoFlowMsg = "评级为 Pending（待定），候选人状态保持不变。";
+  } else if (conclusion === "通过") {
     const passStatusMap = { 1: "一面通过", 2: "二面通过", 3: "三面通过", 4: "四面通过", 5: "待发offer" };
     const passStatus = passStatusMap[round] || "待发offer";
     c.status = passStatus;

@@ -30,7 +30,7 @@ export const STATUS_SET = new Set(STATUS_COLS.map((x) => x.key));
 export const STATUS_KEYS = STATUS_COLS.map((x) => x.key);
 
 export const INTERVIEW_ROUNDS = [1, 2, 3, 4, 5];
-export const INTERVIEW_RATING = ["S", "A", "B+", "B", "B-", "C"];
+export const INTERVIEW_RATING = ["S", "A", "B+", "B", "B-", "C", "Pending"];
 export const INTERVIEW_RATING_LABEL = {
   "S": "S（不可错过 / Super Talent）",
   "A": "A（强推荐 / Top Performer）",
@@ -38,6 +38,7 @@ export const INTERVIEW_RATING_LABEL = {
   "B": "B（可录用 / Solid Hire）",
   "B-": "B-（谨慎录用 / Lean Hire）",
   "C": "C（不录用 / No Hire）",
+  "Pending": "Pending（待定）",
 };
 export const INTERVIEW_STATUS = STATUS_COLS.map((x) => x.key);
 

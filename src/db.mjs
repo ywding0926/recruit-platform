@@ -448,7 +448,7 @@ async function upsertWithRetry(admin, table, rows, minimalKeys = []) {
 // ===== 内存缓存 =====
 let _cache = null;
 let _cacheTime = 0;
-const CACHE_TTL = 15_000; // 15秒
+const CACHE_TTL = 30_000; // 30秒
 
 function _deepClone(obj) {
   // 结构化克隆，比 JSON.parse(JSON.stringify()) 快且支持更多类型
@@ -528,55 +528,13 @@ async function _loadDataFresh() {
       notes: notes.map(noteFromRow),
     });
 
-    // 使用 app_config 中持久化的 categories（优先级最高）
+    // app_config 优先级最高：categories / sources / tags
     if (Array.isArray(appConfig.categories)) d.categories = appConfig.categories;
+    if (Array.isArray(appConfig.sources))    d.sources    = appConfig.sources;
+    if (Array.isArray(appConfig.tags))       d.tags       = appConfig.tags;
 
-    if (isServerless) {
-      d.sources = Array.from(new Set([...d.sources, ...d.candidates.map((c) => c.source).filter(Boolean)]));
-      d.tags = Array.from(new Set([...d.tags, ...d.candidates.flatMap((c) => c.tags || []).filter(Boolean)]));
-      // Serverless 环境也尝试合并本地数据（补充 Supabase 中可能缺失的字段）
-      try {
-        const local = loadDataLocal();
-        // 合并本地 headhunters（不覆盖，补充 Supabase 中没有的）
-        const hIds = new Set(d.headhunters.map(h => h.id));
-        for (const lh of (local.headhunters || [])) {
-          if (!hIds.has(lh.id)) d.headhunters.push(lh);
-        }
-        // 合并本地 candidates 的 headhunterId / careersAppId
-        const localCandMap = new Map((local.candidates || []).map(c => [c.id, c]));
-        for (const c of d.candidates) {
-          const lc = localCandMap.get(c.id);
-          if (lc && lc.headhunterId && !c.headhunterId) c.headhunterId = lc.headhunterId;
-          if (lc && lc.careersAppId && !c.careersAppId) c.careersAppId = lc.careersAppId;
-        }
-        // 合并本地 users 的 role
-        const localUserMap = new Map((local.users || []).map(u => [u.id, u]));
-        for (const u of d.users) {
-          const lu = localUserMap.get(u.id);
-          if (lu && lu.role && lu.role !== "member" && (!u.role || u.role === "member")) u.role = lu.role;
-        }
-        // 合并本地 jobs 的 ownerOpenId
-        const localJobMap = new Map((local.jobs || []).map(j => [j.id, j]));
-        for (const j of d.jobs) {
-          const lj = localJobMap.get(j.id);
-          if (lj && lj.ownerOpenId && !j.ownerOpenId) j.ownerOpenId = lj.ownerOpenId;
-          if (lj && lj.owner && !j.owner) j.owner = lj.owner;
-        }
-        // 合并本地 notes
-        const nIds = new Set(d.notes.map(n => n.id));
-        for (const ln of (local.notes || [])) {
-          if (!nIds.has(ln.id)) d.notes.push(ln);
-        }
-      } catch {}
-      return ensureDataShape(d);
-    }
-
-    // 合并本地数据
+    // 修复本地 resumeFiles URL（Supabase 不存 URL 路径时补充）
     const local = loadDataLocal();
-    d.sources = Array.from(new Set([...(local.sources || []), ...d.candidates.map((c) => c.source).filter(Boolean)]));
-    d.tags = Array.from(new Set([...(local.tags || []), ...d.candidates.flatMap((c) => c.tags || []).filter(Boolean)]));
-
-    // 合并本地 resumeFiles
     const sbResumeMap = new Map(d.resumeFiles.map((r) => [r.id, r]));
     for (const lr of (local.resumeFiles || [])) {
       const sbr = sbResumeMap.get(lr.id);
@@ -587,63 +545,10 @@ async function _loadDataFresh() {
         if (idx > -1) d.resumeFiles[idx] = lr;
       }
     }
-
-    // 修复简历 URL
     for (const rf of d.resumeFiles) {
       if (!rf.url && rf.filename && rf.storage === "local") {
         rf.url = "/uploads/" + encodeURIComponent(rf.filename);
       }
-    }
-
-    // 合并其他本地数据
-    const merge = (arr, localArr, key = "id") => {
-      const idxMap = new Map(arr.map((x, i) => [x[key], i]));
-      for (const item of (localArr || [])) {
-        if (!idxMap.has(item[key])) {
-          arr.push(item);
-        } else {
-          // 用本地数据补充 Supabase 里没有的字段（不覆盖 Supabase 已有的非空字段）
-          const existing = arr[idxMap.get(item[key])];
-          for (const k of Object.keys(item)) {
-            if (existing[k] === undefined || existing[k] === null || existing[k] === "") {
-              existing[k] = item[k];
-            }
-          }
-        }
-      }
-    };
-    merge(d.offers, local.offers);
-    merge(d.events, local.events);
-    merge(d.interviews, local.interviews);
-    merge(d.interviewSchedules, local.interviewSchedules);
-    merge(d.candidates, local.candidates);
-    merge(d.users, local.users);
-    // 猎头：合并 Supabase 和本地（如果 Supabase 没有 headhunters 表，d.headhunters 为空）
-    merge(d.headhunters, local.headhunters);
-    merge(d.notes, local.notes);
-
-    // 合并本地 candidates 的 headhunterId / careersAppId 字段
-    const localCandMap = new Map((local.candidates || []).map(c => [c.id, c]));
-    for (const c of d.candidates) {
-      const lc = localCandMap.get(c.id);
-      if (lc && lc.headhunterId && !c.headhunterId) c.headhunterId = lc.headhunterId;
-      if (lc && lc.careersAppId && !c.careersAppId) c.careersAppId = lc.careersAppId;
-    }
-
-    // 合并本地 users 的 role 字段（Supabase 表可能没有 role 列）
-    const localUserMap = new Map((local.users || []).map(u => [u.id, u]));
-    for (const u of d.users) {
-      const lu = localUserMap.get(u.id);
-      if (lu && lu.role && lu.role !== "member" && (!u.role || u.role === "member")) {
-        u.role = lu.role;
-      }
-    }
-
-    // 合并本地 interviewSchedules 的 reviewReminderSent（Supabase 表可能没有此列）
-    const localSchedMap = new Map((local.interviewSchedules || []).map(s => [s.id, s]));
-    for (const sc of d.interviewSchedules) {
-      const ls = localSchedMap.get(sc.id);
-      if (ls && ls.reviewReminderSent) sc.reviewReminderSent = true;
     }
 
     return ensureDataShape(d);
@@ -709,9 +614,13 @@ export async function saveData(d) {
       }
     } catch {}
 
-    // 持久化 categories 到 app_config
+    // 持久化 categories / sources / tags 到 app_config
     try {
-      await admin.from("app_config").upsert({ key: "categories", value: shaped.categories }, { onConflict: "key" });
+      await Promise.all([
+        admin.from("app_config").upsert({ key: "categories", value: shaped.categories }, { onConflict: "key" }),
+        admin.from("app_config").upsert({ key: "sources",    value: shaped.sources    }, { onConflict: "key" }),
+        admin.from("app_config").upsert({ key: "tags",       value: shaped.tags       }, { onConflict: "key" }),
+      ]);
     } catch {}
   } catch (e) {
     console.warn("[WARN] saveData to supabase failed:", String(e?.message || e));

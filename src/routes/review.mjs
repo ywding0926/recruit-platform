@@ -108,11 +108,14 @@ router.post("/api/review/:token", async (req, res) => {
   if (idx > -1) d.interviews[idx] = item;
   else d.interviews.push(item);
 
-  // 自动状态流转逻辑（基于面试结论）
+  // 自动状态流转逻辑（基于面试结论，评级为 Pending 时不触发流转）
   let autoFlowMsg = "";
   const old = c.status || "待筛选";
 
-  if (conclusion === "通过") {
+  if (rating === "Pending") {
+    // 评级为 Pending（待定）时不触发自动状态流转
+    autoFlowMsg = "评级为 Pending（待定），候选人状态保持不变。";
+  } else if (conclusion === "通过") {
     const passStatusMap = { 1: "一面通过", 2: "二面通过", 3: "三面通过", 4: "四面通过", 5: "待发offer" };
     const passStatus = passStatusMap[round] || "待发offer";
     c.status = passStatus;
