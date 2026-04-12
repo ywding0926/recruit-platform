@@ -316,32 +316,16 @@ router.post("/api/candidates/:id/schedule", requireLogin, async (req, res) => {
 
       const scIdx = d.interviewSchedules.findIndex(x => x.candidateId === c.id && x.round === round);
 
-      if (alreadyHasCalendar && item.calendarEventId) {
-        // 已有日历事件 → 直接 PATCH 更新时间和信息，不重新上传简历附件（避免超时）
-        console.log("[Schedule] 更新飞书日历事件:", item.calendarEventId);
-        const updateResult = await updateFeishuCalendarEvent({
-          calendarEventId: item.calendarEventId,
-          summary: calSummary,
-          description: calDesc,
-          startTime: startDt.toISOString(),
-          endTime: endDt.toISOString(),
-          attendeeOpenIds,
-        });
-        console.log("[Schedule] 日历更新结果:", JSON.stringify({ code: updateResult?.code }));
-        calendarSynced = true;
-        if (scIdx > -1) await saveData(d);
-      } else {
-        // 没有旧日历事件 → 新建，同时上传简历附件
+      // 新建日历事件的公共函数（新建 + PATCH失败降级时复用）
+      const doCreateCalendar = async () => {
         const resumeFiles = (d.resumeFiles || [])
           .filter(r => r.candidateId === c.id && r.url)
           .sort((a, b) => (b.uploadedAt || "").localeCompare(a.uploadedAt || ""));
         let latestResume = resumeFiles[0] || null;
-        // 简历 URL 是 Supabase 签名 URL，有过期时间，先刷新再使用
         if (latestResume) latestResume = await refreshResumeUrlIfNeeded(latestResume).catch(() => latestResume);
         const resumeAttachments = latestResume
           ? [{ url: latestResume.url, name: latestResume.originalName || latestResume.filename || "resume.pdf" }]
           : [];
-
         console.log("[Schedule] 新建飞书日历事件, attendees:", attendeeOpenIds.length);
         const calResult = await createFeishuCalendarEvent({
           summary: calSummary,
@@ -353,8 +337,6 @@ router.post("/api/candidates/:id/schedule", requireLogin, async (req, res) => {
           hostOpenId: req.user?.openId || "",
         });
         console.log("[Schedule] 日历新建结果:", JSON.stringify({ code: calResult?.code, eventId: calResult?.eventId, meetingUrl: calResult?.meetingUrl }));
-        calendarSynced = true;
-
         if (scIdx > -1) {
           if (calResult?.eventId) d.interviewSchedules[scIdx].calendarEventId = calResult.eventId;
           if (calResult?.meetingUrl) {
@@ -366,6 +348,35 @@ router.post("/api/candidates/:id/schedule", requireLogin, async (req, res) => {
           }
           await saveData(d);
         }
+      };
+
+      if (alreadyHasCalendar && item.calendarEventId) {
+        // 已有日历事件 → 直接 PATCH 更新时间和信息
+        console.log("[Schedule] 更新飞书日历事件:", item.calendarEventId);
+        const updateResult = await updateFeishuCalendarEvent({
+          calendarEventId: item.calendarEventId,
+          summary: calSummary,
+          description: calDesc,
+          startTime: startDt.toISOString(),
+          endTime: endDt.toISOString(),
+          attendeeOpenIds,
+        });
+        console.log("[Schedule] 日历更新结果:", JSON.stringify({ code: updateResult?.code }));
+        if (updateResult?.code === 0) {
+          // 更新成功
+          calendarSynced = true;
+          if (scIdx > -1) await saveData(d);
+        } else {
+          // 更新失败（事件已被删除等），降级为新建
+          console.warn("[Schedule] PATCH更新失败，降级为新建日历事件, code:", updateResult?.code);
+          if (scIdx > -1) d.interviewSchedules[scIdx].calendarEventId = "";
+          await doCreateCalendar();
+          calendarSynced = true;
+        }
+      } else {
+        // 没有旧日历事件 → 新建
+        await doCreateCalendar();
+        calendarSynced = true;
       }
     } catch (e) {
       console.error("[Feishu Calendar] 异常:", e.message);
@@ -408,10 +419,13 @@ router.delete("/api/candidates/:id/schedule/:scheduleId", requireLogin, async (r
   const sc = d.interviewSchedules[idx];
   const calendarEventId = sc.calendarEventId || "";
 
-  // 删除系统记录
+  // 删除系统记录（内存 + Supabase）
   d.interviewSchedules.splice(idx, 1);
   pushEvent(d, { candidateId: c.id, type: "删除面试", message: "删除第" + sc.round + "轮面试安排", actor: req.user?.name || "系统" });
-  await saveData(d);
+  await Promise.all([
+    saveData(d),
+    deleteFromSupabase("interview_schedules", sc.id),
+  ]);
 
   // 同步删除飞书日历事件
   let calendarDeleted = false;
