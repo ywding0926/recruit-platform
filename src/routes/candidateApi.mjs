@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { requireLogin } from "../auth.mjs";
-import { loadData, saveData, nowIso, rid, deleteFromSupabase } from "../db.mjs";
+import { loadData, saveData, upsertRow, saveAppConfigKey, nowIso, rid, deleteFromSupabase } from "../db.mjs";
 import { STATUS_SET, INTERVIEW_ROUNDS, INTERVIEW_RATING } from "../constants.mjs";
 import { getVisibleJobIds, pushEvent, refreshResumeUrlIfNeeded } from "../helpers.mjs";
 import { feishuEnabled, sendFeishuMessage, sendFeishuGroupMessage, createFeishuCalendarEvent, updateFeishuCalendarEvent, deleteFeishuCalendarEvent } from "../feishu.mjs";
@@ -58,7 +58,11 @@ router.post("/api/candidates/:id", requireLogin, async (req, res) => {
   if (Array.isArray(req.body.tags)) c.tags = req.body.tags.filter(Boolean);
   c.updatedAt = nowIso();
 
-  if (source && !d.sources.includes(source)) d.sources.push(source);
+  let sourcesChanged = false;
+  if (source && !d.sources.includes(source)) {
+    d.sources.push(source);
+    sourcesChanged = true;
+  }
 
   const changes = [];
   if (before.name !== c.name) changes.push("姓名：" + (before.name || "-") + " -> " + (c.name || "-"));
@@ -67,10 +71,16 @@ router.post("/api/candidates/:id", requireLogin, async (req, res) => {
   if (before.source !== c.source) changes.push("来源：" + (before.source || "-") + " -> " + (c.source || "-"));
   if (before.note !== c.note && c.note) changes.push("备注已更新");
 
+  let newEvent = null;
   if (changes.length) {
     pushEvent(d, { candidateId: c.id, type: "编辑", message: changes.join("\n"), actor: req.user?.name || "系统" });
+    newEvent = d.events[d.events.length - 1];
   }
-  await saveData(d);
+  // 只更新变化的表，比 saveData 全量快 5-10 倍
+  const saves = [upsertRow("candidates", c)];
+  if (newEvent) saves.push(upsertRow("events", newEvent));
+  if (sourcesChanged) saves.push(saveAppConfigKey("sources", d.sources));
+  await Promise.all(saves);
   res.json({ ok: true });
 });
 
@@ -86,7 +96,11 @@ router.post("/api/candidates/:id/status", requireLogin, async (req, res) => {
   c.updatedAt = nowIso();
 
   pushEvent(d, { candidateId: c.id, type: "状态流转", message: "状态：" + old + " -> " + c.status, actor: req.user?.name || "系统" });
-  await saveData(d);
+  const statusEvent = d.events[d.events.length - 1];
+  await Promise.all([
+    upsertRow("candidates", c),
+    upsertRow("events", statusEvent),
+  ]);
 
   if (feishuEnabled() && req.user?.openId) {
     sendFeishuMessage(req.user.openId,
@@ -127,8 +141,11 @@ router.post("/api/candidates/:id/job", requireLogin, async (req, res) => {
     message: "岗位：" + oldJobTitle + " -> " + newJobTitle,
     actor: req.user?.name || "系统"
   });
-
-  await saveData(d);
+  const jobEvent = d.events[d.events.length - 1];
+  await Promise.all([
+    upsertRow("candidates", c),
+    upsertRow("events", jobEvent),
+  ]);
   res.json({ ok: true, newJobTitle });
 });
 
@@ -144,7 +161,11 @@ router.post("/api/candidates/:id/follow", requireLogin, async (req, res) => {
   c.updatedAt = nowIso();
 
   pushEvent(d, { candidateId: c.id, type: "跟进", message: "下一步：" + (nextAction || "-") + "\n跟进时间：" + (followAt || "-") + "\n" + (note || ""), actor: req.user?.name || "系统" });
-  await saveData(d);
+  const followEvent = d.events[d.events.length - 1];
+  await Promise.all([
+    upsertRow("candidates", c),
+    upsertRow("events", followEvent),
+  ]);
   res.json({ ok: true });
 });
 

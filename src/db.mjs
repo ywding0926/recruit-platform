@@ -692,6 +692,25 @@ export async function upsertRow(tableName, item) {
   invalidateCache();
 }
 
+// ===== 保存 app_config 单个 key（categories / sources / tags）=====
+export async function saveAppConfigKey(key, value) {
+  // 更新本地 JSON
+  const local = loadDataLocal();
+  local[key] = value;
+  saveDataLocal(local);
+
+  // upsert 到 Supabase app_config 表
+  if (supabaseEnabled) {
+    try {
+      const admin = getSupabaseAdmin();
+      await admin.from("app_config").upsert({ key, value }, { onConflict: "key" });
+    } catch (e) {
+      console.warn("[WARN] saveAppConfigKey(" + key + ") failed:", String(e?.message || e));
+    }
+  }
+  invalidateCache();
+}
+
 // ===== 删除辅助 =====
 export async function deleteFromSupabase(table, id) {
   if (!supabaseEnabled) return;
