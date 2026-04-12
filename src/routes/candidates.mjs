@@ -938,7 +938,8 @@ router.get("/candidates/:id", requireLogin, async (req, res) => {
     const ivEsc = (x.interviewers || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
     const linkEsc = (x.link || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
     const locEsc = (x.location || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'");
-    return '<div class="card compact" style="padding:12px;border-radius:14px;margin-bottom:10px"><div class="row"><b>第' + x.round + '轮</b><span class="pill"><span class="muted">时间</span><b>' + escapeHtml(toBjTime(x.scheduledAt || "") || "-") + '</b></span><span class="spacer"></span><span class="muted">' + escapeHtml(toBjTime(x.updatedAt || x.createdAt || "").slice(0, 16)) + '</span></div><div class="divider"></div><div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><span class="muted">面试官：</span>' + renderIvAvatars(x.interviewers) + '</div><div class="muted">地点/形式：' + escapeHtml(x.location || "-") + '</div>' + (x.link ? '<div class="muted">链接：<a class="btn sm" target="_blank" href="' + escapeHtml(x.link) + '">打开</a></div>' : "") + (reviewLinkBtn || recBtn ? '<div class="row" style="gap:6px;margin-top:6px">' + reviewLinkBtn + recBtn + '</div>' : '') + '<div class="divider"></div><div class="row" style="gap:6px"><button class="btn sm" style="background:rgba(22,163,74,.1);color:#16a34a" onclick="quickStatus(\'' + escapeHtml(roundPassStatus) + '\')">✓ 标记通过</button><button class="btn sm" style="background:rgba(239,68,68,.1);color:#ef4444" onclick="quickStatus(\'淘汰\')">✗ 淘汰</button>' + (x.round < 5 ? '<button class="btn sm" onclick="prefillNextRound(' + (x.round + 1) + ')">安排第' + (x.round + 1) + '轮</button>' : '') + '<span class="spacer"></span><button class="btn sm" style="background:rgba(51,112,255,.1);color:#3370ff" onclick="editSchedule(' + x.round + ',\'' + scDateVal + '\',\'' + scTimeVal + '\',\'' + ivEsc + '\',\'' + linkEsc + '\',\'' + locEsc + '\')">✏ 编辑</button><button class="btn sm" style="background:rgba(239,68,68,.08);color:#ef4444" onclick="deleteSchedule(\'' + escapeHtml(x.id) + '\',' + x.round + ')">🗑 删除</button></div></div>';
+    const hasCalendar = !!(x.calendarEventId);
+    return '<div class="card compact" style="padding:12px;border-radius:14px;margin-bottom:10px"><div class="row"><b>第' + x.round + '轮</b><span class="pill"><span class="muted">时间</span><b>' + escapeHtml(toBjTime(x.scheduledAt || "") || "-") + '</b></span>' + (hasCalendar ? '<span class="pill" style="background:rgba(51,112,255,.08);color:#3370ff">📅 飞书日历</span>' : '') + '<span class="spacer"></span><span class="muted">' + escapeHtml(toBjTime(x.updatedAt || x.createdAt || "").slice(0, 16)) + '</span></div><div class="divider"></div><div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><span class="muted">面试官：</span>' + renderIvAvatars(x.interviewers) + '</div><div class="muted">地点/形式：' + escapeHtml(x.location || "-") + '</div>' + (x.link ? '<div class="muted">链接：<a class="btn sm" target="_blank" href="' + escapeHtml(x.link) + '">打开</a></div>' : "") + (reviewLinkBtn || recBtn ? '<div class="row" style="gap:6px;margin-top:6px">' + reviewLinkBtn + recBtn + '</div>' : '') + '<div class="divider"></div><div class="row" style="gap:6px"><button class="btn sm" style="background:rgba(22,163,74,.1);color:#16a34a" onclick="quickStatus(\'' + escapeHtml(roundPassStatus) + '\')">✓ 标记通过</button><button class="btn sm" style="background:rgba(239,68,68,.1);color:#ef4444" onclick="quickStatus(\'淘汰\')">✗ 淘汰</button>' + (x.round < 5 ? '<button class="btn sm" onclick="prefillNextRound(' + (x.round + 1) + ')">安排第' + (x.round + 1) + '轮</button>' : '') + '<span class="spacer"></span><button class="btn sm" style="background:rgba(51,112,255,.1);color:#3370ff" onclick="editSchedule(' + x.round + ',\'' + scDateVal + '\',\'' + scTimeVal + '\',\'' + ivEsc + '\',\'' + linkEsc + '\',\'' + locEsc + '\',' + (hasCalendar ? 'true' : 'false') + ')">✏ 编辑</button><button class="btn sm" style="background:rgba(239,68,68,.08);color:#ef4444" onclick="deleteSchedule(\'' + escapeHtml(x.id) + '\',' + x.round + ',' + (hasCalendar ? 'true' : 'false') + ')">🗑 删除</button></div></div>';
   }).join("") : '<div class="muted">暂无面试安排</div>';
 
   const reviewHtml = reviews.length ? reviews.map((x) => {
@@ -1159,7 +1160,7 @@ router.get("/candidates/:id", requireLogin, async (req, res) => {
       'var f=document.getElementById("resumeUploadForm");if(f){f.onsubmit=async function(e){e.preventDefault();var fileInput=f.querySelector("input[type=file]");var file=fileInput&&fileInput.files[0];if(!file){alert("请选择文件");return}var btn=f.querySelector("button[type=submit]");if(btn){btn.textContent="上传中...";btn.disabled=true}try{var signRes=await fetch("/api/resume/upload-url",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({candidateId:"' + cid + '",fileName:file.name,contentType:file.type||"application/octet-stream"})});var signData=await signRes.json();if(!signRes.ok||!signData.signedUrl){throw new Error(signData.error||"获取上传地址失败")}var upRes=await fetch(signData.signedUrl,{method:"PUT",headers:{"Content-Type":file.type||"application/octet-stream"},body:file});if(!upRes.ok){throw new Error("文件上传失败("+upRes.status+")")}var metaRes=await fetch("/api/candidates/' + cid + '/resume-meta",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({objectName:signData.objectName,originalName:file.name,contentType:file.type||"",size:file.size,bucket:signData.bucket})});if(!metaRes.ok){var md=await metaRes.json().catch(function(){return{}});throw new Error(md.error||"保存元数据失败")}_resumeLoaded=false;await loadResumePreview();if(btn){btn.textContent="上传";btn.disabled=false}fileInput.value=""}catch(err){alert("上传失败："+err.message);if(btn){btn.textContent="上传";btn.disabled=false}}}}' +
       'async function quickStatus(st){if(!confirm("确认将状态更新为【"+st+"】？"))return;var r=await fetch("/api/candidates/' + cid + '/status",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({status:st})});if(r.ok)location.reload();else alert("更新失败")}' +
       'function prefillNextRound(n){switchTab("schedule");document.getElementById("scRound").value=n;document.getElementById("scDate").focus()}' +
-      'function editSchedule(round,dateVal,timeVal,interviewers,link,location){' +
+      'function editSchedule(round,dateVal,timeVal,interviewers,link,location,hasCalendar){' +
         'switchTab("schedule");' +
         'document.getElementById("scRound").value=round;' +
         'document.getElementById("scDate").value=dateVal;' +
@@ -1190,6 +1191,9 @@ router.get("/candidates/:id", requireLogin, async (req, res) => {
             'document.getElementById("selectedInterviewers").appendChild(tag);' +
           '});' +
         '}' +
+        // 如果该面试有飞书日历，自动勾选同步，确保编辑时触发删旧建新
+        'var sc=document.getElementById("scSyncCalendar");' +
+        'if(sc&&hasCalendar){sc.checked=true}' +
         // 修改表单标题和按钮文案
         'var titleEl=document.querySelector("#panel-schedule .card > div[style*=font-weight]");' +
         'if(titleEl)titleEl.textContent="✏ 编辑第"+round+"轮面试";' +
@@ -1200,11 +1204,18 @@ router.get("/candidates/:id", requireLogin, async (req, res) => {
         'if(formCard){formCard.style.border="2px solid #93c5fd";formCard.style.background="#f8fbff"}' +
         'window.scrollTo({top:0,behavior:"smooth"});' +
       '}' +
-      'async function deleteSchedule(scheduleId,round){' +
-        'if(!confirm("确定要删除第"+round+"轮面试安排？\\n飞书日历中的日程也将同步删除。"))return;' +
+      'async function deleteSchedule(scheduleId,round,hasCalendar){' +
+        'var confirmMsg=hasCalendar' +
+          '?"确定要删除第"+round+"轮面试安排？\\n飞书日历中的日程也将同步删除。"' +
+          ':"确定要删除第"+round+"轮面试安排？\\n（此安排未关联飞书日历，仅删除系统记录）";' +
+        'if(!confirm(confirmMsg))return;' +
         'try{' +
           'var r=await fetch("/api/candidates/' + cid + '/schedule/"+encodeURIComponent(scheduleId),{method:"DELETE"});' +
-          'if(r.ok){showToast("✓ 已删除第"+round+"轮面试安排");setTimeout(function(){location.reload()},1500)}' +
+          'if(r.ok){' +
+            'var rd=await r.json().catch(function(){return{}});' +
+            'var toast=hasCalendar?(rd.calendarDeleted?"✓ 已删除，飞书日历同步删除":"✓ 已删除（飞书日历删除失败，请手动处理）"):"✓ 已删除第"+round+"轮面试安排";' +
+            'showToast(toast);setTimeout(function(){location.reload()},2000)' +
+          '}' +
           'else{var d=await r.json().catch(function(){return{}});alert(d.error||"删除失败")}' +
         '}catch(e){alert("网络错误")}' +
       '}' +
