@@ -202,9 +202,15 @@ export async function refreshResumeUrlIfNeeded(resumeMeta) {
     const supabase = getSupabaseAdmin();
     const bucket = resumeMeta.bucket || getBucketName();
     if (!supabase || !bucket) return resumeMeta;
+    // 从现有 URL 中提取对象路径（如 resumes/xxx.pdf），比 filename 字段更可靠
+    let objectPath = resumeMeta.filename;
+    if (resumeMeta.url && resumeMeta.url.includes("supabase.co")) {
+      const match = resumeMeta.url.match(/\/object\/(?:sign|public)\/[^/]+\/(.+?)(?:\?|$)/);
+      if (match) objectPath = decodeURIComponent(match[1]);
+    }
     const { data: signed, error: signErr } = await supabase.storage
       .from(bucket)
-      .createSignedUrl(resumeMeta.filename, getSignedUrlExpiresIn());
+      .createSignedUrl(objectPath, getSignedUrlExpiresIn());
     if (signErr || !signed?.signedUrl) return resumeMeta;
     return { ...resumeMeta, url: signed.signedUrl };
   } catch {
