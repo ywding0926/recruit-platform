@@ -317,7 +317,7 @@ router.post("/api/candidates/:id/schedule", requireLogin, async (req, res) => {
       const scIdx = d.interviewSchedules.findIndex(x => x.candidateId === c.id && x.round === round);
 
       if (alreadyHasCalendar && item.calendarEventId) {
-        // 已有日历事件 → 直接 PATCH 更新时间和信息，不删除不新建
+        // 已有日历事件 → 直接 PATCH 更新时间和信息，不重新上传简历附件（避免超时）
         console.log("[Schedule] 更新飞书日历事件:", item.calendarEventId);
         const updateResult = await updateFeishuCalendarEvent({
           calendarEventId: item.calendarEventId,

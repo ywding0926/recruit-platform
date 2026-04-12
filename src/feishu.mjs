@@ -636,10 +636,17 @@ export async function updateFeishuCalendarEvent({ calendarEventId, summary, desc
     const endTs = String(Math.floor(new Date(endTime).getTime() / 1000));
 
     // 更新事件基本信息
+    const patchBody = {
+      summary,
+      description: description || "",
+      start_time: { timestamp: startTs },
+      end_time: { timestamp: endTs },
+      need_notification: true,
+    };
     const patchRes = await fetch(`${FEISHU_HOST}/open-apis/calendar/v4/calendars/${calendarId}/events/${calendarEventId}?user_id_type=open_id`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ summary, description: description || "", start_time: { timestamp: startTs }, end_time: { timestamp: endTs }, need_notification: true }),
+      body: JSON.stringify(patchBody),
     });
     const patchData = await patchRes.json();
     console.log("[Feishu Calendar] 更新事件结果:", JSON.stringify({ code: patchData.code, msg: patchData.msg }));
