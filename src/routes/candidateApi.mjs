@@ -335,7 +335,9 @@ router.post("/api/candidates/:id/schedule", requireLogin, async (req, res) => {
         const resumeFiles = (d.resumeFiles || [])
           .filter(r => r.candidateId === c.id && r.url)
           .sort((a, b) => (b.uploadedAt || "").localeCompare(a.uploadedAt || ""));
-        const latestResume = resumeFiles[0] || null;
+        let latestResume = resumeFiles[0] || null;
+        // 简历 URL 是 Supabase 签名 URL，有过期时间，先刷新再使用
+        if (latestResume) latestResume = await refreshResumeUrlIfNeeded(latestResume).catch(() => latestResume);
         const resumeAttachments = latestResume
           ? [{ url: latestResume.url, name: latestResume.originalName || latestResume.filename || "resume.pdf" }]
           : [];
