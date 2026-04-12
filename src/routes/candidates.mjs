@@ -1157,47 +1157,44 @@ router.get("/candidates/:id", requireLogin, async (req, res) => {
       'var f=document.getElementById("resumeUploadForm");if(f){f.onsubmit=async function(e){e.preventDefault();var fileInput=f.querySelector("input[type=file]");var file=fileInput&&fileInput.files[0];if(!file){alert("请选择文件");return}var btn=f.querySelector("button[type=submit]");if(btn){btn.textContent="上传中...";btn.disabled=true}try{var signRes=await fetch("/api/resume/upload-url",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({candidateId:"' + cid + '",fileName:file.name,contentType:file.type||"application/octet-stream"})});var signData=await signRes.json();if(!signRes.ok||!signData.signedUrl){throw new Error(signData.error||"获取上传地址失败")}var upRes=await fetch(signData.signedUrl,{method:"PUT",headers:{"Content-Type":file.type||"application/octet-stream"},body:file});if(!upRes.ok){throw new Error("文件上传失败("+upRes.status+")")}var metaRes=await fetch("/api/candidates/' + cid + '/resume-meta",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({objectName:signData.objectName,originalName:file.name,contentType:file.type||"",size:file.size,bucket:signData.bucket})});if(!metaRes.ok){var md=await metaRes.json().catch(function(){return{}});throw new Error(md.error||"保存元数据失败")}_resumeLoaded=false;await loadResumePreview();if(btn){btn.textContent="上传";btn.disabled=false}fileInput.value=""}catch(err){alert("上传失败："+err.message);if(btn){btn.textContent="上传";btn.disabled=false}}}}' +
       'async function quickStatus(st){if(!confirm("确认将状态更新为【"+st+"】？"))return;var r=await fetch("/api/candidates/' + cid + '/status",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({status:st})});if(r.ok)location.reload();else alert("更新失败")}' +
       'function prefillNextRound(n){switchTab("schedule");document.getElementById("scRound").value=n;document.getElementById("scDate").focus()}' +
+      // Modal 编辑面试 —— 独立变量避免与新建表单冲突
+      'var _mTpStart=9*60,_mTpEnd=10*60,_mSelectedInterviewers=[],_mSaving=false;' +
+      'function _mTpFmt(m){return String(Math.floor(m/60)).padStart(2,"0")+":"+String(m%60).padStart(2,"0")}' +
+      'function _mSyncAt(){var d=document.getElementById("mScDate").value;document.getElementById("mScAt").value=d?d+"T"+_mTpFmt(_mTpStart):"";document.getElementById("mScEndAt").value=d?d+"T"+_mTpFmt(_mTpEnd):""}' +
+      'function _mRenderIvs(){var c=document.getElementById("mSelectedInterviewers");if(!c)return;c.innerHTML=_mSelectedInterviewers.map(function(iv){return\'<span style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px 4px 4px;border-radius:20px;background:rgba(51,112,255,.08);color:#3370ff;font-size:13px;font-weight:600">\'+ivAvatar(iv,22)+\'<span>\'+iv.name+\'</span><span onclick="_mRemoveIv(\\x27\'+iv.openId+\'\\x27,\\x27\'+iv.name+\'\\x27)" style="cursor:pointer;opacity:.6;margin-left:2px;font-size:14px">&times;</span></span>\'}).join("")}' +
+      'function _mRemoveIv(oid,name){_mSelectedInterviewers=_mSelectedInterviewers.filter(function(x){return oid?x.openId!==oid:x.name!==name});_mRenderIvs()}' +
+      'function _mAddIv(iv){if(_mSelectedInterviewers.some(function(x){return iv.openId?x.openId===iv.openId:x.name===iv.name}))return;_mSelectedInterviewers.push(iv);_mRenderIvs();var inp=document.getElementById("mIvSearch");if(inp)inp.value="";var dd=document.getElementById("mIvDropdown");if(dd)dd.style.display="none"}' +
+      'function _mShowIvDrop(q){var dd=document.getElementById("mIvDropdown");if(!dd)return;var all=window._allInterviewers||[];var selIds=_mSelectedInterviewers.map(function(x){return x.openId});var filtered=all.filter(function(iv){return selIds.indexOf(iv.openId)===-1&&(!q||iv.name.indexOf(q)>-1)}).slice(0,10);if(!filtered.length){dd.style.display="none";return}dd.innerHTML=filtered.map(function(iv){return\'<div onclick=\\x27_mAddIv(\'+JSON.stringify(iv)+\')\\x27 style="padding:8px 12px;cursor:pointer;display:flex;align-items:center;gap:8px;border-bottom:1px solid #f3f4f6" onmouseover="this.style.background=\'#f5f3ff\'" onmouseout="this.style.background=\'#fff\'">\'+ivAvatar(iv,28)+\'<span style="font-size:13px;font-weight:600">\'+iv.name+\'</span></div>\'}).join("");dd.style.display="block"}' +
+      // Modal 时间选择器
+      'var _mTpOpen=null;' +
+      'var _M_TP_SLOTS=(function(){var s=[];for(var h=0;h<24;h++)for(var m=0;m<60;m+=15)s.push(h*60+m);return s})();' +
+      'function _mTpToggle(type){if(_mTpOpen===type){_mTpClose();return}_mTpClose();_mTpOpen=type;var drop=document.getElementById(type==="start"?"mScStartDrop":"mScEndDrop");var btn=document.getElementById(type==="start"?"mScStartBtn":"mScEndBtn");if(drop)drop.style.display="block";if(btn){btn.style.borderColor="#3370ff";btn.style.background="#eef3ff";btn.style.color="#3370ff"}_mTpRender(type)}' +
+      'function _mTpClose(){["start","end"].forEach(function(t){var drop=document.getElementById(t==="start"?"mScStartDrop":"mScEndDrop");var btn=document.getElementById(t==="start"?"mScStartBtn":"mScEndBtn");if(drop)drop.style.display="none";if(btn){btn.style.borderColor="#e5e7eb";btn.style.background="#fafafa";btn.style.color="#1f2937"}});_mTpOpen=null}' +
+      'function _mTpRender(type){var drop=document.getElementById(type==="start"?"mScStartDrop":"mScEndDrop");if(!drop)return;var slots=type==="start"?_M_TP_SLOTS:_M_TP_SLOTS.filter(function(m){return m>_mTpStart});if(type==="end")slots=[_mTpStart].concat(slots);drop.innerHTML="";drop.style.cssText="position:absolute;z-index:9999;background:#fff;border:1.5px solid #e5e7eb;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.12);max-height:220px;overflow-y:auto;min-width:120px;top:calc(100% + 4px);left:0";slots.forEach(function(m){var sel=m===(type==="start"?_mTpStart:_mTpEnd);var el=document.createElement("div");el.style.cssText="padding:8px 16px;cursor:pointer;font-size:14px;font-weight:"+(sel?"700":"400")+";color:"+(sel?"#3370ff":"#1f2937")+";background:"+(sel?"#eef3ff":"#fff");el.textContent=_mTpFmt(m);el.onmouseover=function(){if(!sel)this.style.background="#f5f3ff"};el.onmouseout=function(){if(!sel)this.style.background=sel?"#eef3ff":"#fff"};el.onclick=function(){if(type==="start"){_mTpStart=m;if(_mTpEnd<=_mTpStart)_mTpEnd=Math.min(_mTpStart+60,23*60+45);document.getElementById("mScStartBtn").textContent=_mTpFmt(_mTpStart);document.getElementById("mScEndBtn").textContent=_mTpFmt(_mTpEnd)}else{_mTpEnd=m;document.getElementById("mScEndBtn").textContent=_mTpFmt(_mTpEnd)}_mTpClose();_mSyncAt()};drop.appendChild(el)})}' +
+      // 打开 Modal
       'function editSchedule(round,dateVal,timeVal,interviewers,link,location,hasCalendar){' +
-        'switchTab("schedule");' +
-        'document.getElementById("scRound").value=round;' +
-        'document.getElementById("scDate").value=dateVal;' +
-        'document.getElementById("scLink").value=link;' +
-        'document.getElementById("scLocation").value=location;' +
-        // 设置时间选择器
-        'if(timeVal){' +
-          'var parts=timeVal.split(":");' +
-          'if(parts.length>=2){' +
-            '_tpStart=Number(parts[0])*60+Number(parts[1]);' +
-            '_tpEnd=Math.min(_tpStart+60,23*60+45);' +
-            'document.getElementById("scStartBtn").textContent=_tpFmt(_tpStart);' +
-            'document.getElementById("scEndBtn").textContent=_tpFmt(_tpEnd);' +
-            'syncScAt();' +
-          '}' +
-        '}' +
-        // 设置面试官（先清空，再按姓名添加）
-        '_selectedInterviewers=[];' +
-        'document.getElementById("selectedInterviewers").innerHTML="";' +
-        'if(interviewers){' +
-          'var names=interviewers.split(/[\\/,、;]+/).map(function(n){return n.trim()}).filter(Boolean);' +
-          'names.forEach(function(name){' +
-            'if(_selectedInterviewers.find(function(x){return x.name===name}))return;' +
-            '_selectedInterviewers.push({name:name,openId:""});' +
-            'var tag=document.createElement("span");' +
-            'tag.style.cssText="display:inline-flex;align-items:center;gap:4px;background:#eef3ff;border:1px solid #c7d9ff;border-radius:20px;padding:3px 10px;font-size:13px";' +
-            'tag.innerHTML=\'<span style="font-weight:600">\'+name+\'</span><span style="cursor:pointer;color:#9ca3af;margin-left:2px" onclick="_selectedInterviewers=_selectedInterviewers.filter(function(x){return x.name!==\\\'\'+name+\'\\\'});this.parentElement.remove()">&times;</span>\';' +
-            'document.getElementById("selectedInterviewers").appendChild(tag);' +
-          '});' +
-        '}' +
-        // 修改表单标题和按钮文案
-        'var titleEl=document.querySelector("#panel-schedule .card > div[style*=font-weight]");' +
-        'if(titleEl)titleEl.textContent="✏ 编辑第"+round+"轮面试";' +
-        'var saveBtn=document.querySelector("#panel-schedule .btn.primary");' +
-        'if(saveBtn)saveBtn.textContent="更新面试安排";' +
-        // 高亮表单
-        'var formCard=document.querySelector("#panel-schedule .card.compact");' +
-        'if(formCard){formCard.style.border="2px solid #93c5fd";formCard.style.background="#f8fbff"}' +
-        'window.scrollTo({top:0,behavior:"smooth"});' +
+        'var modal=document.getElementById("editScheduleModal");if(!modal)return;' +
+        'document.getElementById("mScRound").value=round;' +
+        'document.getElementById("mScDate").value=dateVal;' +
+        'document.getElementById("mScLink").value=link||"";' +
+        'document.getElementById("mScLocation").value=location||"";' +
+        'document.getElementById("mModalTitle").textContent="✏ 编辑第"+round+"轮面试";' +
+        // 时间
+        'if(timeVal){var parts=timeVal.split(":");if(parts.length>=2){_mTpStart=Number(parts[0])*60+Number(parts[1]);_mTpEnd=Math.min(_mTpStart+60,23*60+45)}}' +
+        'document.getElementById("mScStartBtn").textContent=_mTpFmt(_mTpStart);' +
+        'document.getElementById("mScEndBtn").textContent=_mTpFmt(_mTpEnd);' +
+        '_mSyncAt();' +
+        // 面试官
+        '_mSelectedInterviewers=[];' +
+        'if(interviewers){var names=interviewers.split(/[\\/,、;]+/).map(function(n){return n.trim()}).filter(Boolean);names.forEach(function(name){var found=(window._allInterviewers||[]).find(function(x){return x.name===name});_mSelectedInterviewers.push(found||{name:name,openId:""})});}' +
+        '_mRenderIvs();' +
+        // 显示
+        'modal.style.display="flex";' +
+        'document.body.style.overflow="hidden";' +
       '}' +
+      'function closeEditScheduleModal(){var modal=document.getElementById("editScheduleModal");if(modal)modal.style.display="none";document.body.style.overflow="";_mTpClose();_mSaving=false}' +
+      // 保存
+      'async function saveEditSchedule(){if(_mSaving)return;var atVal=document.getElementById("mScAt").value;if(!atVal){alert("请选择面试日期和时间");return}_mSaving=true;var saveBtn=document.getElementById("mSaveBtn");if(saveBtn){saveBtn.textContent="保存中...";saveBtn.disabled=true}var names=_mSelectedInterviewers.map(function(x){return x.name}).join(" / ");var openIds=_mSelectedInterviewers.map(function(x){return x.openId});var payload={round:Number(document.getElementById("mScRound").value),scheduledAt:atVal,interviewers:names,interviewerOpenIds:openIds,link:document.getElementById("mScLink").value,location:document.getElementById("mScLocation").value,syncStatus:"（不同步）",syncCalendar:"on"};try{var res=await fetch("/api/candidates/' + cid + '/schedule",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});if(res.ok){closeEditScheduleModal();showToast("✓ 面试安排已更新，飞书日历同步中...");setTimeout(function(){location.reload()},1500)}else{var d=await res.json().catch(function(){return{}});alert(d.error||"保存失败");if(saveBtn){saveBtn.textContent="保存更新";saveBtn.disabled=false}_mSaving=false}}catch(e){alert("网络错误");if(saveBtn){saveBtn.textContent="保存更新";saveBtn.disabled=false}_mSaving=false}}' + +
       'async function deleteSchedule(scheduleId,round,hasCalendar){' +
         'if(!confirm("确定要删除第"+round+"轮面试安排？"+(hasCalendar?"\\n飞书日历中的日程也将同步删除。":"")))return;' +
         'try{' +
@@ -1279,7 +1276,44 @@ router.get("/candidates/:id", requireLogin, async (req, res) => {
         'function editReview(id,round,rating,conclusion,interviewer,pros,cons,focusNext){_editingReviewId=id;document.getElementById("rvRound").value=round;document.getElementById("rvRating").value=rating;document.getElementById("rvConclusion").value=conclusion;document.getElementById("rvInterviewer").value=interviewer;document.getElementById("rvPros").value=pros.replace(/\\\\n/g,"\\n");document.getElementById("rvCons").value=cons.replace(/\\\\n/g,"\\n");document.getElementById("rvFocusNext").value=focusNext.replace(/\\\\n/g,"\\n");var btn=document.querySelector("button[onclick=\'addReview()\']");if(btn)btn.textContent="更新面评";switchTab("review");document.getElementById("rvRound").scrollIntoView({behavior:"smooth",block:"center"})}' +
         'async function deleteReview(id){if(!confirm("确定删除这条面评？此操作不可撤销。"))return;try{var res=await fetch("/api/candidates/' + cid + '/reviews/"+encodeURIComponent(id),{method:"DELETE",credentials:"same-origin"});if(res.ok){location.reload()}else{var d=await res.json().catch(function(){return{}});alert("删除失败："+( d.error||res.status))}}catch(e){alert("删除失败："+e.message)}}' +
         adminScripts +
-        '</script>',
+        '</script>' +
+        // 编辑面试 Modal
+        '<div id="editScheduleModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);backdrop-filter:blur(3px);z-index:2000;align-items:center;justify-content:center" onclick="if(event.target===this)closeEditScheduleModal()">' +
+          '<div style="background:#fff;border-radius:20px;width:460px;max-width:calc(100vw - 32px);max-height:calc(100vh - 48px);overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.15)">' +
+            '<div style="display:flex;align-items:center;justify-content:space-between;padding:18px 20px 14px;border-bottom:1px solid #f0f0f0">' +
+              '<div id="mModalTitle" style="font-size:15px;font-weight:700">✏ 编辑面试</div>' +
+              '<button onclick="closeEditScheduleModal()" style="width:28px;height:28px;border-radius:50%;border:none;background:#f3f4f6;cursor:pointer;font-size:18px;color:#6b7280;display:flex;align-items:center;justify-content:center;line-height:1">×</button>' +
+            '</div>' +
+            '<div style="padding:16px 20px;display:flex;flex-direction:column;gap:14px">' +
+              '<input type="hidden" id="mScAt"><input type="hidden" id="mScEndAt">' +
+              '<div style="display:flex;gap:10px">' +
+                '<div style="flex:1;display:flex;flex-direction:column;gap:5px"><label style="font-size:12px;font-weight:600;color:#6b7280">轮次</label><select id="mScRound" style="border:1.5px solid #e5e7eb;border-radius:10px;padding:8px 11px;font-size:14px;background:#fafafa;outline:none"><option value="1">第1轮</option><option value="2">第2轮</option><option value="3">第3轮</option><option value="4">第4轮</option><option value="5">第5轮</option></select></div>' +
+                '<div style="flex:1;display:flex;flex-direction:column;gap:5px"><label style="font-size:12px;font-weight:600;color:#6b7280">日期</label><input id="mScDate" type="date" onchange="_mSyncAt()" style="border:1.5px solid #e5e7eb;border-radius:10px;padding:8px 11px;font-size:14px;background:#fafafa;outline:none;width:100%"></div>' +
+              '</div>' +
+              '<div style="display:flex;flex-direction:column;gap:5px">' +
+                '<label style="font-size:12px;font-weight:600;color:#6b7280">时间</label>' +
+                '<div style="display:flex;gap:8px;align-items:center">' +
+                  '<div style="flex:1;position:relative"><div id="mScStartBtn" onclick="_mTpToggle(\'start\')" style="border:1.5px solid #e5e7eb;border-radius:10px;padding:8px 11px;font-size:14px;font-weight:600;background:#fafafa;cursor:pointer;text-align:center;transition:all .15s">09:00</div><div id="mScStartDrop" style="display:none;position:absolute;z-index:9999"></div></div>' +
+                  '<span style="color:#9ca3af;font-size:13px;flex-shrink:0">→</span>' +
+                  '<div style="flex:1;position:relative"><div id="mScEndBtn" onclick="_mTpToggle(\'end\')" style="border:1.5px solid #e5e7eb;border-radius:10px;padding:8px 11px;font-size:14px;font-weight:600;background:#fafafa;cursor:pointer;text-align:center;transition:all .15s">10:00</div><div id="mScEndDrop" style="display:none;position:absolute;z-index:9999"></div></div>' +
+                '</div>' +
+              '</div>' +
+              '<div style="display:flex;flex-direction:column;gap:5px">' +
+                '<label style="font-size:12px;font-weight:600;color:#6b7280">面试官</label>' +
+                '<div style="border:1.5px solid #e5e7eb;border-radius:10px;padding:6px 10px;background:#fafafa;min-height:40px">' +
+                  '<div id="mSelectedInterviewers" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:4px"></div>' +
+                  '<div style="position:relative"><input id="mIvSearch" type="text" placeholder="搜索面试官..." oninput="_mShowIvDrop(this.value)" onfocus="_mShowIvDrop(this.value)" style="border:none;outline:none;background:transparent;font-size:13px;width:100%;padding:2px 0"><div id="mIvDropdown" style="display:none;position:absolute;z-index:9999;background:#fff;border:1.5px solid #e5e7eb;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.1);max-height:200px;overflow-y:auto;top:calc(100% + 4px);left:0;min-width:200px"></div></div>' +
+                '</div>' +
+              '</div>' +
+              '<div style="display:flex;flex-direction:column;gap:5px"><label style="font-size:12px;font-weight:600;color:#6b7280">地点 / 形式</label><input id="mScLocation" type="text" placeholder="如：线上飞书会议 / 北京办公室" style="border:1.5px solid #e5e7eb;border-radius:10px;padding:8px 11px;font-size:14px;background:#fafafa;outline:none"></div>' +
+              '<div style="display:flex;flex-direction:column;gap:5px"><label style="font-size:12px;font-weight:600;color:#6b7280">链接</label><input id="mScLink" type="text" placeholder="会议链接（选填）" style="border:1.5px solid #e5e7eb;border-radius:10px;padding:8px 11px;font-size:14px;background:#fafafa;outline:none"></div>' +
+            '</div>' +
+            '<div style="padding:14px 20px 18px;border-top:1px solid #f0f0f0;display:flex;gap:8px;justify-content:flex-end">' +
+              '<button onclick="closeEditScheduleModal()" style="padding:8px 18px;border-radius:10px;border:none;background:#f3f4f6;color:#6b7280;font-size:14px;font-weight:600;cursor:pointer">取消</button>' +
+              '<button id="mSaveBtn" onclick="saveEditSchedule()" style="padding:8px 18px;border-radius:10px;border:none;background:#3370ff;color:#fff;font-size:14px;font-weight:600;cursor:pointer">保存更新</button>' +
+            '</div>' +
+          '</div>' +
+        '</div>',
     })
   );
 });
