@@ -464,6 +464,7 @@ export async function uploadResumeToFeishu(fileUrl, fileName, calendarId) {
  * @param {string[]} opts.attendeeOpenIds
  * @param {{ url: string, name: string }[]} [opts.resumeAttachments] - 简历附件列表，自动上传
  */
+let _cachedCalendarId = null;
 export async function createFeishuCalendarEvent({ summary, description, startTime, endTime, attendeeOpenIds = [], resumeAttachments = [], hostOpenId = "" }) {
   if (!feishuEnabled()) {
     console.log("[Feishu Calendar] 跳过：feishu 未启用");
@@ -473,42 +474,45 @@ export async function createFeishuCalendarEvent({ summary, description, startTim
     const token = await getTenantAccessToken();
     console.log("[Feishu Calendar] token:", token ? "OK(" + token.slice(0, 8) + "...)" : "空");
 
-    // 1. 获取应用主日历 ID
-    let calendarId = null;
-
-    // 先尝试 primary 接口
-    const calRes = await fetch(`${FEISHU_HOST}/open-apis/calendar/v4/calendars/primary`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    const calData = await calRes.json();
-    console.log("[Feishu Calendar] primary response:", JSON.stringify({ code: calData.code, msg: calData.msg }));
-
-    if (calData.code === 0 && calData.data) {
-      // 兼容多种返回格式
-      calendarId = calData.data.calendars?.[0]?.calendar?.calendar_id
-        || calData.data.calendar_id
-        || calData.data.calendar?.calendar_id
-        || null;
-    }
-
-    // primary 失败则用日历列表
+    // 1. 获取应用主日历 ID（优先使用缓存，避免每次重复请求）
+    let calendarId = _cachedCalendarId;
     if (!calendarId) {
-      console.log("[Feishu Calendar] primary 无法获取，尝试列表接口");
-      const listRes = await fetch(`${FEISHU_HOST}/open-apis/calendar/v4/calendars?page_size=50`, {
+      // 先尝试 primary 接口
+      const calRes = await fetch(`${FEISHU_HOST}/open-apis/calendar/v4/calendars/primary`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const listData = await listRes.json();
-      const cals = listData.data?.calendar_list || [];
-      console.log("[Feishu Calendar] 日历列表:", cals.length, "个, roles:", cals.map(c => c.role).join(","));
-      const writable = cals.find(c => c.role === "owner") || cals.find(c => c.role === "writer") || cals[0];
-      if (writable) calendarId = writable.calendar_id;
-    }
+      const calData = await calRes.json();
+      console.log("[Feishu Calendar] primary response:", JSON.stringify({ code: calData.code, msg: calData.msg }));
 
-    if (!calendarId) {
-      console.error("[Feishu Calendar] 无法获取可用日历 ID，跳过");
-      return null;
+      if (calData.code === 0 && calData.data) {
+        calendarId = calData.data.calendars?.[0]?.calendar?.calendar_id
+          || calData.data.calendar_id
+          || calData.data.calendar?.calendar_id
+          || null;
+      }
+
+      // primary 失败则用日历列表
+      if (!calendarId) {
+        console.log("[Feishu Calendar] primary 无法获取，尝试列表接口");
+        const listRes = await fetch(`${FEISHU_HOST}/open-apis/calendar/v4/calendars?page_size=50`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const listData = await listRes.json();
+        const cals = listData.data?.calendar_list || [];
+        console.log("[Feishu Calendar] 日历列表:", cals.length, "个, roles:", cals.map(c => c.role).join(","));
+        const writable = cals.find(c => c.role === "owner") || cals.find(c => c.role === "writer") || cals[0];
+        if (writable) calendarId = writable.calendar_id;
+      }
+
+      if (!calendarId) {
+        console.error("[Feishu Calendar] 无法获取可用日历 ID，跳过");
+        return null;
+      }
+      _cachedCalendarId = calendarId;
+      console.log("[Feishu Calendar] 缓存 calendarId:", calendarId);
+    } else {
+      console.log("[Feishu Calendar] 使用缓存 calendarId:", calendarId);
     }
-    console.log("[Feishu Calendar] 使用 calendarId:", calendarId);
 
     // 2. 上传简历附件（如果有）
     const attachmentFileTokens = [];
@@ -602,28 +606,31 @@ export async function updateFeishuCalendarEvent({ calendarEventId, summary, desc
   try {
     const token = await getTenantAccessToken();
 
-    // 获取日历ID（复用 primary 接口）
-    let calendarId = null;
-    const calRes = await fetch(`${FEISHU_HOST}/open-apis/calendar/v4/calendars/primary`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    const calData = await calRes.json();
-    if (calData.code === 0 && calData.data) {
-      calendarId = calData.data.calendars?.[0]?.calendar?.calendar_id
-        || calData.data.calendar_id
-        || calData.data.calendar?.calendar_id
-        || null;
-    }
+    // 获取日历ID（优先使用缓存）
+    let calendarId = _cachedCalendarId;
     if (!calendarId) {
-      const listRes = await fetch(`${FEISHU_HOST}/open-apis/calendar/v4/calendars?page_size=50`, {
+      const calRes = await fetch(`${FEISHU_HOST}/open-apis/calendar/v4/calendars/primary`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const listData = await listRes.json();
-      const cals = listData.data?.calendar_list || [];
-      const writable = cals.find(c => c.role === "owner") || cals.find(c => c.role === "writer") || cals[0];
-      if (writable) calendarId = writable.calendar_id;
+      const calData = await calRes.json();
+      if (calData.code === 0 && calData.data) {
+        calendarId = calData.data.calendars?.[0]?.calendar?.calendar_id
+          || calData.data.calendar_id
+          || calData.data.calendar?.calendar_id
+          || null;
+      }
+      if (!calendarId) {
+        const listRes = await fetch(`${FEISHU_HOST}/open-apis/calendar/v4/calendars?page_size=50`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const listData = await listRes.json();
+        const cals = listData.data?.calendar_list || [];
+        const writable = cals.find(c => c.role === "owner") || cals.find(c => c.role === "writer") || cals[0];
+        if (writable) calendarId = writable.calendar_id;
+      }
+      if (!calendarId) { console.error("[Feishu Calendar] update: 无法获取日历ID"); return null; }
+      _cachedCalendarId = calendarId;
     }
-    if (!calendarId) { console.error("[Feishu Calendar] update: 无法获取日历ID"); return null; }
 
     const startTs = String(Math.floor(new Date(startTime).getTime() / 1000));
     const endTs = String(Math.floor(new Date(endTime).getTime() / 1000));
