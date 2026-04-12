@@ -515,16 +515,19 @@ export async function createFeishuCalendarEvent({ summary, description, startTim
     }
 
     // 2. 上传简历附件（如果有）
+    console.log("[FeishuUpload] resumeAttachments 数量:", resumeAttachments.length, "内容:", JSON.stringify(resumeAttachments.map(a => ({ name: a.name, urlLen: a.url?.length }))));
     const attachmentFileTokens = [];
     for (const att of resumeAttachments) {
-      if (!att.url || !att.name) continue;
+      if (!att.url || !att.name) { console.warn("[FeishuUpload] 跳过无效附件:", JSON.stringify(att)); continue; }
       try {
         const fileToken = await uploadResumeToFeishu(att.url, att.name, calendarId);
+        console.log("[FeishuUpload] fileToken:", fileToken);
         if (fileToken) attachmentFileTokens.push(fileToken);
       } catch (attErr) {
         console.warn("[FeishuUpload] 附件上传失败，跳过:", attErr.message);
       }
     }
+    console.log("[FeishuUpload] attachmentFileTokens:", attachmentFileTokens.length, "个");
     if (attachmentFileTokens.length > 0) {
       console.log("[Feishu Calendar] 成功上传简历附件:", attachmentFileTokens.length, "个");
     }
